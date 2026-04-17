@@ -1,0 +1,146 @@
+.wrapper {
+  padding: var(--space-8) 0;
+}
+
+.highlightRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+
+.highlightRow[data-reversed="true"] {
+  flex-direction: row-reverse;
+}
+
+@media (max-width: 1024px) {
+  .highlightRow, .highlightRow[data-reversed="true"] {
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+  }
+}
+
+/* Image Side */
+.imageSide {
+  flex: 1;
+  position: relative;
+  border-radius: var(--radius-lg);
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.8s ease;
+}
+
+.imageContainer:hover .image {
+  transform: scale(1.05);
+}
+
+.floatingCard {
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  background-color: var(--surface);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-width: 250px;
+  z-index: 2;
+  /* Simple Parallax simulation or floating animation */
+  animation: float 4s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-10px); }
+}
+
+@media (max-width: 1024px) {
+  .floatingCard {
+    right: 20px;
+    bottom: 20px;
+  }
+}
+
+.rating {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.125rem;
+  margin-bottom: 8px;
+}
+
+.quote {
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Text Side */
+.textSide {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.paragraph {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.ctaBtn {
+  margin-top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--accent);
+  color: var(--surface);
+  padding: 16px 32px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  width: fit-content;
+  transition: var(--transition);
+}
+
+.ctaBtn:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}

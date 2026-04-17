@@ -1,0 +1,130 @@
+.wrapper {
+  position: relative;
+  z-index: 10;
+  max-width: 1000px;
+  margin: -40px auto 120px; /* Floating over hero and spacing from next section */
+  padding: 0 24px;
+}
+
+@media (max-width: 768px) {
+  .wrapper {
+    margin: -30px auto 80px;
+  }
+}
+
+.searchBar {
+  display: flex;
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .searchBar {
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+.fieldGroup {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.2s;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .fieldGroup {
+    width: 100%;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+  }
+}
+
+.fieldGroup:hover {
+  background-color: var(--bg-sand);
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.select, .input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  outline: none;
+  cursor: inherit;
+  appearance: none; /* remove native arrow for select */
+}
+
+/* Add custom arrow for select */
+.selectWrapper {
+  position: relative;
+}
+.selectWrapper::after {
+  content: "▼";
+  font-size: 0.7rem;
+  top: 6px;
+  right: 12px;
+  position: absolute;
+  pointer-events: none;
+}
+
+.separator {
+  width: 1px;
+  height: 48px;
+  background-color: var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .separator {
+    display: none;
+  }
+}
+
+.submitBtn {
+  background-color: var(--accent);
+  color: var(--surface);
+  height: 60px;
+  padding: 0 32px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .submitBtn {
+    width: 100%;
+    height: 56px;
+  }
+}
+
+.submitBtn:hover {
+  background-color: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(14, 116, 144, 0.3);
+}

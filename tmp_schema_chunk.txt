@@ -1,0 +1,19 @@
+devIndicators: _zod.z.union([
+            _zod.z.object({
+                position: _zod.z.union([
+                    _zod.z.literal('bottom-left'),
+                    _zod.z.literal('bottom-right'),
+                    _zod.z.literal('top-left'),
+                    _zod.z.literal('top-right')
+                ]).optional()
+            }),
+            _zod.z.literal(false)
+        ]).optional(),
+        distDir: _zod.z.string().min(1).optional(),
+        env: _zod.z.record(_zod.z.string(), _zod.z.union([
+            _zod.z.string(),
+            _zod.z.undefined()
+        ])).optional(),
+        enablePrerenderSourceMaps: _zod.z.boolean().optional(),
+        excludeDefaultMomentLocales: _zod.z.boolean().optional(),
+        experimental: _zod.z.strictObject(experimentalSchema).optional(),

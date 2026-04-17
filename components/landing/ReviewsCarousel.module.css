@@ -1,0 +1,97 @@
+.section {
+  padding: var(--space-12) 0;
+  background-color: var(--bg-sand);
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: var(--space-8);
+  color: var(--primary);
+}
+
+.carouselWrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.reviewCard {
+  background-color: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin: 10px;
+  box-shadow: var(--shadow-md);
+  text-align: left;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.authorInfo {
+  flex: 1;
+}
+
+.authorName {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.destinationBadge {
+  display: inline-flex;
+  background-color: var(--bg-light-blue);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stars {
+  display: flex;
+  color: var(--warning);
+  margin-bottom: 16px;
+}
+
+.text {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-style: italic;
+  flex: 1;
+}
+
+.date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 16px;
+  opacity: 0.7;
+}
+
+/* Swiper overrides if needed */
+.swiperPagination {
+  margin-top: 32px;
+}

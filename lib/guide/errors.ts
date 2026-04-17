@@ -1,0 +1,17 @@
+export const GUIDE_ERRORS = {
+  LISTING_NOT_FOUND: "Ekskursiya topilmadi",
+  BOOKING_NOT_FOUND: "Bron topilmadi",
+  SLOT_UNAVAILABLE: "Bu vaqt allaqachon band yoki guide mavjud emas",
+  GROUP_SIZE_EXCEEDED: "Guruh soni limitdan oshib ketdi",
+  INVALID_TIME_RANGE: "Noto'g'ri vaqt oralig'i",
+  MIN_HOURS_NOT_MET: "Minimal soat talabi bajarilmadi",
+  REVIEW_ALREADY_EXISTS: "Siz allaqachon baho bildirdingiz",
+  CANNOT_CANCEL: "Bu bosqichda bekor qilib bo'lmaydi",
+  INVALID_STATUS_TRANSITION: "Bu o'tish ruxsat etilmagan",
+  LISTING_NOT_ACTIVE: "Bu ekskursiya hozir mavjud emas",
+  PROFILE_NOT_FOUND: "Guide profile topilmadi",
+  LISTING_HAS_ACTIVE_BOOKINGS: "Aktiv buyurtmalar borligi uchun listingni o'chirib bo'lmaydi",
+  INVALID_SCHEDULE: "Schedule noto'g'ri formatda",
+  MEETING_POINT_REQUIRED: "Tasdiqlash uchun meetingPoint kerak",
+  BLOCKED_SLOT_NOT_FOUND: "Blocked slot topilmadi",
+} as const;
