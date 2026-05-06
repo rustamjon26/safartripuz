@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     const where: {
       status: "ACTIVE";
-      city?: { contains: string; mode: "insensitive" };
+      city?: { contains: string };
       maxGuests?: { gte: number };
       pricePerNight?: { gte?: number; lte?: number };
       availabilities?: { none: { startDate: { lt: Date }; endDate: { gt: Date } } };
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       };
     } = { status: "ACTIVE" };
 
-    if (city) where.city = { contains: city, mode: "insensitive" };
+    if (city) where.city = { contains: city };
     if (guests > 0) where.maxGuests = { gte: guests };
     if (minPrice > 0 || maxPrice > 0) {
       where.pricePerNight = {};

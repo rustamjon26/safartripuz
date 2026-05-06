@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import type { AppRole } from "@/lib/auth";
@@ -9,7 +10,7 @@ const schema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-function partnerTypeToRole(type: string): AppRole {
+function partnerTypeToRole(type: string): Role {
   switch (type) {
     case "hotel":
       return "hotel_manager";

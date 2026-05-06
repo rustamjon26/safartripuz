@@ -11,7 +11,10 @@ export async function GET(req: Request) {
 
     // Allow all staff in the hotel to see the inventory list (for housekeeping/services)
     const items = await prisma.inventoryItem.findMany({
-      where: { hotelId: ctx.hotel.id, ...(ctx.isStaff && ctx.staffRecord.role === 'CLEANER' ? { isHousekeepingSupply: true } : {}) },
+      where: {
+        hotelId: ctx.hotel.id,
+        ...(ctx.isStaff && ctx.staffRecord?.role === "CLEANER" ? { isHousekeepingSupply: true } : {}),
+      },
       include: { transactions: { take: 5, orderBy: { createdAt: "desc" } } },
       orderBy: { name: "asc" },
     });

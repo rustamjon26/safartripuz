@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
+import type { TaxiVehicleCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireTaxiAdmin, unauthorizedResponse } from "../_utils";
+
+const VEHICLE_CATEGORIES: TaxiVehicleCategory[] = [
+  "STANDARD",
+  "COMFORT",
+  "MINIVAN",
+  "PREMIUM",
+];
+
+function isTaxiVehicleCategory(s: string): s is TaxiVehicleCategory {
+  return (VEHICLE_CATEGORIES as string[]).includes(s);
+}
 
 export async function GET(req: Request) {
   try {
@@ -15,11 +27,11 @@ export async function GET(req: Request) {
 
     const where: {
       driverId?: string;
-      category?: string;
+      category?: TaxiVehicleCategory;
       isActive?: boolean;
     } = {};
     if (driverId) where.driverId = driverId;
-    if (category) where.category = category;
+    if (category && isTaxiVehicleCategory(category)) where.category = category;
     if (isActiveRaw === "true") where.isActive = true;
     if (isActiveRaw === "false") where.isActive = false;
 

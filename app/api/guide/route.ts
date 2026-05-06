@@ -23,17 +23,17 @@ export async function GET(req: Request) {
 
     const where: {
       status: "ACTIVE";
-      region?: { contains: string; mode: "insensitive" };
+      region?: { contains: string };
       category?: GuideCategory;
-      languages?: { has: string };
+      languages?: { array_contains: string };
       pricePerHour?: { gte?: number; lte?: number };
       blockedSlots?: { none: { date: { gte: Date; lte: Date }; startTime: null; endTime: null } };
       availabilities?: { some: { dayOfWeek: number; isAvailable: boolean } };
     } = { status: "ACTIVE" };
 
-    if (city) where.region = { contains: city, mode: "insensitive" };
+    if (city) where.region = { contains: city };
     if (category) where.category = category;
-    if (language) where.languages = { has: language };
+    if (language) where.languages = { array_contains: language };
     if (minPrice > 0 || maxPrice > 0) {
       where.pricePerHour = {};
       if (minPrice > 0) where.pricePerHour.gte = minPrice;

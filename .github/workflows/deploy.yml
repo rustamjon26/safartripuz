@@ -1,0 +1,64 @@
+# SafarTrip — deploy on push to main
+#
+# Build job runs on GitHub: DATABASE_URL must be reachable from the internet
+# (staging / managed MySQL, or a self-hosted runner). A URL like
+# mysql://user:pass@localhost:3306/... on your VPS will NOT work here—only on the server.
+# The running app on the VPS still uses /var/www/safartrip/.env.production.
+
+name: SafarTrip Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          # Add if the build or Prisma need them: JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, ENCRYPTION_KEY
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/safartrip
+            git pull origin main
+            npm ci --production=false
+            npx prisma generate
+            npx prisma migrate deploy
+            npm run build
+            pm2 reload ecosystem.config.js --env production
+            pm2 status
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://safartrip.uz/api/health || exit 1

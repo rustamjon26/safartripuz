@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
+import { formatUzInteger } from '@/lib/displayHelpers';
 import styles from './PackageCards.module.css';
 
 export default function PackageCards() {
@@ -14,7 +15,7 @@ export default function PackageCards() {
             <div className={styles.header}>
               <h3 className={styles.name}>🌿 Ekonom</h3>
               <div className={styles.price}>
-                350,000 <span className={styles.priceUnit}>so'm / kishi</span>
+                {formatUzInteger(350000)} <span className={styles.priceUnit}>so&apos;m / kishi</span>
               </div>
             </div>
             <ul className={styles.inclusions}>
@@ -22,7 +23,7 @@ export default function PackageCards() {
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> Transfer xizmati</li>
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> Milliy bog'ga kirish bileti</li>
             </ul>
-            <Link href="/trip-builder?package=ekonom" className={`${styles.ctaBtn} ${styles.btnOutline}`}>
+            <Link href="/packages/ekonom" className={`${styles.ctaBtn} ${styles.btnOutline}`}>
               Tanlash <ArrowRight size={18} />
             </Link>
             <div className={styles.cancelPolicy}>
@@ -36,7 +37,7 @@ export default function PackageCards() {
             <div className={styles.header}>
               <h3 className={styles.name}>⭐ Standart</h3>
               <div className={styles.price}>
-                580,000 <span className={styles.priceUnit}>so'm / kishi</span>
+                {formatUzInteger(580000)} <span className={styles.priceUnit}>so&apos;m / kishi</span>
               </div>
             </div>
             <ul className={styles.inclusions}>
@@ -45,7 +46,7 @@ export default function PackageCards() {
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> Gid xizmati (1 kun)</li>
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> Ekskursiya</li>
             </ul>
-            <Link href="/trip-builder?package=standart" className={`${styles.ctaBtn} ${styles.btnPrimary}`}>
+            <Link href="/packages/standart" className={`${styles.ctaBtn} ${styles.btnPrimary}`}>
               Tanlash <ArrowRight size={18} />
             </Link>
             <div className={styles.cancelPolicy}>
@@ -58,7 +59,7 @@ export default function PackageCards() {
             <div className={styles.header}>
               <h3 className={styles.name}>👑 Premium</h3>
               <div className={styles.price}>
-                980,000 <span className={styles.priceUnit}>so'm / kishi</span>
+                {formatUzInteger(980000)} <span className={styles.priceUnit}>so&apos;m / kishi</span>
               </div>
             </div>
             <ul className={styles.inclusions}>
@@ -67,7 +68,7 @@ export default function PackageCards() {
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> Shaxsiy gid (butun safar)</li>
               <li className={styles.inclusionItem}><Check size={18} className={styles.icon} /> 3 mahal maxsus ovqatlanish</li>
             </ul>
-            <Link href="/trip-builder?package=premium" className={`${styles.ctaBtn} ${styles.btnOutline}`}>
+            <Link href="/packages/premium" className={`${styles.ctaBtn} ${styles.btnOutline}`}>
               Tanlash <ArrowRight size={18} />
             </Link>
             <div className={styles.cancelPolicy}>

@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     await requireTaxiAdmin();
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "20")));
+    const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") ?? "20")));
     const skip = (page - 1) * limit;
 
     const [disputes, total] = await Promise.all([

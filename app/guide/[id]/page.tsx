@@ -6,6 +6,12 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { toast } from "sonner";
 import { Star } from "lucide-react";
+import {
+  formatPrice,
+  formatPricePerUnit,
+  guideCategoryLabel,
+  languageLabel,
+} from "@/lib/displayHelpers";
 
 type Review = {
   id: string;
@@ -213,7 +219,9 @@ export default function GuideDetailPage() {
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-black text-slate-900">{listing.title}</h1>
-                    <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">{listing.category}</span>
+                    <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">
+                      {guideCategoryLabel(listing.category)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-black text-slate-600">{listing.guide.name.slice(0, 1)}</div>
@@ -228,7 +236,12 @@ export default function GuideDetailPage() {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {(listing.guide.languages || listing.languages || []).map((l) => (
-                      <span key={l} className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200">{l.toUpperCase()}</span>
+                      <span
+                        key={l}
+                        className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200"
+                      >
+                        {languageLabel(l)}
+                      </span>
                     ))}
                   </div>
                   <p className="text-sm leading-relaxed text-slate-600">{listing.description}</p>
@@ -290,8 +303,7 @@ export default function GuideDetailPage() {
               <aside className="xl:sticky xl:top-24">
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
                   <div className="text-2xl font-black text-slate-900">
-                    {Number(listing.pricePerHour).toLocaleString()}
-                    <span className="text-xs font-bold text-slate-500 ml-1">UZS / hour</span>
+                    {formatPricePerUnit(Number(listing.pricePerHour), "soat")}
                   </div>
                   <div className="space-y-3">
                     <div>
@@ -335,7 +347,7 @@ export default function GuideDetailPage() {
                       {checkResult.available ? (
                         <div>
                           <div>Hours: {checkResult.hours}</div>
-                          <div>Total: {Number(checkResult.totalPrice).toLocaleString()} UZS</div>
+                          <div>Jami: {formatPrice(Number(checkResult.totalPrice))}</div>
                         </div>
                       ) : (
                         <div>Bu vaqt band{checkResult.conflicts?.[0]?.message ? `: ${checkResult.conflicts[0].message}` : ""}</div>

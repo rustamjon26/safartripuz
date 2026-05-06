@@ -72,6 +72,7 @@ export async function GET(req: Request) {
     title: g.partner?.displayName ? `${g.title} • ${g.partner.displayName}` : g.title,
     language: g.language,
     region: g.region ?? "",
+    pricePerHour: Number(g.pricePerHour) || 0,
     pricePerDay: Number(g.pricePerDay) || 200000,
   }));
 

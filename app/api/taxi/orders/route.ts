@@ -1,8 +1,22 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type TaxiOrderStatus } from "@prisma/client";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceKm } from "@/lib/taxi/haversine";
 import { fail, handleApiError, ok } from "../_utils";
+
+const TAXI_ORDER_STATUSES: TaxiOrderStatus[] = [
+  "PENDING",
+  "ACCEPTED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+  "DISPUTE",
+];
+
+function isTaxiOrderStatus(s: string): s is TaxiOrderStatus {
+  return (TAXI_ORDER_STATUSES as string[]).includes(s);
+}
 
 type CreateOrderInput = {
   pickupAddress?: string;
@@ -26,8 +40,10 @@ export async function GET(req: Request) {
     const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 20), 1), 100);
     const skip = (page - 1) * limit;
 
-    const where: { customerId: string; status?: string } = { customerId: actor.id };
-    if (status && status !== "ALL") where.status = status;
+    const where: { customerId: string; status?: TaxiOrderStatus } = { customerId: actor.id };
+    if (status && status !== "ALL" && isTaxiOrderStatus(status)) {
+      where.status = status;
+    }
 
     const [items, total] = await Promise.all([
       prisma.taxiOrder.findMany({
@@ -108,14 +124,14 @@ export async function POST(req: Request) {
       const order = await tx.taxiOrder.create({
         data: {
           customerId: actor.id,
-          serviceId: body.serviceId,
+          serviceId: body.serviceId!,
           travelPlanId: body.travelPlanId ?? null,
-          pickupAddress: body.pickupAddress,
-          dropoffAddress: body.dropoffAddress,
-          pickupLat: body.pickupLat,
-          pickupLng: body.pickupLng,
-          dropoffLat: body.dropoffLat,
-          dropoffLng: body.dropoffLng,
+          pickupAddress: body.pickupAddress!,
+          dropoffAddress: body.dropoffAddress!,
+          pickupLat: body.pickupLat!,
+          pickupLng: body.pickupLng!,
+          dropoffLat: body.dropoffLat!,
+          dropoffLng: body.dropoffLng!,
           scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
           estimatedPrice,
           status: "PENDING",

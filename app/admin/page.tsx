@@ -13,9 +13,25 @@ import {
   ArrowUpRight,
   Shield,
   LayoutDashboard,
+  Car,
+  MapPinned,
+  House,
+  Zap,
 } from "lucide-react";
+import { formatDateTime } from "@/lib/formatDate";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 async function getStats() {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthEnd = new Date(monthStart);
+  monthEnd.setMonth(monthEnd.getMonth() + 1);
+
   const [
     totalUsers,
     pendingPartners,
@@ -25,6 +41,16 @@ async function getStats() {
     totalHotels,
     recentAudit,
     recentPayments,
+    homeStayPendingListings,
+    homeStayActiveListings,
+    taxiOrdersToday,
+    onlineDrivers,
+    guideBookingsThisMonth,
+    guideActiveListings,
+    taxiDisputeCount,
+    guideDisputeCount,
+    guidePendingListingCount,
+    unverifiedDriverCount,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.partner.count({ where: { status: "pending" } }),
@@ -45,6 +71,25 @@ async function getStats() {
       orderBy: { createdAt: "desc" },
       include: { travelPlan: { select: { destination: true } } },
     }),
+    prisma.homeStayListing.count({ where: { status: "PENDING" } }),
+    prisma.homeStayListing.count({ where: { status: "ACTIVE" } }),
+    prisma.taxiOrder.count({
+      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
+    }),
+    prisma.driverProfile.count({ where: { isOnline: true } }),
+    prisma.guideBooking.count({
+      where: { createdAt: { gte: monthStart, lt: monthEnd } },
+    }),
+    prisma.guideListing.count({ where: { status: "ACTIVE" } }),
+    prisma.taxiOrder.count({ where: { status: "DISPUTE" } }),
+    prisma.guideBooking.count({ where: { status: "DISPUTE" } }),
+    prisma.guideListing.count({ where: { status: "PENDING" } }),
+    prisma.user.count({
+      where: {
+        role: "taxi_partner",
+        OR: [{ driverProfile: null }, { driverProfile: { isVerified: false } }],
+      },
+    }),
   ]);
 
   return {
@@ -56,6 +101,16 @@ async function getStats() {
     totalHotels,
     recentAudit,
     recentPayments,
+    homeStayPendingListings,
+    homeStayActiveListings,
+    taxiOrdersToday,
+    onlineDrivers,
+    guideBookingsThisMonth,
+    guideActiveListings,
+    taxiDisputeCount,
+    guideDisputeCount,
+    guidePendingListingCount,
+    unverifiedDriverCount,
   };
 }
 
@@ -63,10 +118,6 @@ function fmtMoney(amount: number) {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M UZS`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K UZS`;
   return `${amount} UZS`;
-}
-
-function fmtDate(d: Date | string) {
-  return new Date(d).toLocaleDateString("uz-UZ", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
@@ -94,7 +145,7 @@ export default async function AdminDashboard() {
       value: stats.pendingPartners,
       icon: CheckSquare,
       color: "yellow",
-      href: "/admin/approvals",
+      href: "/admin/partners",
       change: "Tasdiqlash kerak",
     },
     {
@@ -120,6 +171,30 @@ export default async function AdminDashboard() {
       color: "teal",
       href: "/admin/hotels",
       change: "Ro'yxatdagi hotellar",
+    },
+    {
+      label: "Uy Mehmonxona",
+      value: stats.homeStayActiveListings,
+      icon: House,
+      color: "teal",
+      href: "/admin/homestay",
+      change: `${stats.homeStayPendingListings} kutilmoqda`,
+    },
+    {
+      label: "Taxi",
+      value: stats.taxiOrdersToday,
+      icon: Car,
+      color: "orange",
+      href: "/admin/taxi",
+      change: `${stats.onlineDrivers} onlayn haydovchi`,
+    },
+    {
+      label: "Ekskursiya (Guide)",
+      value: stats.guideBookingsThisMonth,
+      icon: MapPinned,
+      color: "purple",
+      href: "/admin/guide",
+      change: `${stats.guideActiveListings} aktiv listing`,
     },
     {
       label: "Jami Tranzaksiyalar",
@@ -165,6 +240,43 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
+      <div className="adm-card border-none shadow-xl shadow-slate-200/50 bg-white p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Zap size={18} className="text-amber-500" />
+          <h3 className="text-lg font-black text-slate-900 tracking-tight">Tezkor harakatlar</h3>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/admin/taxi/disputes"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-800 hover:bg-white hover:border-slate-300 transition-colors"
+          >
+            <span>Taxi nizolari</span>
+            <span className="adm-nav-badge">{stats.taxiDisputeCount}</span>
+          </Link>
+          <Link
+            href="/admin/guide/bookings?status=DISPUTE"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-800 hover:bg-white hover:border-slate-300 transition-colors"
+          >
+            <span>Guide nizolari</span>
+            <span className="adm-nav-badge">{stats.guideDisputeCount}</span>
+          </Link>
+          <Link
+            href="/admin/guide/listings?status=PENDING"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-800 hover:bg-white hover:border-slate-300 transition-colors"
+          >
+            <span>{"Tasdiq kutilmoqda (Guide)"}</span>
+            <span className="adm-nav-badge">{stats.guidePendingListingCount}</span>
+          </Link>
+          <Link
+            href="/admin/taxi/drivers?verified=false"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-800 hover:bg-white hover:border-slate-300 transition-colors"
+          >
+            <span>{"Tasdiq kutilmoqda (Taxi haydovchi)"}</span>
+            <span className="adm-nav-badge">{stats.unverifiedDriverCount}</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Tables Section */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Recent Payments */}
@@ -182,10 +294,7 @@ export default async function AdminDashboard() {
           </div>
           <div className="divide-y divide-slate-50">
             {stats.recentPayments.length === 0 ? (
-              <div className="py-20 flex flex-col items-center text-slate-400">
-                <CreditCard size={32} className="mb-2 opacity-20" />
-                <p className="font-bold">To&apos;lovlar mavjud emas</p>
-              </div>
+              <EmptyState variant="embedded" message="Hech qanday to'lov topilmadi" />
             ) : (
               stats.recentPayments.map((p) => {
                 const badge = STATUS_BADGE[p.status] ?? { label: p.status, cls: "adm-badge gray" };
@@ -197,7 +306,7 @@ export default async function AdminDashboard() {
                       </div>
                       <div>
                         <div className="text-sm font-black text-slate-900">{p.travelPlan?.destination ?? "Noma'lum"}</div>
-                        <div className="text-xs font-bold text-slate-400 mt-0.5">{fmtDate(p.createdAt)}</div>
+                        <div className="text-xs font-bold text-slate-400 mt-0.5">{formatDateTime(p.createdAt)}</div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -226,10 +335,7 @@ export default async function AdminDashboard() {
           </div>
           <div className="p-6 space-y-6">
             {stats.recentAudit.length === 0 ? (
-              <div className="py-20 flex flex-col items-center text-slate-400">
-                <Clock size={32} className="mb-2 opacity-20" />
-                <p className="font-bold">Harakatlar mavjud emas</p>
-              </div>
+              <EmptyState variant="embedded" title="Audit" message="Harakatlar mavjud emas" />
             ) : (
               stats.recentAudit.map((log) => (
                 <div key={log.id} className="flex gap-4 group">
@@ -243,7 +349,7 @@ export default async function AdminDashboard() {
                        <Shield size={12} className="text-slate-300" />
                        {log.actor ? `${log.actor.first_name} ${log.actor.last_name}` : "Tizim"}
                        <span className="text-slate-200">•</span>
-                       {fmtDate(log.createdAt)}
+                       {formatDateTime(log.createdAt)}
                     </div>
                     <div className="text-[10px] font-black text-slate-300 uppercase tracking-wider mt-2 bg-slate-50 inline-block px-2 py-0.5 rounded-md">
                        {log.entity} #{log.entityId?.slice(-6)}

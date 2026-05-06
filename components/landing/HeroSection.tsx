@@ -1,12 +1,23 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Play, CheckCircle2 } from 'lucide-react';
+import { loginWithNext } from '@/lib/authLinks';
 import styles from './HeroSection.module.css';
 
 export default function HeroSection() {
   return (
     <section className={styles.hero}>
-      <div className={styles.heroBackground} />
+      <div className={styles.heroMedia}>
+        <Image
+          src="/hero-bg.png"
+          alt=""
+          fill
+          priority
+          className={styles.heroBgImg}
+          sizes="100vw"
+        />
+      </div>
       <div className={styles.heroOverlay} />
       
       <div className={styles.heroContent}>
@@ -15,7 +26,7 @@ export default function HeroSection() {
         </div>
         
         <h1 className={`${styles.title} font-display`}>
-          Zomin va Jizzax — ko'krak to'la havo, ko'z to'la go'zallik
+          Zomin va Jizzax: biri tabiat va tog'lar, biri tarix va madaniyat
         </h1>
         
         <p className={styles.subtitle}>
@@ -23,7 +34,7 @@ export default function HeroSection() {
         </p>
 
         <div className={styles.ctaGroup}>
-          <Link href="/trip-builder" className={styles.btnPrimary}>
+          <Link href={loginWithNext("/trip-builder")} className={styles.btnPrimary}>
             Safar tuzishni boshlash <ArrowRight size={20} />
           </Link>
           <button className={styles.btnGhost} onClick={() => alert('Tez kunda!')}>

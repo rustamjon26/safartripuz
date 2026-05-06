@@ -64,6 +64,7 @@ export async function GET() {
     title: g.partner.displayName ? `${g.title} • ${g.partner.displayName}` : g.title,
     language: g.language,
     region: g.region ?? "",
+    pricePerHour: Number(g.pricePerHour),
     pricePerDay: Number(g.pricePerDay),
   }));
 

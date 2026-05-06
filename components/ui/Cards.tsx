@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { Star, MapPin, Building2, Car, Users } from 'lucide-react';
+import { loginWithNext } from '@/lib/authLinks';
 import styles from './Cards.module.css';
 
-export function DestinationCard({ title, desc, link = '/trip-builder' }: { title: string, desc: string, link?: string }) {
+export function DestinationCard({ title, desc, link = loginWithNext('/trip-builder') }: { title: string, desc: string, link?: string }) {
   return (
     <Link href={link} className={styles.destCard}>
       <div className={styles.destImage} />

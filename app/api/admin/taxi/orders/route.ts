@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server";
+import type { TaxiOrderStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseDate, requireTaxiAdmin, unauthorizedResponse } from "../_utils";
+
+const TAXI_ORDER_STATUSES: TaxiOrderStatus[] = [
+  "PENDING",
+  "ACCEPTED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+  "DISPUTE",
+];
+
+function isTaxiOrderStatus(s: string): s is TaxiOrderStatus {
+  return (TAXI_ORDER_STATUSES as string[]).includes(s);
+}
 
 export async function GET(req: Request) {
   try {
@@ -13,17 +28,17 @@ export async function GET(req: Request) {
     const from = parseDate(searchParams.get("from"));
     const to = parseDate(searchParams.get("to"));
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "20")));
+    const limit = Math.min(500, Math.max(1, Number(searchParams.get("limit") ?? "20")));
     const skip = (page - 1) * limit;
 
     const where: {
-      status?: string;
+      status?: TaxiOrderStatus;
       driverId?: string;
       customerId?: string;
       serviceId?: string;
       createdAt?: { gte?: Date; lte?: Date };
     } = {};
-    if (status) where.status = status;
+    if (status && isTaxiOrderStatus(status)) where.status = status;
     if (driverId) where.driverId = driverId;
     if (customerId) where.customerId = customerId;
     if (serviceId) where.serviceId = serviceId;
@@ -61,6 +76,9 @@ export async function GET(req: Request) {
       const amount = item.finalPrice ?? item.estimatedPrice;
       return sum + Number(amount);
     }, 0);
+    const completedRevenue = aggregates
+      .filter((item) => item.status === "COMPLETED")
+      .reduce((sum, item) => sum + Number(item.finalPrice ?? item.estimatedPrice), 0);
 
     return NextResponse.json(
       {
@@ -74,6 +92,7 @@ export async function GET(req: Request) {
         totals: {
           byStatus: statusCounts,
           totalRevenue,
+          completedRevenue,
         },
       },
       { status: 200 },

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { loginWithNext } from '@/lib/authLinks';
 import styles from './SearchBar.module.css';
 
 export default function SearchBar() {
@@ -13,7 +14,9 @@ export default function SearchBar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (destination) {
-      router.push(`/trip-builder?dest=${encodeURIComponent(destination)}`);
+      router.push(
+        loginWithNext(`/trip-builder?dest=${encodeURIComponent(destination)}`),
+      );
     } else {
       // Show error state (for later)
       alert('Iltimos, manzilni kiriting');

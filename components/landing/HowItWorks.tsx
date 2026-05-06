@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { loginWithNext } from '@/lib/authLinks';
 import styles from './HowItWorks.module.css';
 
 export default function HowItWorks() {
@@ -41,7 +42,7 @@ export default function HowItWorks() {
         </div>
 
         <div className={styles.ctaWrapper}>
-          <Link href="/trip-builder" className={styles.ctaBtn}>
+          <Link href={loginWithNext("/trip-builder")} className={styles.ctaBtn}>
             Hoziroq boshlash <ArrowRight size={20} style={{ marginLeft: 8 }} />
           </Link>
         </div>

@@ -8,7 +8,15 @@ import {
   ShoppingBag, Check, X, Calendar, Users, Sparkles, Wand2, Sun, CloudRain, Wind
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { loginWithNext } from "@/lib/authLinks";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import {
+  formatPrice,
+  formatPricePerUnit,
+  formatUzInteger,
+  languageLabel,
+  taxiServiceTypeLabel,
+} from "@/lib/displayHelpers";
 
 type Destination = { id: string; title: string };
 
@@ -18,6 +26,7 @@ type InventoryItem = {
   price?: number;
   nightlyPrice?: number;
   pricePerDay?: number;
+  pricePerHour?: number;
   city?: string;
   region?: string;
   type?: string;
@@ -132,7 +141,12 @@ export default function TripBuilderPage() {
       setDestination(data.destination); setStartDate(data.startDate); setEndDate(data.endDate); setPax(data.pax);
       if (data.hotel) setSelectedHotel({ ...data.hotel, nightlyPrice: data.hotel.nightlyPrice });
       if (data.taxi) setSelectedTaxi({ ...data.taxi, price: data.taxi.price });
-      if (data.guide) setSelectedGuide({ ...data.guide, pricePerDay: data.guide.pricePerDay });
+      if (data.guide)
+        setSelectedGuide({
+          ...data.guide,
+          pricePerDay: data.guide.pricePerDay,
+          pricePerHour: data.guide.pricePerHour,
+        });
       
       setAiMessage(data.message || "Safar muvaffaqiyatli yig'ildi!");
       toast.success("AI ishladi! Sayohat jadvali yangilandi ✨");
@@ -159,7 +173,14 @@ export default function TripBuilderPage() {
           guide: selectedGuide ? { id: selectedGuide.id, title: selectedGuide.title, pricePerDay: selectedGuide.pricePerDay } : undefined,
         }),
       });
-      if (res.status === 401) { router.push("/login"); return; }
+      if (res.status === 401) {
+        const back =
+          typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/trip-builder";
+        router.push(loginWithNext(back || "/trip-builder"));
+        return;
+      }
       if (!res.ok) throw new Error("Server xatosi");
       toast.success("Safaringiz saqlandi! 🎉");
       setTimeout(() => router.push("/bookings"), 1500);
@@ -169,9 +190,21 @@ export default function TripBuilderPage() {
   }
 
   function ItemCard({ item, isSelected, onToggle }: { item: InventoryItem; isSelected: boolean; onToggle: () => void }) {
-    const price = item.nightlyPrice || item.price || item.pricePerDay || 0;
-    const priceSub = item.nightlyPrice ? "so'm/tun" : item.pricePerDay ? "so'm/kun" : "so'm";
-    const sub = item.city || item.type || item.language || "";
+    let sub = "";
+    if (item.nightlyPrice != null) sub = item.city || "";
+    else if (item.type) sub = taxiServiceTypeLabel(item.type);
+    else if (item.language) sub = languageLabel(item.language);
+    else sub = item.region || item.city || "";
+
+    let priceLine = formatPrice(0);
+    if (item.nightlyPrice != null)
+      priceLine = formatPricePerUnit(item.nightlyPrice, "kecha");
+    else if (item.pricePerHour != null && item.pricePerHour > 0)
+      priceLine = formatPricePerUnit(item.pricePerHour, "soat");
+    else if (item.price != null) priceLine = formatPrice(item.price);
+    else if (item.pricePerDay != null && item.pricePerDay > 0)
+      priceLine = formatPricePerUnit(item.pricePerDay, "kecha");
+
     return (
       <div onClick={() => { onToggle(); triggerCartBounce(); }}
         className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 transform hover:-translate-y-1 group ${
@@ -183,9 +216,11 @@ export default function TripBuilderPage() {
           </div>
         )}
         <h3 className={`font-black text-sm leading-tight pr-8 ${isSelected ? "text-blue-900" : "text-slate-900"}`}>{item.title}</h3>
-        {sub && <p className="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-widest">{sub}</p>}
+        {sub && (
+          <p className="text-xs font-semibold text-slate-400 mt-1 tracking-widest">{sub}</p>
+        )}
         <div className="flex items-end justify-between mt-4 pt-3 border-t border-slate-100">
-          <div><span className="font-black text-slate-900">{price.toLocaleString()}</span><span className="text-xs text-slate-400 ml-1">{priceSub}</span></div>
+          <div className="font-black text-slate-900 text-sm">{priceLine}</div>
           <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
             isSelected ? "bg-red-50 text-red-500 hover:bg-red-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
           }`}>{isSelected ? <X size={14} /> : <Plus size={14} />}</button>
@@ -296,7 +331,10 @@ export default function TripBuilderPage() {
   const weather = getWeatherAdvice();
 
   return (
-    <DashboardShell title="Safar Yig'uvchi" subtitle="AI ob-havo va Timeline yordamida safaringizni chizing">
+    <DashboardShell
+      title="Safar Yig'uvchi"
+      subtitle="AI ob-havo va Timeline yordamida safaringizni chizing"
+    >
       {/* Scrollable Tab Bar */}
       <div className="flex bg-white border border-slate-100 p-1.5 rounded-2xl shadow-sm mb-6 gap-1 overflow-x-auto hide-scrollbar w-full max-w-full">
         {TABS.map(tab => {
@@ -455,7 +493,9 @@ export default function TripBuilderPage() {
                 {selectedTaxi && (
                   <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                     <span className="text-xs font-semibold text-slate-600">{selectedTaxi.title}</span>
-                    <span className="font-black text-slate-900 text-sm">{selectedTaxi.price?.toLocaleString()}</span>
+                    <span className="font-black text-slate-900 text-sm">
+                      {selectedTaxi.price != null ? formatPrice(selectedTaxi.price) : "—"}
+                    </span>
                   </div>
                 )}
               </TimelineNode>
@@ -465,7 +505,11 @@ export default function TripBuilderPage() {
                   <div className="flex flex-col gap-2">
                     <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <span className="text-xs font-semibold text-slate-600 leading-tight pr-2">{selectedHotel.title}</span>
-                      <span className="font-black text-slate-900 text-sm shrink-0">{selectedHotel.nightlyPrice?.toLocaleString()}</span>
+                      <span className="font-black text-slate-900 text-sm shrink-0">
+                        {selectedHotel.nightlyPrice != null
+                          ? formatPricePerUnit(selectedHotel.nightlyPrice, "kecha")
+                          : "—"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between pl-1">
                       <span className="text-[10px] text-slate-400 uppercase font-black">{days} tun / xona soni:</span>
@@ -478,8 +522,16 @@ export default function TripBuilderPage() {
               <TimelineNode icon={UserCircle} title="Gid" time="2-KUN, 10:00" isAdded={!!selectedGuide} onNavigate={() => setActiveTab("guide")} onRemove={() => setSelectedGuide(null)}>
                 {selectedGuide && (
                   <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                    <span className="text-xs font-semibold text-slate-600 leading-tight pr-2">{selectedGuide.title} ({selectedGuide.language})</span>
-                    <span className="font-black text-slate-900 text-sm shrink-0">{selectedGuide.pricePerDay?.toLocaleString()}</span>
+                    <span className="text-xs font-semibold text-slate-600 leading-tight pr-2">
+                      {selectedGuide.title} ({languageLabel(selectedGuide.language || "")})
+                    </span>
+                    <span className="font-black text-slate-900 text-sm shrink-0">
+                      {selectedGuide.pricePerHour != null && selectedGuide.pricePerHour > 0
+                        ? formatPricePerUnit(selectedGuide.pricePerHour, "soat")
+                        : selectedGuide.pricePerDay != null
+                          ? formatPricePerUnit(selectedGuide.pricePerDay, "kecha")
+                          : "—"}
+                    </span>
                   </div>
                 )}
               </TimelineNode>
@@ -492,8 +544,12 @@ export default function TripBuilderPage() {
               <div className="flex justify-between items-end mb-4">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Jami byudjet</span>
                 <div className="text-right leading-none">
-                  <span className="block text-2xl font-black text-blue-600 tracking-tight">{grandTotal.toLocaleString()}</span>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative top-[-2px]">so'm</span>
+                  <span className="block text-2xl font-black text-blue-600 tracking-tight">
+                    {formatUzInteger(grandTotal)}
+                  </span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest relative top-[-2px]">
+                    so&apos;m
+                  </span>
                 </div>
               </div>
               <button onClick={checkout} disabled={submitting || !destination || (!selectedHotel && !selectedTaxi && !selectedGuide)}

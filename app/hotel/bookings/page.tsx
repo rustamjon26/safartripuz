@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import {
   CalendarCheck, User, Phone, BedDouble, Plus, X, ChevronLeft, ChevronRight,
   Loader2, Search, CheckCircle2, XCircle, Clock,
-  Filter, RefreshCw, LayoutDashboard, List, Play, LogOut, Verified, Send, Info
+  Filter, RefreshCw, LayoutDashboard, List, Play, LogOut, Verified, Send, Info,
+  Trash2
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 

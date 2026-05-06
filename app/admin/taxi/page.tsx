@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ElementType } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Car, CheckCircle2, Clock3, Wallet } from "lucide-react";
+import { AdminTaxiPageHeader } from "@/components/admin/taxi/PageHeader";
+import { AdminTaxiStatusBadge } from "@/components/admin/taxi/AdminTaxiStatusBadge";
+import { AdminKpiGridSkeleton } from "@/components/admin/AdminKpiGridSkeleton";
+import { TableSkeleton } from "@/components/admin/TableSkeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { formatDateTime } from "@/lib/formatDate";
 
 type Order = {
   id: string;
@@ -21,6 +29,7 @@ type Driver = {
 };
 
 export default function AdminTaxiOverviewPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -29,13 +38,13 @@ export default function AdminTaxiOverviewPage() {
     setLoading(true);
     try {
       const [oRes, dRes] = await Promise.all([
-        fetch("/api/admin/taxi/orders?limit=300"),
-        fetch("/api/admin/taxi/drivers"),
+        fetch("/api/admin/taxi/orders?limit=500&page=1"),
+        fetch("/api/admin/taxi/drivers?limit=500&page=1"),
       ]);
-      const oJson = await oRes.json();
-      const dJson = await dRes.json();
-      setOrders(oJson?.data || []);
-      setDrivers(dJson?.data || []);
+      const oJson = (await oRes.json()) as { data?: Order[] };
+      const dJson = (await dRes.json()) as { data?: Driver[] };
+      setOrders(oJson?.data ?? []);
+      setDrivers(dJson?.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -43,9 +52,7 @@ export default function AdminTaxiOverviewPage() {
 
   useEffect(() => {
     void load();
-    const t = setInterval(() => {
-      void load();
-    }, 30000);
+    const t = setInterval(() => void load(), 30000);
     return () => clearInterval(t);
   }, []);
 
@@ -53,72 +60,120 @@ export default function AdminTaxiOverviewPage() {
     const now = new Date();
     const isToday = (value: string) => {
       const d = new Date(value);
-      return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      return (
+        d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      );
     };
-    const today = orders.filter((o) => isToday(o.createdAt));
-    const activeToday = today.filter((o) => ["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"].includes(o.status)).length;
-    const completedToday = today.filter((o) => o.status === "COMPLETED");
-    const totalRevenueToday = completedToday.reduce((s, o) => s + Number(o.finalPrice ?? o.estimatedPrice), 0);
+    const todayOrders = orders.filter((o) => isToday(o.createdAt));
+    const activeToday = todayOrders.filter((o) => ["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"].includes(o.status)).length;
+    const completedToday = todayOrders.filter((o) => o.status === "COMPLETED");
+    const revenueToday = completedToday.reduce((s, o) => s + Number(o.finalPrice ?? o.estimatedPrice ?? 0), 0);
     const onlineDriversCount = drivers.filter((d) => d.isOnline).length;
-    return { activeToday, completedToday: completedToday.length, totalRevenueToday, onlineDriversCount };
+    return {
+      activeToday,
+      completedToday: completedToday.length,
+      revenueToday,
+      onlineDriversCount,
+    };
   }, [orders, drivers]);
 
   const liveActiveOrders = useMemo(
-    () => orders.filter((o) => ["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"].includes(o.status)).slice(0, 20),
+    () =>
+      orders
+        .filter((o) => ["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"].includes(o.status))
+        .slice(0, 30),
     [orders],
   );
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Taxi Overview</h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">Platforma bo'yicha taxi monitoring</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/admin/taxi/orders" className="adm-btn adm-btn-primary">Orders</Link>
-          <Link href="/admin/taxi/drivers" className="adm-btn">Drivers</Link>
-          <Link href="/admin/taxi/disputes" className="adm-btn">Disputes</Link>
-        </div>
-      </div>
+      <AdminTaxiPageHeader
+        title="Taxi"
+        subtitle={"Platforma bo'yicha taxi monitoring va jonli buyurtmalar"}
+        actions={[
+          { href: "/admin/taxi/orders", label: "Buyurtmalar", primary: true },
+          { href: "/admin/taxi/drivers", label: "Haydovchilar" },
+          { href: "/admin/taxi/disputes", label: "Nizolar" },
+        ]}
+      />
 
-      <div className="adm-kpi-grid">
-        <Stat icon={Clock3} label="Active orders today" value={stats.activeToday} color="yellow" />
-        <Stat icon={CheckCircle2} label="Completed today" value={stats.completedToday} color="green" />
-        <Stat icon={Wallet} label="Revenue today" value={`${stats.totalRevenueToday.toLocaleString()} UZS`} color="teal" />
-        <Stat icon={Car} label="Online drivers" value={stats.onlineDriversCount} color="blue" />
-      </div>
+      {loading ? (
+        <AdminKpiGridSkeleton count={4} />
+      ) : (
+        <div className="adm-kpi-grid">
+          <Stat icon={Clock3} label="Bugungi faol buyurtmalar" value={stats.activeToday} color="yellow" />
+          <Stat icon={CheckCircle2} label="Bugungi tugallangan" value={stats.completedToday} color="green" />
+          <Stat
+            icon={Wallet}
+            label="Bugungi daromad"
+            value={`${stats.revenueToday.toLocaleString()} ${"so'm"}`}
+            color="teal"
+          />
+          <Stat icon={Car} label="Onlayn haydovchilar" value={stats.onlineDriversCount} color="blue" />
+        </div>
+      )}
 
       <div className="adm-card border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden">
-        <div className="adm-card-header bg-white border-b border-slate-50">
-          <span className="text-lg font-black text-slate-900 tracking-tight">Live active orders</span>
+        <div className="adm-card-header bg-white border-b border-slate-50 flex items-center justify-between">
+          <span className="text-lg font-black text-slate-900 tracking-tight">Jonli faol buyurtmalar</span>
+          <span className="text-xs font-bold text-slate-400">30 soniyada yangilanadi</span>
         </div>
         <div className="adm-table-wrap">
           <table className="adm-table">
             <thead>
               <tr>
-                <th className="pl-8">Order</th>
-                <th>Customer</th>
-                <th>Driver</th>
-                <th>Status</th>
-                <th>Route</th>
-                <th className="pr-8">Created</th>
+                <th className="pl-8">Buyurtma ID</th>
+                <th>Mijoz</th>
+                <th>Haydovchi</th>
+                <th>Holat</th>
+                <th>{"Yo'nalish"}</th>
+                <th className="pr-8">Vaqt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
-                <tr><td colSpan={6} className="py-14 text-center text-slate-400 font-bold">Yuklanmoqda...</td></tr>
+                <TableSkeleton columns={6} rows={6} />
               ) : liveActiveOrders.length === 0 ? (
-                <tr><td colSpan={6} className="py-14 text-center text-slate-400 font-bold">Active order yo'q</td></tr>
+                <tr>
+                  <td colSpan={6}>
+                    <EmptyState variant="embedded" message="Hech qanday buyurtma topilmadi" />
+                  </td>
+                </tr>
               ) : (
                 liveActiveOrders.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 pl-8 text-sm font-black text-slate-900">#{o.id.slice(-6)}</td>
-                    <td className="py-4 text-sm font-bold text-slate-700">{o.customer ? `${o.customer.first_name} ${o.customer.last_name}` : "-"}</td>
-                    <td className="py-4 text-sm font-bold text-slate-500">{o.driver ? `${o.driver.first_name} ${o.driver.last_name}` : "Tayinlanmagan"}</td>
-                    <td className="py-4 text-xs font-black text-slate-600">{o.status}</td>
-                    <td className="py-4 text-xs font-bold text-slate-500">{o.pickupAddress} → {o.dropoffAddress}</td>
-                    <td className="py-4 pr-8 text-xs font-bold text-slate-400">{new Date(o.createdAt).toLocaleString()}</td>
+                  <tr
+                    key={o.id}
+                    role="link"
+                    tabIndex={0}
+                    className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/admin/taxi/orders/${o.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") router.push(`/admin/taxi/orders/${o.id}`);
+                    }}
+                  >
+                    <td className="py-4 pl-8 text-sm font-black text-slate-900">
+                      <Link href={`/admin/taxi/orders/${o.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                        #{o.id.slice(-8)}
+                      </Link>
+                    </td>
+                    <td className="py-4 text-sm font-bold text-slate-700">
+                      {o.customer ? `${o.customer.first_name} ${o.customer.last_name}` : "-"}
+                    </td>
+                    <td className="py-4 text-sm font-bold text-slate-500">
+                      {o.driver ? `${o.driver.first_name} ${o.driver.last_name}` : "Tayinlanmagan"}
+                    </td>
+                    <td className="py-4">
+                      <AdminTaxiStatusBadge status={o.status} />
+                    </td>
+                    <td
+                      className="py-4 text-xs font-bold text-slate-500 max-w-[220px] truncate"
+                      title={`${o.pickupAddress} → ${o.dropoffAddress}`}
+                    >
+                      {o.pickupAddress} → {o.dropoffAddress}
+                    </td>
+                    <td className="py-4 pr-8 text-xs font-bold text-slate-400 whitespace-nowrap">
+                      {formatDateTime(o.createdAt)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -130,7 +185,17 @@ export default function AdminTaxiOverviewPage() {
   );
 }
 
-function Stat({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string | number; color: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  color,
+}: {
+  icon: ElementType;
+  label: string;
+  value: string | number;
+  color: string;
+}) {
   return (
     <div className="adm-kpi-card border-none shadow-xl shadow-slate-200/50 bg-white">
       <div className={`adm-kpi-icon ${color}`}>

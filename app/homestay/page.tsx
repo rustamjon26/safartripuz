@@ -39,26 +39,28 @@ export default function HomeStaySearchPage() {
 
   const amenityOptions = ["wifi", "parking", "kitchen", "AC", "TV", "washing machine", "pool", "BBQ"];
 
-  async function runSearch() {
+  async function runSearch(patch?: Partial<typeof query>) {
+    const q = { ...query, ...patch };
+    setQuery(q);
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (query.city) params.set("city", query.city);
-      if (query.checkIn) params.set("checkIn", query.checkIn);
-      if (query.checkOut) params.set("checkOut", query.checkOut);
-      if (query.guests) params.set("guests", String(query.guests));
-      if (query.minPrice) params.set("minPrice", String(query.minPrice));
-      if (query.maxPrice) params.set("maxPrice", String(query.maxPrice));
-      params.set("page", String(query.page));
-      params.set("limit", String(query.limit));
+      if (q.city) params.set("city", q.city);
+      if (q.checkIn) params.set("checkIn", q.checkIn);
+      if (q.checkOut) params.set("checkOut", q.checkOut);
+      if (q.guests) params.set("guests", String(q.guests));
+      if (q.minPrice) params.set("minPrice", String(q.minPrice));
+      if (q.maxPrice) params.set("maxPrice", String(q.maxPrice));
+      params.set("page", String(q.page));
+      params.set("limit", String(q.limit));
 
       const res = await fetch(`/api/homestay?${params.toString()}`);
       const json = await res.json();
       const apiItems = (json?.data?.data || []) as Listing[];
 
       const filtered = apiItems.filter((item) => {
-        const roomPass = item.rooms >= query.minRooms;
-        const amenityPass = query.amenities.every((a) => item.amenities.includes(a));
+        const roomPass = item.rooms >= q.minRooms;
+        const amenityPass = q.amenities.every((a) => item.amenities.includes(a));
         return roomPass && amenityPass;
       });
 
@@ -69,7 +71,19 @@ export default function HomeStaySearchPage() {
   }
 
   useEffect(() => {
-    void runSearch();
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const patch: Partial<typeof query> = {};
+    const city = sp.get("city");
+    if (city) patch.city = city;
+    const checkIn = sp.get("checkIn");
+    if (checkIn) patch.checkIn = checkIn;
+    const checkOut = sp.get("checkOut");
+    if (checkOut) patch.checkOut = checkOut;
+    const guestsRaw = sp.get("guests");
+    if (guestsRaw) patch.guests = Math.max(1, Number(guestsRaw) || 1);
+    void runSearch(Object.keys(patch).length ? patch : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
   }, []);
 
   const activeAmenities = useMemo(() => query.amenities, [query.amenities]);

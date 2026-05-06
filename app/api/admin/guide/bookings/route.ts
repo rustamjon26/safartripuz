@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const from = parseDate(searchParams.get("from"));
     const to = parseDate(searchParams.get("to"));
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "20")));
+    const limit = Math.min(500, Math.max(1, Number(searchParams.get("limit") ?? "20")));
     const skip = (page - 1) * limit;
 
     const where: {
@@ -55,6 +55,9 @@ export async function GET(req: Request) {
       return acc;
     }, {});
     const totalRevenue = aggregates.reduce((sum, item) => sum + Number(item.totalPrice), 0);
+    const pipelineRevenue = aggregates
+      .filter((item) => ["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(item.status))
+      .reduce((sum, item) => sum + Number(item.totalPrice), 0);
 
     return NextResponse.json(
       {
@@ -68,6 +71,7 @@ export async function GET(req: Request) {
         totals: {
           byStatus: statusCounts,
           totalRevenue,
+          pipelineRevenue,
         },
       },
       { status: 200 },

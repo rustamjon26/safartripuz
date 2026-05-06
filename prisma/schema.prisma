@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -298,7 +298,7 @@ model Vehicle {
   plateNumber String              @unique
   year        Int
   category    TaxiVehicleCategory
-  images      String[]
+  images      Json                @default("[]")
   isActive    Boolean             @default(true)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -335,7 +335,7 @@ model GuideListing {
   description      String
   meetingPoint     String?
   language         String
-  languages        String[]
+  languages        Json               @default("[]")
   category         GuideCategory
   region           String?
   duration         String?
@@ -344,7 +344,7 @@ model GuideListing {
   minHours         Int
   maxHours         Int
   maxGroupSize     Int
-  images           String[]
+  images           Json               @default("[]")
   status           GuideListingStatus @default(PENDING)
   verificationNote String?
   rating           Float              @default(5.0)
@@ -1028,8 +1028,8 @@ model HomeStayListing {
   rooms            Int
   beds             Int
   bathrooms        Int
-  amenities        String[]
-  images           String[]
+  amenities        Json                  @default("[]")
+  images           Json                  @default("[]")
   status           HomeStayListingStatus @default(PENDING)
   verificationNote String?
   createdAt        DateTime              @default(now())

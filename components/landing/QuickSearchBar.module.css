@@ -6,6 +6,63 @@
   padding: 0 24px;
 }
 
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+
+.tab {
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.tab:hover {
+  background: var(--bg-sand);
+}
+
+.tabActive {
+  background: var(--accent);
+  color: var(--surface);
+  border-color: var(--accent);
+}
+
+.datePickerWrap {
+  width: 100%;
+}
+
+.datePickerWrap :global(.react-datepicker-wrapper) {
+  width: 100%;
+}
+
+.dateField {
+  min-width: 0;
+}
+
+.dateHint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.dateCalendar {
+  font-family: var(--font-nunito), system-ui, sans-serif;
+}
+
+.datePopper {
+  z-index: 1300 !important;
+}
+
 @media (max-width: 768px) {
   .wrapper {
     margin: -30px auto 80px;

@@ -102,14 +102,21 @@ export async function POST(req: Request) {
     // Currently guide schema is GuideListing (title, language, region, pricePerDay)
     const guides = await prisma.guideListing.findMany({
       where: { isActive: true, region: destination },
-      select: { id: true, title: true, language: true, pricePerDay: true },
+      select: {
+        id: true,
+        title: true,
+        language: true,
+        pricePerDay: true,
+        pricePerHour: true,
+      },
     });
 
-    const mappedGuides = guides.map(g => ({
+    const mappedGuides = guides.map((g) => ({
       id: g.id,
       title: g.title,
       language: g.language,
       pricePerDay: Number(g.pricePerDay),
+      pricePerHour: Number(g.pricePerHour),
     }));
 
     if (budget === "cheap") mappedGuides.sort((a, b) => a.pricePerDay - b.pricePerDay);

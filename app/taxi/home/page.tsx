@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Car, Plus, Edit2, Eye, EyeOff, X, Loader2, Save } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { formatPrice, taxiServiceTypeLabel } from "@/lib/displayHelpers";
 
 type ServiceType = "INTERCITY_TRANSFER" | "HOTEL_TRANSFER" | "TOUR_DAILY_TRANSPORT";
 
@@ -13,12 +14,6 @@ type TaxiService = {
   serviceType: ServiceType;
   price: string;
   isActive: boolean;
-};
-
-const SERVICE_LABELS: Record<ServiceType, string> = {
-  INTERCITY_TRANSFER:    "Shaharlararo transfer",
-  HOTEL_TRANSFER:        "Hotel transferi",
-  TOUR_DAILY_TRANSPORT:  "Kunlik tur transporti",
 };
 
 export default function TaxiHome() {
@@ -131,9 +126,9 @@ export default function TaxiHome() {
                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Xizmat turi *</label>
                 <select value={serviceType} onChange={e => setServiceType(e.target.value as ServiceType)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-slate-900 outline-none focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 transition-all">
-                  <option value="INTERCITY_TRANSFER">Shaharlararo transfer</option>
-                  <option value="HOTEL_TRANSFER">Hotel transferi</option>
-                  <option value="TOUR_DAILY_TRANSPORT">Kunlik tur transporti</option>
+                  <option value="INTERCITY_TRANSFER">{taxiServiceTypeLabel("INTERCITY_TRANSFER")}</option>
+                  <option value="HOTEL_TRANSFER">{taxiServiceTypeLabel("HOTEL_TRANSFER")}</option>
+                  <option value="TOUR_DAILY_TRANSPORT">{taxiServiceTypeLabel("TOUR_DAILY_TRANSPORT")}</option>
                 </select>
               </div>
               <div>
@@ -178,11 +173,10 @@ export default function TaxiHome() {
               <div key={item.id} className="flex items-center justify-between p-5 hover:bg-slate-50/50 transition-colors gap-3">
                 <div className="flex-1 min-w-0">
                   <h3 className="font-black text-slate-900 text-sm truncate">{item.title}</h3>
-                  <p className="text-xs text-slate-500 font-semibold mt-0.5">{SERVICE_LABELS[item.serviceType]}</p>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">{taxiServiceTypeLabel(item.serviceType)}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="font-black text-slate-900 text-sm">{Number(item.price).toLocaleString()}</div>
-                  <div className="text-xs text-slate-400">so'm</div>
+                  <div className="font-black text-slate-900 text-sm">{formatPrice(Number(item.price))}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className={`text-xs font-black px-2.5 py-1 rounded-full ${item.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
@@ -12,42 +13,55 @@ import RecommendedProviders from '@/components/landing/RecommendedProviders';
 import ReviewsCarousel from '@/components/landing/ReviewsCarousel';
 import FinalCTA from '@/components/landing/FinalCTA';
 
+const pageTitle = "SafarTrip.uz — O'zbekistonda sayohat rejalashtiring";
+const pageDescription =
+  "Zomin, Jizzax va boshqa yo'nalishlarda mehmonxona, transport va gid xizmatlarini bir joydan bron qiling.";
+
+export const metadata: Metadata = {
+  title: pageTitle,
+  description: pageDescription,
+  keywords: [
+    "sayohat",
+    "uzbekistan",
+    "zomin",
+    "jizzax",
+    "mehmonxona",
+    "taxi",
+    "gid",
+  ],
+  openGraph: {
+    title: pageTitle,
+    description: pageDescription,
+    images: [{ url: "/hero-bg.png", width: 1200, height: 630, alt: "SafarTrip" }],
+  },
+};
+
 export default function Home() {
   return (
     <div id="app-shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
       <main style={{ flex: 1 }}>
         <div style={{ backgroundColor: 'var(--bg-main)' }}>
-          {/* 2. Hero Section */}
           <HeroSection />
 
-          {/* 3. Quick Search Bar */}
           <QuickSearchBar />
 
-          {/* 4. Stats Section */}
           <StatsSection />
 
-          {/* 5. Destination Cards (Zomin & Jizzax main entry) */}
           <span id="destinations"></span>
           <DestinationCards />
 
-          {/* 6 & 7. Detailed Destination Highlights */}
           <DestinationHighlight />
 
-          {/* 8. How It Works (3 Steps) */}
           <HowItWorks />
 
-          {/* 9. Packages */}
           <span id="packages"></span>
           <PackageCards />
 
-          {/* Recommended Taxi / Guide from real providers */}
           <RecommendedProviders />
 
-          {/* 10. Reviews Carousel */}
           <ReviewsCarousel />
 
-          {/* 11. Final Call To Action */}
           <FinalCTA />
         </div>
       </main>

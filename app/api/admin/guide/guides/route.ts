@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     await requireGuideAdmin();
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "20")));
+    const limit = Math.min(500, Math.max(1, Number(searchParams.get("limit") ?? "20")));
     const skip = (page - 1) * limit;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -62,6 +62,7 @@ export async function GET(req: Request) {
         email: user.email,
         phone: user.phone,
         isBlocked: user.isBlocked,
+        partnerStatus: user.partnerProfile?.status ?? null,
         role: user.role === "guide" ? "guide_partner" : user.role,
         listingCount,
         totalBookings,

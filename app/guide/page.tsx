@@ -7,6 +7,12 @@ import Footer from "@/components/layout/Footer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Search, SlidersHorizontal, Star } from "lucide-react";
+import {
+  formatPricePerUnit,
+  formatUzInteger,
+  guideCategoryLabel,
+  languageLabel,
+} from "@/lib/displayHelpers";
 
 type GuideItem = {
   id: string;
@@ -38,7 +44,22 @@ export default function GuideSearchPage() {
     page: 1,
     limit: 12,
     languages: [] as string[],
+    groupSize: 2,
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const city = sp.get("city");
+    const date = sp.get("date");
+    const groupSizeRaw = sp.get("groupSize");
+    setQuery((p) => ({
+      ...p,
+      ...(city ? { city } : {}),
+      ...(date ? { date } : {}),
+      ...(groupSizeRaw ? { groupSize: Math.max(1, Number(groupSizeRaw) || 1) } : {}),
+    }));
+  }, []);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
@@ -82,11 +103,19 @@ export default function GuideSearchPage() {
               <input value={query.city} onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))} placeholder="City" className="h-input" />
               <select value={query.category} onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))} className="h-input">
                 <option value="">Category</option>
-                {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {guideCategoryLabel(c)}
+                  </option>
+                ))}
               </select>
               <select value={query.language} onChange={(e) => setQuery((p) => ({ ...p, language: e.target.value }))} className="h-input">
                 <option value="">Language</option>
-                {LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+                {LANGUAGE_OPTIONS.map((l) => (
+                  <option key={l} value={l}>
+                    {languageLabel(l)}
+                  </option>
+                ))}
               </select>
               <input type="date" value={query.date} onChange={(e) => setQuery((p) => ({ ...p, date: e.target.value }))} className="h-input" />
               <button onClick={() => void runSearch()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800">
@@ -108,14 +137,20 @@ export default function GuideSearchPage() {
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Price range</label>
                     <input type="range" min={0} max={2_000_000} step={50_000} value={query.maxPrice} onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))} className="w-full" />
-                    <div className="text-xs font-bold text-slate-500 mt-2">0 - {query.maxPrice.toLocaleString()} UZS</div>
+                    <div className="text-xs font-bold text-slate-500 mt-2">
+                      0 – {formatUzInteger(query.maxPrice)} so&apos;m
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Category</label>
                     <select value={query.category} onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))} className="h-input">
                       <option value="">All</option>
-                      {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>
+                          {guideCategoryLabel(c)}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -136,7 +171,7 @@ export default function GuideSearchPage() {
                               }))
                             }
                           />
-                          {lang.toUpperCase()}
+                          {languageLabel(lang)}
                         </label>
                       ))}
                     </div>
@@ -172,18 +207,24 @@ export default function GuideSearchPage() {
                       <div className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <h3 className="font-black text-slate-900">{item.title}</h3>
-                          <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">{item.category}</span>
+                          <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">
+                            {guideCategoryLabel(item.category)}
+                          </span>
                         </div>
                         <p className="text-sm font-semibold text-slate-500">{item.host ? `${item.host.first_name} ${item.host.last_name}` : "Guide"}</p>
                         <div className="flex flex-wrap gap-1">
                           {(item.languages || []).slice(0, 4).map((l) => (
-                            <span key={l} className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200">{l.toUpperCase()}</span>
+                            <span
+                              key={l}
+                              className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200"
+                            >
+                              {languageLabel(l)}
+                            </span>
                           ))}
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="text-lg font-black text-slate-900">
-                            {Number(item.pricePerHour).toLocaleString()}
-                            <span className="text-xs font-bold text-slate-500 ml-1">/ hour</span>
+                            {formatPricePerUnit(Number(item.pricePerHour), "soat")}
                           </div>
                           <div className="flex items-center gap-1 text-sm font-bold text-amber-600">
                             <Star size={14} fill="currentColor" />

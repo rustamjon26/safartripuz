@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Safartrip.uz
 
-## Getting Started
+Safartrip — turizm platformasi. Loyiha ichida quyidagi modullar bor:
 
-First, run the development server:
+- HomeStay (host/guest/admin)
+- Taxi (driver/customer/admin)
+- Guide (partner/customer/admin)
+- Travel plan va payment oqimi
+
+Frontend va backend bir xil Next.js App Router loyihasida yuradi (`app/api/*` route handlers orqali).
+
+## Texnologiyalar
+
+- Next.js 16 + React 19 + TypeScript
+- Prisma + PostgreSQL
+- Tailwind CSS
+- Zod (validatsiya)
+
+## Talablar
+
+- Node.js 18+ (tavsiya: 20+)
+- npm
+- PostgreSQL
+
+## O'rnatish
+
+```bash
+npm install
+```
+
+`.env` fayl yarating va kerakli o'zgaruvchilarni kiriting (kamida):
+
+```env
+DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DB_NAME"
+JWT_ACCESS_SECRET="your_access_secret"
+JWT_REFRESH_SECRET="your_refresh_secret"
+```
+
+Lokal Open Server MySQL uchun misol (root, parolsiz, `safartrip` bazasi):
+
+```env
+DATABASE_URL="mysql://root:@127.0.0.1:3306/safartrip"
+```
+
+## Prisma (DB) ishga tushirish
+
+```bash
+npx prisma db push
+npx prisma generate
+```
+
+Agar kerak bo'lsa seed scriptlar:
+
+```bash
+node scripts/seed-test-users.mjs
+```
+
+## Loyihani ishga tushirish
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Brauzerda oching: [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Foydali buyruqlar
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev      # local development
+npm run build    # production build
+npm run start    # production server
+npm run lint     # eslint
+```
 
-## Learn More
+## Asosiy papkalar
 
-To learn more about Next.js, take a look at the following resources:
+- `app/` — UI sahifalar va API route'lar
+- `app/api/` — backend endpointlar
+- `lib/` — umumiy util/service/helperlar
+- `prisma/` — schema va migrationlar
+- `scripts/` — seed va servis scriptlar
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Eslatma
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Hozirgi branch: `main`  
+Remote: `git@github.com:rustamjon26/safartripuz.git`

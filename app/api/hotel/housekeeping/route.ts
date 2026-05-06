@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     // If it's a staff member (Cleaner/Reception), they should only see their own tasks 
     // unless they have higher management permissions. 
     // For now, if role is CLEANER, filter by staffId.
-    if (ctx.isStaff && ctx.staffRecord.role === "CLEANER") {
+    if (ctx.isStaff && ctx.staffRecord && ctx.staffRecord.role === "CLEANER") {
       where.staffId = ctx.staffRecord.id;
     }
 

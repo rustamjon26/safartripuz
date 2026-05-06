@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, MessageCircleQuestion, Clock } from 'lucide-react';
+import { loginWithNext } from '@/lib/authLinks';
 import styles from './FinalCTA.module.css';
 
 export default function FinalCTA() {
@@ -12,7 +13,7 @@ export default function FinalCTA() {
         <p className={styles.subtitle}>SafarTrip bilan eng yaxshi xotiralarni hoziroq bron qiling.</p>
         
         <div className={styles.ctaGroup}>
-          <Link href="/trip-builder" className={styles.btnPrimary}>
+          <Link href={loginWithNext("/trip-builder")} className={styles.btnPrimary}>
             Safar tuzishni boshlash <ArrowRight size={20} style={{ marginLeft: 8 }} />
           </Link>
           <button className={styles.btnGhost}>

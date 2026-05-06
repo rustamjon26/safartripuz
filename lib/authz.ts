@@ -22,6 +22,23 @@ export async function requireUser(): Promise<{
   return { id: sub, role };
 }
 
+/** Like `requireUser` but loads profile fields needed for guest matching / display. */
+export async function requireUserWithProfile(): Promise<{
+  id: string;
+  role: AppRole;
+  first_name: string;
+  last_name: string | null;
+  phone: string | null;
+}> {
+  const { id, role } = await requireUser();
+  const u = await prisma.user.findUnique({
+    where: { id },
+    select: { first_name: true, last_name: true, phone: true },
+  });
+  if (!u) throw new Error("UNAUTHORIZED");
+  return { id, role, first_name: u.first_name, last_name: u.last_name, phone: u.phone };
+}
+
 export async function requireRole(allowed: AppRole[]) {
   const { id, role } = await requireUser();
   if (!allowed.includes(role)) throw new Error("FORBIDDEN");

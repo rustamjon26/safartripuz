@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 
-export type TaxiDriverActor = { id: string; role: "taxi_partner" };
+export type TaxiDriverActor = { id: string; role: "taxi" | "taxi_partner" };
 
 export async function requireTaxiDriver(): Promise<TaxiDriverActor> {
-  const actor = await requireRole(["taxi_partner"]);
+  const actor = await requireRole(["taxi", "taxi_partner"]);
   return actor as TaxiDriverActor;
 }
 

@@ -132,7 +132,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ payment
     });
 
     return NextResponse.json({ message: "Tolov muvaffaqiyatli qabul qilindi", ...updated });
-  } catch {
-     return NextResponse.json({ error: "Server xatosi" }, { status: 500 });
+  } catch (error) {
+    console.error("[POST /api/payments/webhook/mock/[paymentId]] error:", error);
+    return NextResponse.json(
+      { error: "Server xatosi", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 },
+    );
   }
 }

@@ -70,6 +70,13 @@ export async function GET(req: Request) {
               totalPrice: true,
             },
           },
+          _count: {
+            select: {
+              homeStayBookings: true,
+              taxiOrders: true,
+              guideBookings: true,
+            },
+          },
         },
       }),
       prisma.travelPlan.count({ where: { userId: actor.id } }),

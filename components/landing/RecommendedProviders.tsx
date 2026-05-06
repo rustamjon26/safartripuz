@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { Car, Users } from 'lucide-react';
+import {
+  formatPrice,
+  formatPricePerUnit,
+  languageLabel,
+  taxiServiceTypeLabel,
+} from '@/lib/displayHelpers';
 
 type TaxiOption = {
   id: string;
@@ -14,6 +20,7 @@ type GuideOption = {
   id: string;
   title: string;
   language: string;
+  pricePerHour: number;
   pricePerDay: number;
 };
 
@@ -21,6 +28,11 @@ type CatalogResponse = {
   taxiOptions: TaxiOption[];
   guides: GuideOption[];
 };
+
+function guidePriceLine(g: GuideOption): string {
+  if (g.pricePerHour > 0) return formatPricePerUnit(g.pricePerHour, 'soat');
+  return formatPricePerUnit(g.pricePerDay, 'kecha');
+}
 
 export default function RecommendedProviders() {
   const [loading, setLoading] = useState(true);
@@ -76,7 +88,7 @@ export default function RecommendedProviders() {
                 <div key={item.id} className="rounded-xl border border-slate-200 px-3 py-2">
                   <div className="text-sm font-bold text-slate-900">{item.title}</div>
                   <div className="text-xs text-slate-600">
-                    {item.type} • {item.price.toLocaleString()} so&apos;m
+                    {taxiServiceTypeLabel(item.type)} • {formatPrice(item.price)}
                   </div>
                 </div>
               ))}
@@ -99,7 +111,7 @@ export default function RecommendedProviders() {
                 <div key={item.id} className="rounded-xl border border-slate-200 px-3 py-2">
                   <div className="text-sm font-bold text-slate-900">{item.title}</div>
                   <div className="text-xs text-slate-600">
-                    {item.language.toUpperCase()} • {item.pricePerDay.toLocaleString()} so&apos;m/kun
+                    {languageLabel(item.language)} • {guidePriceLine(item)}
                   </div>
                 </div>
               ))}

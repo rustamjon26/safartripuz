@@ -1,14 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-type Role =
-  | "super_admin"
-  | "admin"
-  | "user"
-  | "taxi"
-  | "hotel_manager"
-  | "guide"
-  | "restaurant_manager";
+/** JWT ichidagi `role` — to'liq ro'yxat `lib/auth.ts` dagi AppRole bilan mos kelishi kerak */
+type Role = string;
 
 function getSecret() {
   const v = process.env.JWT_ACCESS_SECRET;
@@ -21,7 +15,7 @@ async function getRoleFromAccessToken(token: string): Promise<Role | null> {
     const { payload } = await jwtVerify(token, getSecret());
     const role = payload.role;
     if (typeof role !== "string") return null;
-    return role as Role;
+    return role;
   } catch {
     return null;
   }
@@ -66,12 +60,18 @@ export async function proxy(req: NextRequest) {
 
   // Case 2: Verify Token & Role
   const role = await getRoleFromAccessToken(token);
-  
-  if (!role || !area.allow.includes(role)) {
-    // If token is invalid/expired but refresh exists, 
-    // some systems might try to auto-refresh here, but Edge runtime limitations 
-    // make internal API calls tricky. 
-    // We'll redirect to login which can handle the state.
+
+  if (!role) {
+    const url = req.nextUrl.clone();
+    url.pathname = area.redirectTo;
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (!area.allow.includes(role)) {
+    if (area.prefix === "/admin") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
     url.searchParams.set("next", pathname);

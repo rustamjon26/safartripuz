@@ -1,43 +1,42 @@
 'use client';
+
+import { useEffect, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import { Star } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import styles from './ReviewsCarousel.module.css';
-
-const REVIEWS = [
-  {
-    id: 1,
-    author: "Dilnoza, Toshkent",
-    text: "Zomin — hayotimda ko'rgan eng go'zal joy. SafarTrip bilan bron qilish juda oson bo'ldi, mehmonxona ajoyib edi!",
-    destination: "🏔️ Zomin",
-    date: "Avgust 2024"
-  },
-  {
-    id: 2,
-    author: "Malika, Andijon",
-    text: "Jizzax tarixi haqida hech narsa bilmas edim. Gidimiz barcha narsalarni shunday qiziqarli qilib aytdiki, yana bormoqchiman.",
-    destination: "🌆 Jizzax",
-    date: "Sentyabr 2024"
-  },
-  {
-    id: 3,
-    author: "Jasur, Namangan",
-    text: "Oilam bilan Zomin ko'liga bordik. Bolalar suvda o'ynashdi, biz dam oldik. Hayotimizning eng yaxshi ta'tili bo'ldi.",
-    destination: "🏔️ Zomin",
-    date: "Iyul 2024"
-  },
-  {
-    id: 4,
-    author: "Odilbek, Xorazm",
-    text: "Hammasi bir joyda jamlangani qulay ekan. Vaqtni tejab, ishonchli xizmatlardan foydalandik. Kattakon rahmat!",
-    destination: "🌆 Jizzax",
-    date: "Oktyabr 2024"
-  }
-];
+import {
+  FEATURED_REVIEWS_FALLBACK,
+  type FeaturedReview,
+} from '@/lib/featuredReviewsFallback';
 
 export default function ReviewsCarousel() {
+  const [reviews, setReviews] = useState<FeaturedReview[]>(
+    () => [...FEATURED_REVIEWS_FALLBACK],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch('/api/reviews/featured');
+        const json = (await res.json()) as { reviews?: FeaturedReview[] };
+        const next = json.reviews;
+        if (!cancelled && Array.isArray(next) && next.length > 0) {
+          setReviews(next);
+        }
+      } catch {
+        /* keep fallback */
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className={styles.section}>
       <div className="container">
@@ -57,7 +56,7 @@ export default function ReviewsCarousel() {
             pagination={{ clickable: true, el: '.custom-pagination' }}
             style={{ paddingBottom: '30px' }}
           >
-            {REVIEWS.map(review => (
+            {reviews.map((review) => (
               <SwiperSlide key={review.id} style={{ height: 'auto' }}>
                 <div className={styles.reviewCard}>
                   <div className={styles.header}>
@@ -70,7 +69,7 @@ export default function ReviewsCarousel() {
                   <div className={styles.stars}>
                     {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
                   </div>
-                  <p className={styles.text}>"{review.text}"</p>
+                  <p className={styles.text}>&ldquo;{review.text}&rdquo;</p>
                   <div className={styles.date}>{review.date}</div>
                 </div>
               </SwiperSlide>

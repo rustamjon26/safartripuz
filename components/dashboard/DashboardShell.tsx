@@ -9,7 +9,6 @@ import {
   User,
   LogOut,
   Menu,
-  X,
   Home,
   Car,
   Map,
@@ -113,7 +112,10 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   }
 
   const visibleNavItems = NAV_ITEMS.filter(
-    (item) => !item.roles || !user?.role || item.roles.includes(user.role.toLowerCase())
+    (item) =>
+      !item.roles ||
+      !user?.role ||
+      item.roles.includes(user.role.toLowerCase()),
   );
 
   const initials = user
@@ -184,6 +186,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
           </div>
         </div>
         <button
+          type="button"
           onClick={() => void handleLogout()}
           className="flex items-center gap-3 w-full px-4 py-2.5 rounded-2xl text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
         >
@@ -239,6 +242,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
           <div className="flex items-center gap-2 shrink-0 relative">
             <button 
+              type="button"
               onClick={() => setShowNotif(!showNotif)}
               className={`p-2.5 rounded-xl transition-all relative ${showNotif ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-100"}`}
             >

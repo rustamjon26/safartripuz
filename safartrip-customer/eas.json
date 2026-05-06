@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 10.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "http://localhost:3000"
+        }
+      },
+      "ios": {
+        "env": {
+          "EXPO_PUBLIC_API_URL": "http://localhost:3000"
+        }
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+        }
+      },
+      "ios": {
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+        }
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle",
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+        }
+      },
+      "ios": {
+        "env": {
+          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

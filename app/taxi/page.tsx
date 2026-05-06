@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { toast } from "sonner";
+import { formatPricePerUnit, taxiServiceTypeLabel } from "@/lib/displayHelpers";
 
 type TaxiService = {
   id: string;
@@ -37,6 +38,15 @@ export default function TaxiBookingPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const pu = sp.get("pickup");
+    const dr = sp.get("dropoff");
+    if (pu) setPickupAddress(pu);
+    if (dr) setDropoffAddress(dr);
+  }, []);
+
+  useEffect(() => {
     async function loadServices() {
       setLoadingServices(true);
       try {
@@ -61,13 +71,6 @@ export default function TaxiBookingPage() {
 
   const defaultPickup = { lat: 41.3111, lng: 69.2797 };
   const defaultDropoff = { lat: 41.2995, lng: 69.2401 };
-
-  function serviceCategoryLabel(serviceType: string) {
-    if (serviceType === "INTERCITY_TRANSFER") return "STANDARD";
-    if (serviceType === "HOTEL_TRANSFER") return "COMFORT";
-    if (serviceType === "TOUR_DAILY_TRANSPORT") return "MINIVAN";
-    return "PREMIUM";
-  }
 
   async function calculateEstimate() {
     if (!selectedServiceId) {
@@ -179,9 +182,9 @@ export default function TaxiBookingPage() {
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    <p className="text-xs font-black uppercase">{serviceCategoryLabel(s.serviceType)}</p>
+                    <p className="text-xs font-black">{taxiServiceTypeLabel(s.serviceType)}</p>
                     <p className="font-black mt-1">{s.title}</p>
-                    <p className="text-sm mt-2">{Number(s.price).toLocaleString()} UZS / km</p>
+                    <p className="text-sm mt-2">{formatPricePerUnit(Number(s.price), "km")}</p>
                   </button>
                 ))}
               </div>

@@ -18,17 +18,19 @@
   }
 }
 
-.heroBackground {
+.heroMedia {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   z-index: 1;
-  background-image: url('/hero-bg.png');
-  background-size: cover;
-  background-position: center;
-  /* Ken Burns Animation */
+  overflow: hidden;
+}
+
+.heroBgImg {
+  object-fit: cover;
+  object-position: center;
   animation: kenBurns 15s linear infinite alternate;
 }
 

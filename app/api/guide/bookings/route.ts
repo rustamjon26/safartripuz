@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type GuideBookingStatus } from "@prisma/client";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { checkGuideSlot } from "@/lib/guide/checkAvailability";
@@ -24,8 +24,19 @@ export async function GET(req: Request) {
     const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 20), 1), 100);
     const skip = (page - 1) * limit;
 
-    const where: { guestId: string; status?: string } = { guestId: actor.id };
-    if (status && status !== "ALL") where.status = status;
+    const where: { guestId: string; status?: GuideBookingStatus } = { guestId: actor.id };
+    if (status && status !== "ALL") {
+      if (
+        status === "PENDING" ||
+        status === "CONFIRMED" ||
+        status === "IN_PROGRESS" ||
+        status === "COMPLETED" ||
+        status === "CANCELLED" ||
+        status === "DISPUTE"
+      ) {
+        where.status = status;
+      }
+    }
 
     const [items, total] = await Promise.all([
       prisma.guideBooking.findMany({
@@ -43,6 +54,9 @@ export async function GET(req: Request) {
               images: true,
               pricePerHour: true,
             },
+          },
+          guide: {
+            select: { id: true, first_name: true, last_name: true },
           },
           review: true,
         },

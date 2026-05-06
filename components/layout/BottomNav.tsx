@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   PlusCircle, 
-  UserCircle 
+  UserCircle,
 } from "lucide-react";
 import styles from "./BottomNav.module.css";
 

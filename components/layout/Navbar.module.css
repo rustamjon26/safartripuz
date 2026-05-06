@@ -66,6 +66,22 @@
   font-weight: 600;
   color: var(--text-main);
   transition: color 0.2s;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+
+.linkActive {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.solid .linkActive {
+  color: var(--accent);
+}
+
+.transparent .linkActive {
+  color: var(--surface);
+  border-bottom-color: var(--accent);
 }
 
 .solid .link:hover {
@@ -225,6 +241,11 @@
 .mobileLink:hover {
   background: rgba(14, 116, 144, 0.10);
   color: var(--secondary);
+}
+
+.mobileLinkActive {
+  background: rgba(14, 116, 144, 0.14);
+  color: var(--accent);
 }
 
 .mobileActions {

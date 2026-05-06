@@ -16,8 +16,11 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Zomin va Jizzax safarini tuzing | SafarTrip.uz",
-  description: "Zomin tog'lari va Jizzax tarixini kashf eting. Mehmonxona, transport va gid — hammasi bitta joyda. Hoziroq safar tuzing!",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://safartrip.uz"),
+  title: {
+    default: "SafarTrip.uz",
+    template: "%s | SafarTrip.uz",
+  },
 };
 
 export default function RootLayout({

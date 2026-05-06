@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Calendar, MapPin, User as UserIcon, CreditCard, Package,
@@ -33,23 +33,29 @@ const STATUS_CONFIG = {
 
 export default function BookingsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [items, setItems] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/travel-plans");
-      if (res.status === 401) { router.push("/login"); return; }
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent(pathname || "/user/bookings")}`);
+        return;
+      }
       const data = (await res.json()) as { items?: Plan[]; message?: string };
       if (!res.ok) throw new Error(data.message || "Load error");
       setItems(data.items ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik yuklashda");
     } finally { setLoading(false); }
-  }
+  }, [pathname, router]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const stats = useMemo(() => {
     const total = items.length;

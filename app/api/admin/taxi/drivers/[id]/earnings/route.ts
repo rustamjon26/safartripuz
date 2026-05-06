@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { DriverEarningStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireTaxiAdmin, unauthorizedResponse } from "../../../_utils";
 
@@ -34,10 +35,12 @@ export async function GET(
 
     const where: {
       driverId: string;
-      status?: string;
+      status?: DriverEarningStatus;
       createdAt?: { gte?: Date; lt?: Date };
     } = { driverId: id };
-    if (status && status !== "ALL") where.status = status;
+    if (status && status !== "ALL" && (status === "PENDING" || status === "SETTLED")) {
+      where.status = status as DriverEarningStatus;
+    }
     if (month) where.createdAt = { gte: month.from, lt: month.to };
 
     const [items, total] = await Promise.all([

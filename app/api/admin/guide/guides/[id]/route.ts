@@ -14,7 +14,12 @@ export async function GET(
     await requireGuideAdmin();
     const { id } = await params;
 
-    const [guide, recentBookings, revenueStats] = await Promise.all([
+    const chartStart = new Date();
+    chartStart.setMonth(chartStart.getMonth() - 5);
+    chartStart.setDate(1);
+    chartStart.setHours(0, 0, 0, 0);
+
+    const [guide, recentBookings, revenueStats, chartRows] = await Promise.all([
       prisma.user.findFirst({
         where: { id, role: "guide" },
         include: {
@@ -41,18 +46,66 @@ export async function GET(
         _sum: { totalPrice: true },
         _count: { id: true },
       }),
+      prisma.guideBooking.findMany({
+        where: {
+          guideId: id,
+          status: "COMPLETED",
+          date: { gte: chartStart },
+        },
+        select: { date: true, totalPrice: true },
+      }),
     ]);
 
     if (!guide) return NextResponse.json({ message: "Guide not found" }, { status: 404 });
 
+    const listingIds = guide.guideListings.map((l) => l.id);
+    const listingRevenueMap = new Map<string, number>();
+    if (listingIds.length > 0) {
+      const grouped = await prisma.guideBooking.groupBy({
+        by: ["listingId"],
+        where: { listingId: { in: listingIds }, status: "COMPLETED" },
+        _sum: { totalPrice: true },
+      });
+      for (const row of grouped) {
+        listingRevenueMap.set(row.listingId, Number(row._sum.totalPrice ?? 0));
+      }
+    }
+
+    const guideOut = {
+      ...guide,
+      guideListings: guide.guideListings.map((l) => ({
+        ...l,
+        completedRevenue: listingRevenueMap.get(l.id) ?? 0,
+      })),
+    };
+
+    const monthTotals = new Map<string, number>();
+    for (const row of chartRows) {
+      const d = row.date;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthTotals.set(key, (monthTotals.get(key) ?? 0) + Number(row.totalPrice));
+    }
+    const now = new Date();
+    const monthRevenueChart: { month: string; label: string; revenue: number }[] = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthRevenueChart.push({
+        month: key,
+        label: d.toLocaleString("uz-UZ", { month: "short", year: "numeric" }),
+        revenue: monthTotals.get(key) ?? 0,
+      });
+    }
+
     return NextResponse.json(
       {
-        guide,
+        guide: guideOut,
         recentBookings,
         revenueSummary: {
           completedBookings: revenueStats._count.id,
           totalRevenue: Number(revenueStats._sum.totalPrice ?? 0),
         },
+        monthRevenueChart,
       },
       { status: 200 },
     );

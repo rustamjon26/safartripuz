@@ -38,6 +38,7 @@ export async function GET(
         logs: {
           orderBy: { createdAt: "desc" },
         },
+        review: true,
       },
     });
     if (!order) return fail(TAXI_ERRORS.ORDER_NOT_FOUND, 404);
