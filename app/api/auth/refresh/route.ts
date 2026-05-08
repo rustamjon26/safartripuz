@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
   authCookieOptions,
+  hashToken,
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
 } from "@/lib/auth";
-
-function hashToken(rawToken: string) {
-  return createHash("sha256").update(rawToken).digest("hex");
-}
 
 export async function POST() {
   try {
@@ -66,11 +62,11 @@ export async function POST() {
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
     res.cookies.set("access_token", nextAccess, {
-      ...authCookieOptions(),
+      ...authCookieOptions,
       maxAge: 60 * 15,
     });
     res.cookies.set("refresh_token", nextRefresh, {
-      ...authCookieOptions(),
+      ...authCookieOptions,
       maxAge: 60 * 60 * 24 * 30,
     });
     return res;
@@ -78,4 +74,3 @@ export async function POST() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 }
-

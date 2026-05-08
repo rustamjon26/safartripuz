@@ -1,24 +1,30 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
   authCookieOptions,
+  hashToken,
   signAccessToken,
   signRefreshToken,
+  type AppRole,
 } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const signinSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
-function hashToken(rawToken: string) {
-  return createHash("sha256").update(rawToken).digest("hex");
-}
+export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!checkRateLimit(`signin:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
+      { status: 429 },
+    );
+  }
 
-export async function POST(req: Request) {
   try {
     const json = await req.json();
     const parsed = signinSchema.safeParse(json);
@@ -61,7 +67,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Parol noto'g'ri" }, { status: 401 });
     }
 
-    const access = await signAccessToken({ sub: user.id, role: user.role });
+    const access = await signAccessToken({ sub: user.id, role: user.role as AppRole });
     const refresh = await signRefreshToken({ sub: user.id });
     const refreshHash = hashToken(refresh);
     const refreshExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -90,11 +96,11 @@ export async function POST(req: Request) {
     );
 
     res.cookies.set("access_token", access, {
-      ...authCookieOptions(),
+      ...authCookieOptions,
       maxAge: 60 * 15,
     });
     res.cookies.set("refresh_token", refresh, {
-      ...authCookieOptions(),
+      ...authCookieOptions,
       maxAge: 60 * 60 * 24 * 30,
     });
 

@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import ImageListInput from "./ImageListInput";
 
 const AMENITIES = ["wifi", "parking", "kitchen", "AC", "TV", "washing machine", "pool", "BBQ"];
 
@@ -34,6 +33,9 @@ export default function ListingForm({
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState<string[]>(
+    initial?.images?.length ? initial.images : [""],
+  );
   const [form, setForm] = useState<ListingData>(
     initial ?? {
       title: "",
@@ -47,7 +49,7 @@ export default function ListingForm({
       beds: 1,
       bathrooms: 1,
       amenities: [],
-      images: [],
+      images: initial?.images ?? [],
     },
   );
 
@@ -65,6 +67,20 @@ export default function ListingForm({
     }));
   }
 
+  const addImageUrl = () => {
+    setImages([...images, ""]);
+  };
+
+  const updateImage = (index: number, value: string) => {
+    const updated = [...images];
+    updated[index] = value;
+    setImages(updated);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -75,7 +91,10 @@ export default function ListingForm({
       const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          images: images.filter((url) => url.trim() !== ""),
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.success === false) {
@@ -154,11 +173,35 @@ export default function ListingForm({
         </div>
 
         <div>
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Image URLs</label>
-          <ImageListInput
-            images={form.images}
-            onChange={(nextImages) => setForm((prev) => ({ ...prev, images: nextImages }))}
-          />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Image URLs</label>
+            {images.map((url, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  className="flex-1 border rounded-lg px-3 py-2"
+                  placeholder="https://..."
+                  value={url}
+                  onChange={(e) => updateImage(index, e.target.value)}
+                />
+                {images.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="text-red-500 px-3 py-2 border rounded-lg hover:bg-red-50"
+                  >
+                    −
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addImageUrl}
+              className="text-emerald-600 border border-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-50 w-full"
+            >
+              + Rasm qo&apos;shish
+            </button>
+          </div>
         </div>
 
         <div className="pt-2 flex gap-3">

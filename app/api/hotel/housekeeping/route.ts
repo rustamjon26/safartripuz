@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
@@ -9,11 +10,8 @@ export async function GET(req: Request) {
     const ctx = await getApprovedHotelContextByUserId(actor.id);
     if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
-    const where: any = { hotelId: ctx.hotel.id };
-    
-    // If it's a staff member (Cleaner/Reception), they should only see their own tasks 
-    // unless they have higher management permissions. 
-    // For now, if role is CLEANER, filter by staffId.
+    const where: Prisma.HousekeepingTaskWhereInput = { hotelId: ctx.hotel.id };
+
     if (ctx.isStaff && ctx.staffRecord && ctx.staffRecord.role === "CLEANER") {
       where.staffId = ctx.staffRecord.id;
     }
@@ -22,18 +20,18 @@ export async function GET(req: Request) {
       prisma.housekeepingTask.findMany({
         where,
         include: {
-           physicalRoom: { include: { roomType: true } },
-           staff: true
+          physicalRoom: { include: { roomType: true } },
+          staff: true,
         },
         orderBy: { createdAt: "desc" },
       }),
       prisma.physicalRoom.findMany({
         where: { hotelId: ctx.hotel.id, isActive: true },
-        include: { roomType: true }
+        include: { roomType: true },
       }),
       prisma.hotelStaff.findMany({
-        where: { hotelId: ctx.hotel.id, role: { in: ["CLEANER", "RECEPTION"] } }
-      })
+        where: { hotelId: ctx.hotel.id, role: { in: ["CLEANER", "RECEPTION"] } },
+      }),
     ]);
 
     return NextResponse.json({ tasks, rooms, staffList }, { status: 200 });
@@ -49,22 +47,29 @@ export async function POST(req: Request) {
     const ctx = await getApprovedHotelContextByUserId(actor.id);
     if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
-    const json = await req.json();
+    const json = (await req.json()) as {
+      physicalRoomId?: string;
+      staffId?: string | null;
+      assigneeName?: string;
+      taskType?: string;
+      priority?: string;
+      notes?: string | null;
+    };
     const task = await prisma.housekeepingTask.create({
       data: {
         hotelId: ctx.hotel.id,
-        physicalRoomId: json.physicalRoomId,
-        staffId: json.staffId || null,
+        physicalRoomId: json.physicalRoomId ?? "",
+        staffId: json.staffId ?? null,
         assigneeName: json.assigneeName || "Dispetcher",
         taskType: json.taskType || "CLEANING",
         priority: json.priority || "NORMAL",
         notes: json.notes,
-        status: "PENDING"
+        status: "PENDING",
       },
     });
 
     return NextResponse.json({ task }, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }

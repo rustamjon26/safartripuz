@@ -72,15 +72,31 @@ export default function RegisterPage() {
         }),
       });
 
-      const data = (await res.json()) as { message?: string };
+      const data = (await res.json()) as
+        | { user?: { role: string }; message?: string }
+        | { message?: string };
 
       if (!res.ok) {
-        toast.error(data.message || "Xatolik yuz berdi");
+        toast.error(
+          ("message" in data && data.message) || "Xatolik yuz berdi",
+        );
         return;
       }
 
       toast.success("Muvaffaqiyatli ro'yxatdan o'tdingiz!");
-      router.push("/login");
+
+      const role =
+        "user" in data && data.user?.role ? data.user.role : "user";
+      const redirects: Record<string, string> = {
+        user: "/bookings",
+        super_admin: "/admin",
+        admin: "/admin",
+        hotel_manager: "/hotel",
+        taxi: "/taxi/home",
+        guide: "/guide",
+        restaurant_manager: "/restaurant",
+      };
+      router.push(redirects[role] ?? "/trip-builder");
     } catch {
       toast.error("Server xatosi");
     }

@@ -10,6 +10,17 @@ const schema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
+function metaLocation(meta: unknown): { city: string | null; address: string | null } {
+  if (!meta || typeof meta !== "object") {
+    return { city: null, address: null };
+  }
+  const m = meta as Record<string, unknown>;
+  return {
+    city: typeof m.city === "string" ? m.city : null,
+    address: typeof m.address === "string" ? m.address : null,
+  };
+}
+
 function partnerTypeToRole(type: string): Role {
   switch (type) {
     case "hotel":
@@ -117,12 +128,13 @@ export async function POST(
         });
 
         if (updatedPartner.type === "hotel") {
+          const loc = metaLocation(partner.meta);
           await tx.hotel.upsert({
             where: { partnerId: updatedPartner.id },
             update: {
               name: partner.displayName ?? "Hotel",
-              city: (partner.meta as any)?.city ?? null,
-              address: (partner.meta as any)?.address ?? null,
+              city: loc.city,
+              address: loc.address,
               contactEmail: partner.contactEmail ?? null,
               contactPhone: partner.contactPhone ?? null,
             },
@@ -130,8 +142,8 @@ export async function POST(
               partnerId: updatedPartner.id,
               status: "draft",
               name: partner.displayName ?? "Hotel",
-              city: (partner.meta as any)?.city ?? null,
-              address: (partner.meta as any)?.address ?? null,
+              city: loc.city,
+              address: loc.address,
               contactEmail: partner.contactEmail ?? null,
               contactPhone: partner.contactPhone ?? null,
             },

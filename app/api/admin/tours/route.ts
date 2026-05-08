@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 
 export async function GET(req: Request) {
@@ -11,12 +12,12 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(50, Number(searchParams.get("limit") ?? "10"));
 
-    const where: any = {};
+    const where: Prisma.TourPackageWhereInput = {};
     if (q) {
       where.OR = [
-        { title: { contains: q, mode: "insensitive" } },
-        { destination: { contains: q, mode: "insensitive" } },
-        { category: { contains: q, mode: "insensitive" } },
+        { title: { contains: q } },
+        { destination: { contains: q } },
+        { category: { contains: q } },
       ];
     }
     

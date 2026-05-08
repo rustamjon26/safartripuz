@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import type { HotelStatus, Prisma } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 
 export async function GET(req: Request) {
@@ -11,13 +12,13 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(50, Number(searchParams.get("limit") ?? "20"));
 
-    const where: any = {};
-    if (status) where.status = status as any;
+    const where: Prisma.HotelWhereInput = {};
+    if (status) where.status = status as HotelStatus;
     if (q) {
       where.OR = [
         { name: { contains: q } },
         { city: { contains: q } },
-        { address: { contains: q, mode: "insensitive" } },
+        { address: { contains: q } },
       ];
     }
 

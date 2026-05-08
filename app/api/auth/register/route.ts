@@ -1,11 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  authCookieOptions,
+  hashToken,
+  signAccessToken,
+  signRefreshToken,
+  type AppRole,
+} from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const registerSchema = z.object({
-  first_name: z.string().trim().min(1),
-  last_name: z.string().trim().min(1),
+  name: z.string().trim().min(2).optional(),
+  first_name: z.string().trim().min(1).optional(),
+  last_name: z.string().trim().min(1).optional(),
   email: z.string().trim().email(),
   phone: z.string().trim().regex(/^\+998\d{9}$/),
   password: z
@@ -14,7 +23,22 @@ const registerSchema = z.object({
     .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/),
 });
 
-export async function POST(req: Request) {
+function splitName(name: string): { first_name: string; last_name: string } {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 0) return { first_name: "User", last_name: "" };
+  if (parts.length === 1) return { first_name: parts[0], last_name: parts[0] };
+  return { first_name: parts[0], last_name: parts.slice(1).join(" ") };
+}
+
+export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!checkRateLimit(`register:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
+      { status: 429 },
+    );
+  }
+
   try {
     const json = await req.json();
     const parsed = registerSchema.safeParse(json);
@@ -25,8 +49,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { first_name, last_name, phone, password } = parsed.data;
+    let first_name = parsed.data.first_name?.trim();
+    let last_name = parsed.data.last_name?.trim();
+    if (parsed.data.name?.trim()) {
+      const s = splitName(parsed.data.name);
+      first_name = s.first_name;
+      last_name = s.last_name;
+    }
+    if (!first_name || !last_name) {
+      return NextResponse.json(
+        { message: "Ism yoki first_name/last_name majburiy" },
+        { status: 400 },
+      );
+    }
+
     const email = parsed.data.email.toLowerCase();
+    const { phone, password } = parsed.data;
 
     const existing = await prisma.user.findFirst({
       where: { OR: [{ email }, { phone }] },
@@ -48,7 +86,7 @@ export async function POST(req: Request) {
         email,
         phone,
         password: passwordHash,
-        role: "user", // BUSINESS RULE: register always creates 'user'
+        role: "user",
       },
       select: {
         id: true,
@@ -60,12 +98,45 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ user }, { status: 201 });
-  } catch (e) {
-    return NextResponse.json(
-      { message: "Server xatosi" },
-      { status: 500 },
+    const access = await signAccessToken({ sub: user.id, role: user.role as AppRole });
+    const refresh = await signRefreshToken({ sub: user.id });
+    const refreshHash = hashToken(refresh);
+    const refreshExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: refreshHash,
+        userId: user.id,
+        expiresAt: refreshExpiresAt,
+      },
+    });
+
+    const res = NextResponse.json(
+      {
+        accessToken: access,
+        user: {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+        },
+      },
+      { status: 201 },
     );
+
+    res.cookies.set("access_token", access, {
+      ...authCookieOptions,
+      maxAge: 60 * 15,
+    });
+    res.cookies.set("refresh_token", refresh, {
+      ...authCookieOptions,
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return res;
+  } catch {
+    return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }
-

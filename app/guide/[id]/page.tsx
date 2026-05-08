@@ -100,9 +100,9 @@ export default function GuideDetailPage() {
 
   function dayColor(iso: string) {
     const day = new Date(iso).getDay();
-    if (blockedSet.has(iso)) return "bg-red-100 text-red-700 border-red-300";
-    if (!availableDaySet.has(day)) return "bg-slate-200 text-slate-700 border-slate-300";
-    return "bg-green-100 text-green-700 border-green-300";
+    if (blockedSet.has(iso)) return "bg-red-100 text-red-400 border-red-200 line-through";
+    if (!availableDaySet.has(day)) return "bg-slate-100 text-slate-400 border-slate-200";
+    return "bg-emerald-100 text-emerald-700 border-emerald-200";
   }
 
   function daySelectable(iso: string) {
@@ -198,38 +198,47 @@ export default function GuideDetailPage() {
   return (
     <div id="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Navbar />
-      <main style={{ flex: 1 }} className="bg-slate-50">
+      <main style={{ flex: 1 }} className="bg-gray-50">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {loading || !listing ? (
             <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center text-slate-400 font-bold">Loading...</div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
               <div className="xl:col-span-2 space-y-6">
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="h-[360px] bg-slate-100">{mainImage ? <img src={mainImage} alt={listing.title} className="w-full h-full object-cover" /> : null}</div>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="relative h-[400px] bg-slate-100">
+                    {mainImage ? <img src={mainImage} alt={listing.title} className="w-full h-full object-cover" /> : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute left-6 bottom-6 text-white">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-200">
+                        {guideCategoryLabel(listing.category)}
+                      </p>
+                      <h1 className="text-3xl font-black">{listing.title}</h1>
+                    </div>
+                  </div>
                   <div className="p-3 flex gap-2 overflow-x-auto">
                     {(listing.images || []).map((img) => (
-                      <button key={img} onClick={() => setMainImage(img)} className={`w-20 h-16 rounded-lg overflow-hidden border-2 ${mainImage === img ? "border-blue-500" : "border-transparent"}`}>
+                      <button key={img} onClick={() => setMainImage(img)} className={`w-20 h-16 rounded-lg overflow-hidden border-2 ${mainImage === img ? "border-emerald-500" : "border-transparent"}`}>
                         <img src={img} alt={listing.title} className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-black text-slate-900">{listing.title}</h1>
-                    <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">
+                    <h2 className="text-2xl font-black text-slate-900">Guide haqida</h2>
+                    <span className="text-[10px] font-black px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
                       {guideCategoryLabel(listing.category)}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-black text-slate-600">{listing.guide.name.slice(0, 1)}</div>
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700">{listing.guide.name.slice(0, 1)}</div>
                     <div>
                       <p className="font-bold text-slate-800">{listing.guide.name}</p>
                       <p className="text-xs text-slate-500">{listing.guide.totalBookings} tours</p>
                     </div>
-                    <div className="ml-auto flex items-center gap-1 text-amber-600 font-black">
+                    <div className="ml-auto flex items-center gap-1 text-yellow-500 font-black">
                       <Star size={14} fill="currentColor" />
                       {Number(listing.guide.rating).toFixed(1)}
                     </div>
@@ -238,36 +247,43 @@ export default function GuideDetailPage() {
                     {(listing.guide.languages || listing.languages || []).map((l) => (
                       <span
                         key={l}
-                        className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200"
+                        className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200"
                       >
                         {languageLabel(l)}
                       </span>
                     ))}
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-600">{listing.description}</p>
+                  <p className="text-sm leading-relaxed text-gray-600">{listing.description}</p>
                   <p className="text-sm text-slate-600"><b>Meeting point:</b> {listing.meetingPoint || "Guide confirms later"}</p>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-                  <h2 className="font-black text-slate-900 mb-4">Weekly availability (read-only)</h2>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                  <h2 className="font-black text-slate-900 mb-4">Mavjud kunlar</h2>
                   <div className="grid grid-cols-7 gap-2 mb-3">
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((w) => (
                       <div key={w} className="text-[11px] font-black uppercase tracking-wider text-slate-400 text-center py-1">{w}</div>
                     ))}
                     {daysInGrid.map((d, idx) => (
-                      <button key={`${d.iso}-${idx}`} type="button" disabled={!d.inMonth} className={`h-10 rounded-lg border text-xs font-bold ${d.inMonth ? dayColor(d.iso) : "border-transparent bg-transparent text-transparent"}`}>
+                      <button
+                        key={`${d.iso}-${idx}`}
+                        type="button"
+                        disabled={!d.inMonth}
+                        className={`h-10 rounded-full border text-xs font-bold ${
+                          d.inMonth ? dayColor(d.iso) : "border-transparent bg-transparent text-transparent"
+                        } ${d.iso && d.iso === new Date().toISOString().slice(0, 10) ? "ring-2 ring-emerald-500" : ""}`}
+                      >
                         {d.day || ""}
                       </button>
                     ))}
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs font-bold">
-                    <span className="px-2 py-1 rounded border bg-slate-200 border-slate-300">Gray = unavailable</span>
-                    <span className="px-2 py-1 rounded border bg-green-100 border-green-300">Green = available</span>
-                    <span className="px-2 py-1 rounded border bg-red-100 border-red-300">Red = booked</span>
+                    <span className="px-2 py-1 rounded-full border bg-slate-100 border-slate-200">Kulrang = mavjud emas</span>
+                    <span className="px-2 py-1 rounded-full border bg-emerald-100 text-emerald-700 border-emerald-200">Yashil = mavjud</span>
+                    <span className="px-2 py-1 rounded-full border bg-red-100 text-red-400 border-red-200 line-through">Qizil = band</span>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="font-black text-slate-900">Reviews</h2>
                     <div className="flex items-center gap-1 text-amber-600 font-black">
@@ -301,8 +317,8 @@ export default function GuideDetailPage() {
               </div>
 
               <aside className="xl:sticky xl:top-24">
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
-                  <div className="text-2xl font-black text-slate-900">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-6 space-y-4">
+                  <div className="text-3xl font-bold text-emerald-600">
                     {formatPricePerUnit(Number(listing.pricePerHour), "soat")}
                   </div>
                   <div className="space-y-3">
@@ -319,31 +335,31 @@ export default function GuideDetailPage() {
                           }
                           setDate(next);
                         }}
-                        className="h-input"
+                        className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 focus:outline-none focus:border-emerald-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Start</label>
-                        <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="h-input" />
+                        <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 focus:outline-none focus:border-emerald-500" />
                       </div>
                       <div>
                         <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">End</label>
-                        <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="h-input" />
+                        <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 focus:outline-none focus:border-emerald-500" />
                       </div>
                     </div>
                     <div>
                       <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">Group size</label>
-                      <input type="number" min={1} max={listing.maxGroupSize} value={groupSize} onChange={(e) => setGroupSize(Number(e.target.value))} className="h-input" />
+                      <input type="number" min={1} max={listing.maxGroupSize} value={groupSize} onChange={(e) => setGroupSize(Number(e.target.value))} className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 focus:outline-none focus:border-emerald-500" />
                     </div>
                   </div>
 
-                  <button onClick={() => void checkAvailability()} disabled={checking} className="w-full px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-sm font-black">
+                  <button onClick={() => void checkAvailability()} disabled={checking} className="w-full px-4 py-2.5 rounded-xl border border-emerald-600 text-emerald-700 text-sm font-black hover:bg-emerald-50">
                     {checking ? "Checking..." : "Narx hisoblash"}
                   </button>
 
                   {checkResult ? (
-                    <div className={`rounded-xl border px-3 py-2 text-sm font-semibold ${checkResult.available ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+                    <div className={`rounded-xl border px-3 py-2 text-sm font-semibold ${checkResult.available ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
                       {checkResult.available ? (
                         <div>
                           <div>Hours: {checkResult.hours}</div>
@@ -355,7 +371,7 @@ export default function GuideDetailPage() {
                     </div>
                   ) : null}
 
-                  <button onClick={() => void bookNow()} disabled={booking || !checkResult?.available} className="w-full px-4 py-3 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800 disabled:opacity-50">
+                  <button onClick={() => void bookNow()} disabled={booking || !checkResult?.available} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-3 font-semibold disabled:opacity-50">
                     {booking ? "Booking..." : "Bron qilish"}
                   </button>
                 </div>

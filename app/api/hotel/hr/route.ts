@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
@@ -42,10 +43,7 @@ export async function POST(req: Request) {
       
       if (!user) {
         // Map staff role to platform role
-        let platformRole: any = "hotel_staff";
-        if (role === "CLEANER") platformRole = "cleaner";
-        if (role === "RECEPTION") platformRole = "receptionist";
-        if (role === "WAITER") platformRole = "waiter";
+        const platformRole: Role = "user";
 
         user = await tx.user.create({
           data: {

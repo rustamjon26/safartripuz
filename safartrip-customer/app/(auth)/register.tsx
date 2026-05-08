@@ -44,7 +44,7 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      const data = (await api.post("/api/auth/signup", {
+      const data = (await api.post("/api/auth/register", {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),

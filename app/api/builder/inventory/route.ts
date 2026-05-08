@@ -1,33 +1,42 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { PartnerStatus, PartnerType, type Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const dest = searchParams.get("dest")?.toLowerCase() || "";
 
-  // Dynamic Filtering based on destination if provided
-  const hotelWhere = dest
-    ? { partner: { status: "approved" as any, type: "hotel" as any }, city: { contains: dest } }
-    : { partner: { status: "approved" as any, type: "hotel" as any } };
+  const approvedHotelPartner = {
+    status: PartnerStatus.approved,
+    type: PartnerType.hotel,
+  };
+  const approvedGuidePartner = {
+    status: PartnerStatus.approved,
+    type: PartnerType.guide,
+  };
+  const approvedTaxiPartner = {
+    status: PartnerStatus.approved,
+    type: PartnerType.taxi,
+  };
 
-  const guideWhere = dest
+  const hotelWhere: Prisma.HotelWhereInput = dest
+    ? { partner: approvedHotelPartner, city: { contains: dest } }
+    : { partner: approvedHotelPartner };
+
+  const guideWhere: Prisma.GuideListingWhereInput = dest
     ? {
         isActive: true,
-        partner: { status: "approved" as any, type: "guide" as any },
-        OR: [
-          { region: { contains: dest } },
-          { region: { equals: "" } },
-          { region: null }
-        ]
+        partner: approvedGuidePartner,
+        OR: [{ region: { contains: dest } }, { region: { equals: "" } }, { region: null }],
       }
     : {
         isActive: true,
-        partner: { status: "approved" as any, type: "guide" as any },
+        partner: approvedGuidePartner,
       };
 
-  const taxiWhere = {
+  const taxiWhere: Prisma.TaxiServiceWhereInput = {
     isActive: true,
-    partner: { status: "approved" as any, type: "taxi" as any },
+    partner: approvedTaxiPartner,
   };
 
   const hotelsFromDb = await prisma.hotel.findMany({
@@ -42,7 +51,7 @@ export async function GET(req: Request) {
     title: h.name,
     city: h.city ?? "Noma'lum",
     availableRooms: h.totalRooms,
-    nightlyPrice: 280000 + i * 40000, // mock price
+    nightlyPrice: 280000 + i * 40000,
   }));
 
   const [taxiFromDb, guidesFromDb] = await Promise.all([

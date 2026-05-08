@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 
@@ -29,8 +30,10 @@ export async function PATCH(
     });
 
     return NextResponse.json({ physicalRoom });
-  } catch (e: any) {
-    if (e.code === 'P2002') return NextResponse.json({ message: "Bu xona raqami allaqachon band" }, { status: 400 });
+  } catch (e: unknown) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ message: "Bu xona raqami allaqachon band" }, { status: 400 });
+    }
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }

@@ -150,18 +150,18 @@ function section(title: string) {
 async function step1Auth() {
   section("STEP 1 — Auth");
 
-  const signup = await apiCall<{ accessToken: string }>(
+  const register = await apiCall<{ accessToken: string }>(
     "POST",
-    "/api/auth/signup",
+    "/api/auth/register",
     {
       body: TEST_USER,
-      label: "POST /api/auth/signup",
+      label: "POST /api/auth/register",
       expectedStatuses: [201, 409],
     },
   );
 
-  if (signup.status === 201 && signup.data?.accessToken) {
-    userToken = signup.data.accessToken;
+  if (register.status === 201 && register.data?.accessToken) {
+    userToken = register.data.accessToken;
   }
 
   const signin = await apiCall<{ accessToken: string }>(

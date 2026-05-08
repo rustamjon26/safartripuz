@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import bcrypt from "bcryptjs";
-import type { PartnerStatus, PartnerType, Role } from "@prisma/client";
+import type { PartnerStatus, Prisma, Role } from "@prisma/client";
 
 export async function GET(req: Request) {
   try {
@@ -13,14 +13,14 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
     const limit = Math.min(100, Number(searchParams.get("limit") ?? "20"));
 
-    const where: any = {};
+    const where: Prisma.PartnerWhereInput = {};
     if (status) where.status = status as PartnerStatus;
     if (q) {
       where.OR = [
-        { displayName: { contains: q, mode: "insensitive" } },
-        { user: { email: { contains: q, mode: "insensitive" } } },
-        { user: { first_name: { contains: q, mode: "insensitive" } } },
-        { user: { last_name: { contains: q, mode: "insensitive" } } },
+        { displayName: { contains: q } },
+        { user: { email: { contains: q } } },
+        { user: { first_name: { contains: q } } },
+        { user: { last_name: { contains: q } } },
       ];
     }
 

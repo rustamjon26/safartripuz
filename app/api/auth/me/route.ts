@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { verifyAccessToken } from "@/lib/auth";
+import { requireUser } from "@/lib/authz";
 
 export async function GET() {
   try {
@@ -31,6 +32,35 @@ export async function GET() {
     return NextResponse.json({ user }, { status: 200 });
   } catch {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const user = await requireUser();
+    const body = await req.json();
+    const { first_name, last_name, phone } = body as {
+      first_name?: string;
+      last_name?: string;
+      phone?: string;
+    };
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(first_name && { first_name }),
+        ...(last_name && { last_name }),
+        ...(phone && { phone }),
+      },
+    });
+
+    return NextResponse.json({ user: updated });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Server xatosi";
+    if (msg === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }
 

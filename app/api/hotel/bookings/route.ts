@@ -1,3 +1,4 @@
+import type { BookingSource, BookingStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
@@ -16,12 +17,14 @@ export async function GET(req: Request) {
     const status = url.searchParams.get("status");
     const q = url.searchParams.get("q");
 
-    const where: any = { hotelId: ctx.hotel.id };
-    if (status && status !== "ALL") where.status = status;
+    const where: Prisma.HotelBookingWhereInput = { hotelId: ctx.hotel.id };
+    if (status && status !== "ALL") {
+      where.status = status as BookingStatus;
+    }
     if (q) {
       where.OR = [
-        { guestName: { contains: q, mode: "insensitive" } },
-        { guests: { some: { firstName: { contains: q, mode: "insensitive" } } } }
+        { guestName: { contains: q } },
+        { guests: { some: { firstName: { contains: q } } } },
       ];
     }
 
@@ -33,19 +36,18 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         include: {
           roomType: { select: { name: true } },
-          guests: true
+          guests: true,
         },
       }),
-      prisma.hotelBooking.count({ where })
+      prisma.hotelBooking.count({ where }),
     ]);
 
-    // Decrypt passport data for all guests
-    const decodedBookings = bookings.map(b => ({
+    const decodedBookings = bookings.map((b) => ({
       ...b,
-      guests: b.guests.map(g => ({
+      guests: b.guests.map((g) => ({
         ...g,
-        passportData: g.passportData ? decrypt(g.passportData) : null
-      }))
+        passportData: g.passportData ? decrypt(g.passportData) : null,
+      })),
     }));
 
     return NextResponse.json({ items: decodedBookings, total });
@@ -55,92 +57,131 @@ export async function GET(req: Request) {
   }
 }
 
+type GuestPayload = {
+  firstName?: string;
+  lastName?: string;
+  passportData?: string;
+  nationality?: string;
+  birthDate?: string | number | Date;
+  isChild?: boolean;
+};
+
 export async function POST(req: Request) {
   try {
     const actor = await requireRole(["hotel_manager", "receptionist"]);
     const ctx = await getApprovedHotelContextByUserId(actor.id);
     if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
-    const body = await req.json();
-    const { 
-      roomTypeId, checkInDate, checkOutDate, 
-      roomCount, totalAmount, paidAmount, note, source,
-      guests, // Array of { firstName, lastName, passportData, nationality, birthDate, isChild }
-      physicalRoomIds // Array of IDs
+    const body = (await req.json()) as Record<string, unknown>;
+    const {
+      roomTypeId,
+      checkInDate,
+      checkOutDate,
+      roomCount,
+      totalAmount,
+      paidAmount,
+      note,
+      source,
+      guests,
+      physicalRoomIds,
     } = body;
 
-    const start = new Date(checkInDate);
-    const end = new Date(checkOutDate);
+    const start = new Date(checkInDate as string | number | Date);
+    const end = new Date(checkOutDate as string | number | Date);
 
-    // 1. Overlap / Availability Check
+    const guestRows = Array.isArray(guests) ? (guests as GuestPayload[]) : [];
+
     const concurrentBookings = await prisma.hotelBooking.findMany({
-        where: {
-            hotelId: ctx.hotel.id,
-            roomTypeId,
-            status: { notIn: ["CANCELLED", "NO_SHOW"] },
-            OR: [
-                { checkInDate: { lt: end }, checkOutDate: { gt: start } }
-            ]
-        },
-        select: { roomCount: true }
+      where: {
+        hotelId: ctx.hotel.id,
+        roomTypeId: String(roomTypeId),
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        OR: [{ checkInDate: { lt: end }, checkOutDate: { gt: start } }],
+      },
+      select: { roomCount: true },
     });
 
     const totalPhysicalRooms = await prisma.physicalRoom.count({
-        where: { hotelId: ctx.hotel.id, roomTypeId, isActive: true }
+      where: {
+        hotelId: ctx.hotel.id,
+        roomTypeId: String(roomTypeId),
+        isActive: true,
+      },
     });
 
     const usedRoomCount = concurrentBookings.reduce((sum, b) => sum + b.roomCount, 0);
     if (usedRoomCount + Number(roomCount) > totalPhysicalRooms) {
-        return NextResponse.json({ 
-            message: "Tanlangan sanalarda bo'sh xonalar yetarli emas",
-            available: totalPhysicalRooms - usedRoomCount 
-        }, { status: 400 });
+      return NextResponse.json(
+        {
+          message: "Tanlangan sanalarda bo'sh xonalar yetarli emas",
+          available: totalPhysicalRooms - usedRoomCount,
+        },
+        { status: 400 },
+      );
     }
 
-    // 2. Encryption for all guests
-    const encryptedGuests = (guests || []).map((g: any) => ({
-        firstName: g.firstName,
-        lastName: g.lastName,
-        passportData: g.passportData ? encrypt(g.passportData) : null,
-        nationality: g.nationality,
-        birthDate: g.birthDate ? new Date(g.birthDate) : null,
-        isChild: !!g.isChild
+    const encryptedGuests = guestRows.map((g) => ({
+      firstName: g.firstName ?? "Mehmon",
+      lastName: g.lastName ?? "",
+      passportData: g.passportData ? encrypt(g.passportData) : null,
+      nationality: g.nationality ?? null,
+      birthDate: g.birthDate ? new Date(g.birthDate as string | number | Date) : null,
+      isChild: !!g.isChild,
     }));
 
-    // 3. Create Booking & Guests & Assignments in Transaction
-    const booking = await prisma.$transaction(async (tx) => {
-        const b = await tx.hotelBooking.create({
-            data: {
-                hotelId: ctx.hotel.id,
-                roomTypeId,
-                guestName: (guests?.[0]?.firstName || "Mehmon") + (guests?.[0]?.lastName ? " " + guests?.[0]?.lastName : ""),
-                checkInDate: start,
-                checkOutDate: end,
-                roomCount: Number(roomCount),
-                totalAmount: Number(totalAmount),
-                paidAmount: Number(paidAmount),
-                status: "CONFIRMED",
-                source: source || "RECEPTION",
-                note,
-                guests: { create: encryptedGuests }
-            },
-            include: { guests: true }
-        });
+    const bookingSources: BookingSource[] = [
+      "SAFARTRIP",
+      "DIRECT",
+      "WALK_IN",
+      "PHONE",
+      "CORPORATE",
+      "ADMIN",
+      "RECEPTION",
+    ];
+    const bookingSource: BookingSource =
+      typeof source === "string" && bookingSources.includes(source as BookingSource)
+        ? (source as BookingSource)
+        : "RECEPTION";
+    const noteStr = typeof note === "string" ? note : null;
+    const roomIds = Array.isArray(physicalRoomIds)
+      ? (physicalRoomIds as unknown[]).map((pid) => String(pid))
+      : [];
 
-        // 4. Create Room Assignments if provided
-        if (Array.isArray(physicalRoomIds) && physicalRoomIds.length > 0) {
-            await tx.bookingRoomAssignment.createMany({
-                data: physicalRoomIds.map(pid => ({
-                    bookingId: b.id,
-                    physicalRoomId: pid,
-                    checkInDate: start,
-                    checkOutDate: end,
-                    status: "ACTIVE"
-                }))
-            });
-        }
-        
-        return b;
+    const booking = await prisma.$transaction(async (tx) => {
+      const guest0 = guestRows[0];
+      const guestName =
+        `${guest0?.firstName ?? "Mehmon"}${guest0?.lastName ? ` ${guest0.lastName}` : ""}`;
+      const b = await tx.hotelBooking.create({
+        data: {
+          hotelId: ctx.hotel.id,
+          roomTypeId: String(roomTypeId),
+          guestName,
+          checkInDate: start,
+          checkOutDate: end,
+          roomCount: Number(roomCount),
+          totalAmount: Number(totalAmount),
+          paidAmount: Number(paidAmount),
+          status: "CONFIRMED",
+          source: bookingSource,
+          note: noteStr,
+          guests: { create: encryptedGuests },
+        },
+        include: { guests: true },
+      });
+
+      if (roomIds.length > 0) {
+        await tx.bookingRoomAssignment.createMany({
+          data: roomIds.map((physicalRoomId) => ({
+            bookingId: b.id,
+            physicalRoomId,
+            checkInDate: start,
+            checkOutDate: end,
+            status: "ACTIVE",
+          })),
+        });
+      }
+
+      return b;
     });
 
     return NextResponse.json({ booking });

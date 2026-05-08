@@ -13,6 +13,8 @@ import RecommendedProviders from '@/components/landing/RecommendedProviders';
 import ReviewsCarousel from '@/components/landing/ReviewsCarousel';
 import FinalCTA from '@/components/landing/FinalCTA';
 
+export const dynamic = "force-dynamic";
+
 const pageTitle = "SafarTrip.uz — O'zbekistonda sayohat rejalashtiring";
 const pageDescription =
   "Zomin, Jizzax va boshqa yo'nalishlarda mehmonxona, transport va gid xizmatlarini bir joydan bron qiling.";

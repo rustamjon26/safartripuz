@@ -12,53 +12,65 @@ export async function GET(req: Request) {
     const today = new Date();
     const last30Days = new Date(today.getTime() - 30 * 86400000);
 
-    // 1. Room Revenue (Bookings)
     const bookings = await prisma.hotelBooking.findMany({
-      where: { hotelId: ctx.hotel.id, createdAt: { gte: last30Days }, status: { not: "CANCELLED" } }
+      where: {
+        hotelId: ctx.hotel.id,
+        createdAt: { gte: last30Days },
+        status: { not: "CANCELLED" },
+      },
     });
 
-    // 2. F&B Revenue (Restaurant Orders)
-    const restaurantOrders = await (prisma as any).restaurantOrder.findMany({
-      where: { hotelId: ctx.hotel.id, createdAt: { gte: last30Days }, status: "SERVED" }
+    const restaurantOrders = await prisma.restaurantOrder.findMany({
+      where: {
+        hotelId: ctx.hotel.id,
+        createdAt: { gte: last30Days },
+        status: "SERVED",
+      },
     });
 
-    // 3. HR Costs (Staff Salaries)
-    const staff = await (prisma as any).hotelStaff.findMany({
-      where: { hotelId: ctx.hotel.id, isActive: true }
+    const staff = await prisma.hotelStaff.findMany({
+      where: { hotelId: ctx.hotel.id, isActive: true },
     });
-    const totalStaffCosts = staff.reduce((sum: number, s: any) => sum + Number(s.salary || 0), 0);
+    const totalStaffCosts = staff.reduce((sum, s) => sum + Number(s.salary ?? 0), 0);
 
-    // 4. Logistics Costs (Inventory OUT transactions)
-    const inventoryCosts = await (prisma as any).inventoryTransaction.findMany({
-      where: { hotelId: ctx.hotel.id, createdAt: { gte: last30Days }, type: "OUT" },
-      include: { inventoryItem: true }
+    const inventoryCosts = await prisma.inventoryTransaction.findMany({
+      where: {
+        hotelId: ctx.hotel.id,
+        createdAt: { gte: last30Days },
+        type: "OUT",
+      },
+      include: { inventoryItem: true },
     });
-    const totalLogisticsCosts = inventoryCosts.length * 50000; 
+    const totalLogisticsCosts = inventoryCosts.length * 50000;
 
-    // Aggregating Daily Revenue Trend (Rooms + F&B)
-    const dailyTrend = [];
-    for(let i=29; i>=0; i--) {
+    const dailyTrend: Array<{
+      date: string;
+      roomRev: number;
+      foodRev: number;
+      total: number;
+    }> = [];
+
+    for (let i = 29; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = d.toISOString().split("T")[0];
 
       const roomRev = bookings
-        .filter((b: any) => b.createdAt.toISOString().split('T')[0] === dateStr)
-        .reduce((sum: number, b: any) => sum + Number(b.totalAmount), 0);
+        .filter((b) => b.createdAt.toISOString().split("T")[0] === dateStr)
+        .reduce((sum, b) => sum + Number(b.totalAmount), 0);
 
       const foodRev = restaurantOrders
-        .filter((o: any) => o.createdAt.toISOString().split('T')[0] === dateStr)
-        .reduce((sum: number, o: any) => sum + Number(o.totalAmount), 0);
-      
+        .filter((o) => o.createdAt.toISOString().split("T")[0] === dateStr)
+        .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+
       if (roomRev > 0 || foodRev > 0) {
         dailyTrend.push({ date: dateStr, roomRev, foodRev, total: roomRev + foodRev });
       }
     }
 
-    const totalRoomRev = bookings.reduce((sum: number, b: any) => sum + Number(b.totalAmount), 0);
-    const totalFoodRev = restaurantOrders.reduce((sum: number, o: any) => sum + Number(o.totalAmount), 0);
+    const totalRoomRev = bookings.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+    const totalFoodRev = restaurantOrders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
 
-    // Revenue Metrics
     const occupancyRate = (bookings.length / (ctx.hotel.totalRooms * 30)) * 100;
 
     return NextResponse.json({
@@ -68,14 +80,13 @@ export async function GET(req: Request) {
         foodRevenue: totalFoodRev,
         staffCosts: totalStaffCosts,
         logisticsCosts: totalLogisticsCosts,
-        netProfit: (totalRoomRev + totalFoodRev) - (totalStaffCosts + totalLogisticsCosts),
+        netProfit: totalRoomRev + totalFoodRev - (totalStaffCosts + totalLogisticsCosts),
         occupancyRate: Math.round(occupancyRate * 10) / 10,
-        adr: totalRoomRev > 0 ? totalRoomRev / bookings.length : 0, // Simplified ADR
-        revpar: totalRoomRev / (ctx.hotel.totalRooms * 30)
+        adr: totalRoomRev > 0 ? totalRoomRev / bookings.length : 0,
+        revpar: totalRoomRev / (ctx.hotel.totalRooms * 30),
       },
-      dailyTrend: dailyTrend.reverse()
+      dailyTrend: dailyTrend.reverse(),
     });
-
   } catch (error) {
     console.error("Reports API Error:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });

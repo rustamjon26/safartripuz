@@ -35,7 +35,7 @@ function LoginForm() {
 
   async function onSubmit(values: Values) {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -52,23 +52,26 @@ function LoginForm() {
 
       toast.success("Muvaffaqiyatli kirdingiz!");
 
-      const role = "user" in data ? data.user.role : "user";
-      const nextPath = searchParams.get("next");
-      const redirects: Record<string, string> = {
-        user: "/bookings",
-        super_admin: "/admin",
+      const role = "user" in data ? data.user?.role : undefined;
+      const redirectMap: Record<string, string> = {
         admin: "/admin",
+        super_admin: "/admin",
         hotel_manager: "/hotel",
-        taxi: "/taxi/home",
-        guide: "/guide",
-        restaurant_manager: "/restaurant",
+        home_stay_partner: "/homestay-partner",
+        guide: "/guide-partner",
+        taxi: "/taxi-partner",
+        user: "/",
       };
 
-      if (nextPath && nextPath.startsWith("/")) {
-        router.push(nextPath);
-        return;
+      const redirectTo = role ? (redirectMap[role] ?? "/") : "/";
+      if (role === "user") {
+        const nextPath = searchParams.get("next");
+        if (nextPath && nextPath.startsWith("/")) {
+          router.push(nextPath);
+          return;
+        }
       }
-      router.push(redirects[role] ?? "/trip-builder");
+      router.push(redirectTo);
     } catch {
       toast.error("Server xatosi");
     }

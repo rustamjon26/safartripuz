@@ -6,6 +6,7 @@ import { Building2, Clock, CreditCard, ListChecks } from "lucide-react";
 
 type Listing = {
   id: string;
+  title?: string;
   status: string;
 };
 
@@ -26,13 +27,25 @@ export default function AdminHomeStayOverviewPage() {
       setLoading(true);
       try {
         const [lRes, bRes] = await Promise.all([
-          fetch("/api/admin/homestay/listings?limit=200"),
-          fetch("/api/admin/homestay/bookings?limit=500"),
+          fetch("/api/admin/homestay/listings?limit=200", { credentials: "include" }),
+          fetch("/api/admin/homestay/bookings?limit=500", { credentials: "include" }),
         ]);
-        const lData = await lRes.json();
-        const bData = await bRes.json();
-        setListings(lData?.items || []);
-        setBookings(bData?.items || []);
+        const lJson = await lRes.json();
+        const bJson = await bRes.json();
+        setListings(
+          Array.isArray(lJson?.data)
+            ? lJson.data
+            : Array.isArray(lJson?.items)
+              ? lJson.items
+              : [],
+        );
+        setBookings(
+          Array.isArray(bJson?.data)
+            ? bJson.data
+            : Array.isArray(bJson?.items)
+              ? bJson.items
+              : [],
+        );
       } finally {
         setLoading(false);
       }
@@ -61,16 +74,20 @@ export default function AdminHomeStayOverviewPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Uy Mehmonxona</h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">Platforma bo'yicha HomeStay monitoring</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/homestay/listings" className="adm-btn adm-btn-primary">Listings</Link>
-          <Link href="/admin/homestay/bookings" className="adm-btn">Bookings</Link>
-          <Link href="/admin/homestay/partners" className="adm-btn">Partners</Link>
-        </div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Uy Mehmonxona</h1>
+        <Link
+          href="/admin/homestay/new"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          + Yangi qo'shish
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href="/admin/homestay/listings" className="adm-btn adm-btn-primary">Listings</Link>
+        <Link href="/admin/homestay/bookings" className="adm-btn">Bookings</Link>
+        <Link href="/admin/homestay/partners" className="adm-btn">Partners</Link>
       </div>
 
       <div className="adm-kpi-grid">
@@ -79,6 +96,36 @@ export default function AdminHomeStayOverviewPage() {
         <StatCard icon={ListChecks} label="Bookings this month" value={stats.bookingsThisMonth} color="teal" />
         <StatCard icon={CreditCard} label="Revenue this month" value={`${stats.revenueThisMonth.toLocaleString()} UZS`} color="green" />
       </div>
+
+      {!loading ? (
+        <div className="adm-card p-4">
+          <h2 className="text-lg font-semibold mb-3">Listinglar</h2>
+          {listings.length === 0 ? (
+            <div className="text-sm text-slate-500">Listing topilmadi</div>
+          ) : (
+            <div className="space-y-2">
+              {listings.map((listing) => (
+                <div key={listing.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                  <div className="font-medium text-slate-800">
+                    {listing.title || `Listing #${listing.id.slice(0, 8)}`}
+                  </div>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      listing.status === "ACTIVE"
+                        ? "bg-green-100 text-green-700"
+                        : listing.status === "PENDING"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {listing.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="adm-card p-10 text-center text-slate-400 font-bold">Yuklanmoqda...</div>

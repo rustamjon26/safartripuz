@@ -33,7 +33,18 @@ export async function POST(req: Request) {
       where: { key: "payment_providers" }
     });
     
-    const config = (settings?.value as any)?.[provider.toLowerCase()] || {};
+    type ProviderCfg = {
+      enabled?: boolean;
+      serviceId?: string;
+      merchantId?: string;
+    };
+    type PaymentProvidersValue = Record<string, ProviderCfg | undefined>;
+    const raw = settings?.value;
+    const providers =
+      typeof raw === "object" && raw !== null && !Array.isArray(raw)
+        ? (raw as PaymentProvidersValue)
+        : {};
+    const config = providers[String(provider).toLowerCase()] ?? {};
     if (!config.enabled && provider !== "MOCK") {
       return NextResponse.json({ error: "Ushbu to'lov tizimi o'chirilgan" }, { status: 400 });
     }

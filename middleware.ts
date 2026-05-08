@@ -25,7 +25,7 @@ function isPathMatch(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const protectedAreas: Array<{
@@ -34,31 +34,33 @@ export async function proxy(req: NextRequest) {
     redirectTo: string;
   }> = [
     { prefix: "/admin", allow: ["admin", "super_admin"], redirectTo: "/login" },
-    { prefix: "/hotel", allow: ["hotel_manager", "admin", "super_admin"], redirectTo: "/login" },
+    {
+      prefix: "/hotel",
+      allow: ["hotel_manager", "admin", "super_admin"],
+      redirectTo: "/login",
+    },
     { prefix: "/taxi", allow: ["taxi"], redirectTo: "/login" },
     { prefix: "/guide", allow: ["guide"], redirectTo: "/login" },
-    { prefix: "/restaurant", allow: ["restaurant_manager"], redirectTo: "/login" },
+    {
+      prefix: "/restaurant",
+      allow: ["restaurant_manager"],
+      redirectTo: "/login",
+    },
+    { prefix: "/user", allow: ["user", "admin", "super_admin"], redirectTo: "/login" },
   ];
 
   const area = protectedAreas.find((a) => isPathMatch(pathname, a.prefix));
   if (!area) return NextResponse.next();
 
   const token = req.cookies.get("access_token")?.value;
-  const refreshToken = req.cookies.get("refresh_token")?.value;
 
-  // Case 1: No Access Token
   if (!token) {
-    // If we have a refresh token, maybe we can let the request through to the client 
-    // where it will call /api/auth/refresh? 
-    // No, for HTML documents (SSR), we should probably redirect to login or a refresh page.
-    // For now, redirect to login with 'next' param.
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  // Case 2: Verify Token & Role
   const role = await getRoleFromAccessToken(token);
 
   if (!role) {
@@ -88,5 +90,7 @@ export const config = {
     "/taxi/:path*",
     "/guide/:path*",
     "/restaurant/:path*",
+    "/user",
+    "/user/:path*",
   ],
 };

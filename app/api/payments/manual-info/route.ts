@@ -10,8 +10,11 @@ export async function GET(req: Request) {
     // Default fallback when not configured
     const defaultData = { cardNumber: "8600 0000 0000 0000", cardHolder: "ADMINISTRATOR" };
     
-    if (settings && settings.value) {
-       const v = settings.value as any;
+    type ManualCfg = { enabled?: boolean; cardNumber?: string; cardHolder?: string };
+    type PaymentProvidersJson = { manual?: ManualCfg };
+
+    if (settings?.value) {
+       const v = settings.value as PaymentProvidersJson;
        if (v.manual && v.manual.enabled) {
           return NextResponse.json({
              cardNumber: v.manual.cardNumber || defaultData.cardNumber,

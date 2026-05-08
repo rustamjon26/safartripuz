@@ -1,4 +1,9 @@
+import { createHash } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
+
+export function hashToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
 
 export type AppRole =
   | "super_admin"
@@ -69,12 +74,10 @@ export async function verifyRefreshToken(token: string): Promise<{ sub: string }
   return { sub: payload.sub };
 }
 
-export function authCookieOptions() {
-  return {
-    httpOnly: true as const,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
-    path: "/",
-  };
-}
+export const authCookieOptions = {
+  httpOnly: true,
+  secure: false,
+  sameSite: "lax" as const,
+  path: "/",
+};
 

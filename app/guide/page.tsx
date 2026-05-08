@@ -6,7 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Search, SlidersHorizontal, Star } from "lucide-react";
+import { SlidersHorizontal, Star } from "lucide-react";
 import {
   formatPricePerUnit,
   formatUzInteger,
@@ -96,38 +96,64 @@ export default function GuideSearchPage() {
   return (
     <div id="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Navbar />
-      <main style={{ flex: 1 }} className="bg-slate-50">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-5">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <input value={query.city} onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))} placeholder="City" className="h-input" />
-              <select value={query.category} onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))} className="h-input">
-                <option value="">Category</option>
+      <main style={{ flex: 1 }} className="bg-gray-50">
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 py-10 px-4 pt-20">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-white text-3xl font-bold mb-2">Gidlar</h1>
+            <p className="text-emerald-100 mb-6">
+              O&apos;zbekiston bo&apos;ylab tajribali gidlar bilan sayohat qiling
+            </p>
+            <div className="bg-white rounded-2xl p-4 flex flex-wrap gap-3 items-center shadow-lg">
+              <input
+                className="flex-1 min-w-[150px] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-emerald-500"
+                placeholder="Shahar"
+                value={query.city}
+                onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
+              />
+              <select
+                className="flex-1 min-w-[150px] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-emerald-500"
+                value={query.category}
+                onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
+              >
+                <option value="">Kategoriya</option>
                 {CATEGORY_OPTIONS.map((c) => (
                   <option key={c} value={c}>
                     {guideCategoryLabel(c)}
                   </option>
                 ))}
               </select>
-              <select value={query.language} onChange={(e) => setQuery((p) => ({ ...p, language: e.target.value }))} className="h-input">
-                <option value="">Language</option>
+              <select
+                className="flex-1 min-w-[150px] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-emerald-500"
+                value={query.language}
+                onChange={(e) => setQuery((p) => ({ ...p, language: e.target.value }))}
+              >
+                <option value="">Til</option>
                 {LANGUAGE_OPTIONS.map((l) => (
                   <option key={l} value={l}>
                     {languageLabel(l)}
                   </option>
                 ))}
               </select>
-              <input type="date" value={query.date} onChange={(e) => setQuery((p) => ({ ...p, date: e.target.value }))} className="h-input" />
-              <button onClick={() => void runSearch()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800">
-                <Search size={16} />
-                Search
+              <input
+                type="date"
+                className="flex-1 min-w-[150px] border border-gray-200 rounded-xl px-4 py-2 focus:outline-none focus:border-emerald-500"
+                value={query.date}
+                onChange={(e) => setQuery((p) => ({ ...p, date: e.target.value }))}
+              />
+              <button
+                onClick={() => void runSearch()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-medium"
+              >
+                Qidirish
               </button>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-col lg:flex-row gap-6">
-            <aside className="lg:w-[280px]">
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
+        <div className="max-w-6xl mx-auto px-4 py-8 flex gap-6">
+          <div className="flex flex-col lg:flex-row gap-6 w-full">
+            <aside className="lg:w-[280px] lg:sticky lg:top-24 h-fit">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
                 <button onClick={() => setFiltersOpen((p) => !p)} className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700">
                   <SlidersHorizontal size={16} />
                   Filters
@@ -186,7 +212,7 @@ export default function GuideSearchPage() {
 
             <section className="flex-1">
               {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-3xl border border-slate-100 p-4 space-y-3">
                       <Skeleton className="h-40 w-full" />
@@ -198,16 +224,20 @@ export default function GuideSearchPage() {
               ) : items.length === 0 ? (
                 <EmptyState title="Natija topilmadi" message="Qidiruv bo'yicha mos Guide topilmadi." ctaHref="/guide" ctaLabel="Filterni tozalash" />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {items.map((item) => (
-                    <Link key={item.id} href={`/guide/${item.id}`} className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-lg transition">
-                      <div className="h-48 bg-slate-100">
+                    <Link
+                      key={item.id}
+                      href={`/guide/${item.id}`}
+                      className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg hover:scale-[1.02] transition duration-300"
+                    >
+                      <div className="aspect-video bg-slate-100 rounded-xl overflow-hidden m-3">
                         {item.images?.[0] ? <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" /> : null}
                       </div>
                       <div className="p-4 space-y-2">
                         <div className="flex items-center justify-between">
                           <h3 className="font-black text-slate-900">{item.title}</h3>
-                          <span className="text-[10px] font-black px-2 py-1 rounded border bg-slate-100 border-slate-200">
+                          <span className="text-[10px] font-black px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
                             {guideCategoryLabel(item.category)}
                           </span>
                         </div>
@@ -216,17 +246,17 @@ export default function GuideSearchPage() {
                           {(item.languages || []).slice(0, 4).map((l) => (
                             <span
                               key={l}
-                              className="text-[10px] font-black px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200"
+                              className="text-[10px] font-black px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200"
                             >
                               {languageLabel(l)}
                             </span>
                           ))}
                         </div>
                         <div className="flex items-center justify-between mt-2">
-                          <div className="text-lg font-black text-slate-900">
+                          <div className="text-lg font-black text-emerald-600">
                             {formatPricePerUnit(Number(item.pricePerHour), "soat")}
                           </div>
-                          <div className="flex items-center gap-1 text-sm font-bold text-amber-600">
+                          <div className="flex items-center gap-1 text-sm font-bold text-yellow-500">
                             <Star size={14} fill="currentColor" />
                             {(item.avgRating ?? item.rating ?? 0).toFixed(1)} ({item.reviewCount ?? 0})
                           </div>
