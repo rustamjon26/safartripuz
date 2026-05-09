@@ -24,7 +24,7 @@ export const authOptions = {
                 first_name: user.name?.split(" ")[0] ?? "",
                 last_name: user.name?.split(" ")[1] ?? "",
                 password: "",
-                phone: "",
+                phone: null,
                 role: "user",
               },
             });
