@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 
-const handler = NextAuth({
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
     GoogleProvider({
@@ -13,38 +13,34 @@ const handler = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
-        const existing = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-        if (!existing) {
-          await prisma.user.create({
-            data: {
-              email: user.email!,
-              first_name: user.name?.split(" ")[0] ?? "",
-              last_name: user.name?.split(" ")[1] ?? "",
-              password: "",
-              phone: "",
-              role: "user",
-            },
+        try {
+          const existing = await prisma.user.findUnique({
+            where: { email: user.email! },
           });
+          if (!existing) {
+            await prisma.user.create({
+              data: {
+                email: user.email!,
+                first_name: user.name?.split(" ")[0] ?? "",
+                last_name: user.name?.split(" ")[1] ?? "",
+                password: "",
+                phone: "",
+                role: "user",
+              },
+            });
+          }
+        } catch (e) {
+          console.error("Google signIn error:", e);
         }
       }
       return true;
     },
-    async session({ session }) {
-      if (session.user?.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: session.user.email },
-          select: { id: true, role: true },
-        });
-        if (dbUser) {
-          (session.user as any).id = dbUser.id;
-          (session.user as any).role = dbUser.role;
-        }
-      }
-      return session;
+    async redirect({ baseUrl }) {
+      return `${baseUrl}/api/auth/google-callback`;
     },
   },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
