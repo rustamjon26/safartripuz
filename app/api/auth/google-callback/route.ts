@@ -11,10 +11,11 @@ import {
 import { authOptions } from "../[...nextauth]/route";
 
 export async function GET(req: Request) {
+  const baseUrl = process.env.NEXTAUTH_URL || "https://safartrip.uz";
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", baseUrl));
   }
 
   const user = await prisma.user.findUnique({
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
   });
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(new URL("/login", baseUrl));
   }
 
   const accessToken = await signAccessToken({ sub: user.id, role: user.role as AppRole });
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
               ? "/taxi-partner"
               : "/";
 
-  const response = NextResponse.redirect(new URL(redirectUrl, req.url));
+  const response = NextResponse.redirect(new URL(redirectUrl, baseUrl));
 
   response.cookies.set("access_token", accessToken, {
     ...authCookieOptions,
