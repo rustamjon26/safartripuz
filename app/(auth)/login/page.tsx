@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { signIn } from "next-auth/react";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 
 function LoginForm() {
@@ -90,7 +91,7 @@ function LoginForm() {
       <button
         type="button"
         disabled={busy}
-        onClick={() => toast.message("Google login hozircha simulyatsiya qilindi")}
+        onClick={() => signIn("google", { callbackUrl: "/" })}
         className={[
           "mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm transition",
           busy ? "cursor-not-allowed opacity-70" : "hover:bg-slate-50",

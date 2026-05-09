@@ -76,7 +76,7 @@ export async function verifyRefreshToken(token: string): Promise<{ sub: string }
 
 export const authCookieOptions = {
   httpOnly: true,
-  secure: false,
+  secure: process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
 };

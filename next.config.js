@@ -6,7 +6,12 @@ const nextConfig = {
     workerThreads: false,
     cpus: 1,
     serverActions: {
-      allowedOrigins: ["safartrip.uz", "https://safartrip.uz"],
+      allowedOrigins: [
+        "safartrip.uz",
+        "https://safartrip.uz",
+        "www.safartrip.uz",
+        "localhost:3000",
+      ],
     },
   },
   images: {

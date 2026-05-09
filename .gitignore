@@ -33,7 +33,9 @@ yarn-error.log*
 
 # env — never commit secrets (commit .env.example only if you add one)
 .env
+.env.*
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production
