@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 export const authOptions = {
@@ -24,7 +25,7 @@ export const authOptions = {
                 first_name: user.name?.split(" ")[0] ?? "",
                 last_name: user.name?.split(" ")[1] ?? "",
                 password: "",
-                phone: null,
+                phone: `google_${randomBytes(8).toString("hex")}`,
                 role: "user",
               },
             });
