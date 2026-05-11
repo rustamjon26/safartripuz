@@ -88,15 +88,23 @@ export async function GET(req: Request) {
               ? "/guide-partner"
               : user.role === "taxi"
                 ? "/taxi-partner"
-                : "/";
+                : "/trip-builder";
 
     const response = NextResponse.redirect(new URL(redirectUrl, baseUrl));
+
     response.cookies.set("access_token", accessToken, {
-      ...authCookieOptions,
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
       maxAge: 60 * 15,
     });
+
     response.cookies.set("refresh_token", refreshToken, {
-      ...authCookieOptions,
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
       maxAge: 30 * 24 * 60 * 60,
     });
 
