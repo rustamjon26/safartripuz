@@ -33,7 +33,7 @@ export function useCurrentUser() {
 
     async function fetchMe() {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+        const res = await fetch("/api/auth/me", { credentials: "include" });
         if (cancelled) return;
 
         if (res.status === 401) {

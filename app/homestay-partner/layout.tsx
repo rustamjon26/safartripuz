@@ -42,7 +42,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
   useEffect(() => {
     async function loadMe() {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await fetch("/api/auth/me", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) {
           router.push("/login?next=/homestay-partner/dashboard");

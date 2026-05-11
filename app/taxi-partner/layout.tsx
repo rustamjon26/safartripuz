@@ -43,7 +43,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
   useEffect(() => {
     async function loadMe() {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await fetch("/api/auth/me", { credentials: "include" });
         const data = await res.json();
         if (!res.ok) {
           router.push("/login?next=/taxi-partner/dashboard");
