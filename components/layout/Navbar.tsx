@@ -23,6 +23,18 @@ export default function Navbar() {
   const hash = useHash();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<{
+    first_name: string;
+    last_name: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setUser(data.user))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,9 +106,29 @@ export default function Navbar() {
         </div>
 
         <div className={styles.actions}>
-          <Link href="/login" className={styles.loginBtn}>
-            Kirish
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">
+                {user.first_name} {user.last_name}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
+                    setUser(null);
+                    window.location.href = '/';
+                  });
+                }}
+                className="text-sm text-gray-500 hover:text-red-500"
+              >
+                Chiqish
+              </button>
+            </div>
+          ) : (
+            <Link href="/login" className={styles.loginBtn}>
+              Kirish
+            </Link>
+          )}
           <Link href={loginWithNext('/trip-builder')} className={styles.ctaBtn}>
             Safar tuzing
           </Link>
@@ -169,9 +201,30 @@ export default function Navbar() {
             </div>
 
             <div className={styles.mobileActions}>
-              <Link href="/login" className={styles.mobileLogin} onClick={() => setIsMenuOpen(false)}>
-                Kirish
-              </Link>
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium">
+                    {user.first_name} {user.last_name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
+                        setUser(null);
+                        setIsMenuOpen(false);
+                        window.location.href = '/';
+                      });
+                    }}
+                    className="text-sm text-gray-500 hover:text-red-500"
+                  >
+                    Chiqish
+                  </button>
+                </div>
+              ) : (
+                <Link href="/login" className={styles.mobileLogin} onClick={() => setIsMenuOpen(false)}>
+                  Kirish
+                </Link>
+              )}
               <Link href={loginWithNext('/trip-builder')} className={styles.mobileCta} onClick={() => setIsMenuOpen(false)}>
                 Safar tuzing
               </Link>
