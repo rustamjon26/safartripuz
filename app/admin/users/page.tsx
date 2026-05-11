@@ -9,9 +9,11 @@ type Role =
   | "admin"
   | "user"
   | "taxi"
+  | "taxi_partner"
   | "hotel_manager"
   | "guide"
-  | "restaurant_manager";
+  | "restaurant_manager"
+  | "home_stay_partner";
 
 type UserRow = {
   id: string;
@@ -40,9 +42,11 @@ const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
   user: "Foydalanuvchi",
   taxi: "Taxi Hamkor",
+  taxi_partner: "Taxi Partner",
   hotel_manager: "Mehmonxona",
   guide: "Gid",
   restaurant_manager: "Restoran",
+  home_stay_partner: "Uy-Mehmon Hamkor",
 };
 
 export default function AdminUsersPage() {
@@ -122,7 +126,14 @@ export default function AdminUsersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Xatolik");
 
-      toast.success("Muvaffaqiyatli yangilandi");
+      if (typeof payload.role === "string") {
+        toast.success("Rol o'zgartirildi va kerakli yozuvlar avtomatik yaratildi");
+        if (payload.role === "hotel_manager") {
+          toast.info("Mehmonxona ma'lumotlarini to'ldirish uchun /hotel/profile sahifasiga o'tsin");
+        }
+      } else {
+        toast.success("Muvaffaqiyatli yangilandi");
+      }
       setItems((prev) => prev.map((u) => (u.id === userId ? { ...u, ...payload } : u)));
       setEditingUser(null);
     } catch (e) {

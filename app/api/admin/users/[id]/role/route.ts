@@ -9,9 +9,11 @@ const schema = z.object({
     "admin",
     "user",
     "taxi",
+    "taxi_partner",
     "hotel_manager",
     "guide",
     "restaurant_manager",
+    "home_stay_partner",
   ]),
 });
 
@@ -31,7 +33,14 @@ export async function PATCH(
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, role: true, email: true },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        phone: true,
+      },
     });
     if (!existing) {
       return NextResponse.json({ message: "User topilmadi" }, { status: 404 });
@@ -50,27 +59,124 @@ export async function PATCH(
       );
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: { role: parsed.data.role },
-      select: {
-        id: true,
-        role: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-      },
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id },
+        data: { role: parsed.data.role },
+        select: {
+          id: true,
+          role: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+        },
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        actorId: actor.id,
-        action: "USER_ROLE_UPDATED",
-        entity: "User",
-        entityId: updated.id,
-        oldData: { role: existing.role, email: existing.email },
-        newData: { role: updated.role, email: updated.email },
-      },
+      const displayName = `${user.first_name} ${user.last_name}`.trim() || user.email;
+      const newRole = user.role;
+
+      if (newRole === "hotel_manager") {
+        const existingPartner = await tx.partner.findUnique({
+          where: { userId: user.id },
+        });
+        if (!existingPartner) {
+          const partner = await tx.partner.create({
+            data: {
+              userId: user.id,
+              type: "hotel",
+              status: "approved",
+              displayName,
+              contactEmail: user.email,
+              contactPhone: user.phone,
+            },
+          });
+          await tx.hotel.create({
+            data: {
+              partnerId: partner.id,
+              status: "active",
+              name: `${displayName} Hotel`,
+              totalRooms: 10,
+              city: "",
+              contactEmail: user.email,
+              contactPhone: user.phone,
+            },
+          });
+        }
+      }
+
+      if (newRole === "guide") {
+        const existingPartner = await tx.partner.findUnique({
+          where: { userId: user.id },
+        });
+        if (!existingPartner) {
+          await tx.partner.create({
+            data: {
+              userId: user.id,
+              type: "guide",
+              status: "approved",
+              displayName,
+              contactEmail: user.email,
+              contactPhone: user.phone,
+            },
+          });
+        }
+      }
+
+      if (newRole === "taxi" || newRole === "taxi_partner") {
+        const existingPartner = await tx.partner.findUnique({
+          where: { userId: user.id },
+        });
+        if (!existingPartner) {
+          await tx.partner.create({
+            data: {
+              userId: user.id,
+              type: "taxi",
+              status: "approved",
+              displayName,
+              contactEmail: user.email,
+              contactPhone: user.phone,
+            },
+          });
+        }
+      }
+
+      if (newRole === "home_stay_partner") {
+        const existingPartner = await tx.partner.findUnique({
+          where: { userId: user.id },
+        });
+        if (!existingPartner) {
+          await tx.partner.create({
+            data: {
+              userId: user.id,
+              type: "hotel",
+              status: "approved",
+              displayName,
+              contactEmail: user.email,
+              contactPhone: user.phone,
+            },
+          });
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorId: actor.id,
+          action: "USER_ROLE_UPDATED",
+          entity: "User",
+          entityId: user.id,
+          oldData: { role: existing.role, email: existing.email },
+          newData: { role: user.role, email: user.email },
+        },
+      });
+
+      return {
+        id: user.id,
+        role: user.role,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      };
     });
 
     return NextResponse.json({ user: updated }, { status: 200 });

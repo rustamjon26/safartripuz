@@ -128,39 +128,39 @@ export async function POST(
         });
 
         if (updatedPartner.type === "hotel") {
-          const loc = metaLocation(partner.meta);
-          await tx.hotel.upsert({
+          const existingHotel = await tx.hotel.findUnique({
             where: { partnerId: updatedPartner.id },
-            update: {
-              name: partner.displayName ?? "Hotel",
-              city: loc.city,
-              address: loc.address,
-              contactEmail: partner.contactEmail ?? null,
-              contactPhone: partner.contactPhone ?? null,
-            },
-            create: {
-              partnerId: updatedPartner.id,
-              status: "draft",
-              name: partner.displayName ?? "Hotel",
-              city: loc.city,
-              address: loc.address,
-              contactEmail: partner.contactEmail ?? null,
-              contactPhone: partner.contactPhone ?? null,
-            },
+            select: { id: true },
           });
-
-          await tx.auditLog.create({
-            data: {
-              actorId: actor.id,
-              action: "HOTEL_CREATED",
-              entity: "Hotel",
-              entityId: updatedPartner.id,
-              newData: {
+          if (!existingHotel) {
+            const loc = metaLocation(partner.meta);
+            const createdHotel = await tx.hotel.create({
+              data: {
                 partnerId: updatedPartner.id,
-                name: partner.displayName ?? "Hotel",
+                status: "active",
+                name: partner.displayName || "Yangi Mehmonxona",
+                totalRooms: 10,
+                city: loc.city ?? "",
+                address: loc.address,
+                contactEmail: partner.contactEmail || "",
+                contactPhone: partner.contactPhone || "",
               },
-            },
-          });
+              select: { id: true },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                actorId: actor.id,
+                action: "HOTEL_CREATED",
+                entity: "Hotel",
+                entityId: createdHotel.id,
+                newData: {
+                  partnerId: updatedPartner.id,
+                  name: partner.displayName || "Yangi Mehmonxona",
+                },
+              },
+            });
+          }
         }
       }
 
