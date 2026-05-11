@@ -27,14 +27,15 @@ type UserRow = {
   partnerProfile: null | { id: string; type: string; status: string };
 };
 
-const roles: Role[] = [
-  "user",
-  "taxi",
-  "hotel_manager",
-  "guide",
-  "restaurant_manager",
-  "admin",
-  "super_admin",
+/** Rol tanlash — asosiy variantlar (tartib va matnlar admin talabiga mos) */
+const ROLE_SELECT_OPTIONS: { value: Role; label: string }[] = [
+  { value: "user", label: "Foydalanuvchi" },
+  { value: "taxi", label: "Taxi Hamkor" },
+  { value: "hotel_manager", label: "Mehmonxona" },
+  { value: "home_stay_partner", label: "Uy Mehmonxona" },
+  { value: "guide", label: "Gid" },
+  { value: "admin", label: "Admin" },
+  { value: "super_admin", label: "Super Admin" },
 ];
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -46,7 +47,7 @@ const ROLE_LABELS: Record<Role, string> = {
   hotel_manager: "Mehmonxona",
   guide: "Gid",
   restaurant_manager: "Restoran",
-  home_stay_partner: "Uy-Mehmon Hamkor",
+  home_stay_partner: "Uy Mehmonxona",
 };
 
 export default function AdminUsersPage() {
@@ -73,6 +74,15 @@ export default function AdminUsersPage() {
   });
 
   const query = useMemo(() => q.trim(), [q]);
+
+  const roleSelectOptions = useMemo(() => {
+    const current = isAddingUser ? newUser.role : editingUser?.role;
+    const base = ROLE_SELECT_OPTIONS;
+    if (current && !base.some((o) => o.value === current)) {
+      return [...base, { value: current, label: ROLE_LABELS[current] ?? current }];
+    }
+    return base;
+  }, [isAddingUser, newUser.role, editingUser?.role]);
 
   async function load() {
     setLoading(true);
@@ -360,7 +370,11 @@ export default function AdminUsersPage() {
                       value={isAddingUser ? newUser.role : editingUser?.role}
                       onChange={(e) => isAddingUser ? setNewUser({...newUser, role: e.target.value as Role}) : setEditingUser({...editingUser!, role: e.target.value as Role})}
                     >
-                      {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                      {roleSelectOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
                  </div>
                  {isAddingUser && (
