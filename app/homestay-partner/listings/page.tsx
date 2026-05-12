@@ -76,7 +76,7 @@ export default function HomeStayListingsPage() {
           <div className="p-6">
             <EmptyState
               title="Listing yo'q"
-              message="Active listing yo'q. Avval yangi listing yarating."
+              message="Hali birorta ham listing yaratmagansiz. Boshlash uchun yangi listing qo'shing."
               ctaHref="/homestay-partner/listings/new"
               ctaLabel="Listing yaratish"
             />

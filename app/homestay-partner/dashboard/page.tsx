@@ -21,6 +21,7 @@ type Booking = {
 type Listing = {
   id: string;
   title: string;
+  status?: "PENDING" | "ACTIVE" | "INACTIVE" | "REJECTED" | "BLOCKED";
 };
 
 export default function HomeStayPartnerDashboardPage() {
@@ -67,6 +68,15 @@ export default function HomeStayPartnerDashboardPage() {
     };
   }, [bookings, listings]);
 
+  const listingsAwaitingApproval = useMemo(
+    () => listings.filter((l) => l.status === "PENDING").length,
+    [listings],
+  );
+  const hasAnyActiveListing = useMemo(
+    () => listings.some((l) => l.status === "ACTIVE"),
+    [listings],
+  );
+
   const recent = useMemo(
     () =>
       [...bookings]
@@ -106,10 +116,21 @@ export default function HomeStayPartnerDashboardPage() {
       {listings.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-bold text-amber-800">
-            Sizda active listing yo'q. Davom etish uchun yangi listing yarating.
+            Sizda hali listing yo'q. Davom etish uchun yangi listing yarating.
           </p>
           <Link href="/homestay-partner/listings/new" className="inline-block mt-3 text-sm font-black text-amber-700 underline">
             Listing yaratish
+          </Link>
+        </div>
+      ) : !hasAnyActiveListing && listingsAwaitingApproval > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-bold text-amber-800">
+            {listingsAwaitingApproval === 1
+              ? "Listingingiz admin tasdig'ini kutmoqda. Tasdiqlanganidan keyin u mehmonlarga ko'rinadi."
+              : `${listingsAwaitingApproval} ta listingingiz admin tasdig'ini kutmoqda.`}
+          </p>
+          <Link href="/homestay-partner/listings" className="inline-block mt-3 text-sm font-black text-amber-700 underline">
+            Listinglarni ko'rish
           </Link>
         </div>
       ) : null}
@@ -128,7 +149,7 @@ export default function HomeStayPartnerDashboardPage() {
           <div className="p-6">
             <EmptyState
               title="Onboarding tugallanmagan"
-              message="Dashboard ma'lumotlari uchun kamida bitta active listing kerak."
+              message="Dashboardda buyurtmalar ko'rinishi uchun avval bitta listing yarating."
               ctaHref="/homestay-partner/listings/new"
               ctaLabel="Listing yaratish"
             />

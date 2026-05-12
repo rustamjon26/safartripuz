@@ -9,9 +9,16 @@ export async function requireHomeStayHost(): Promise<HomeStayActor> {
   return actor as HomeStayActor;
 }
 
+// Returns true if the host has at least one listing that isn't fully removed
+// (i.e. anything besides REJECTED or BLOCKED). A PENDING listing still counts
+// as "onboarded" so the host can view it and manage availability while waiting
+// for admin approval.
 export async function hasActiveListing(hostId: string) {
   const count = await prisma.homeStayListing.count({
-    where: { hostId, status: "ACTIVE" },
+    where: {
+      hostId,
+      status: { in: ["PENDING", "ACTIVE", "INACTIVE"] },
+    },
   });
   return count > 0;
 }
