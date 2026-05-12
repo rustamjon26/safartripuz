@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx scripts/seed-test-data.ts",
     "db:fix-partners": "tsx scripts/fix-missing-partners.ts",
+    "db:inspect-homestay": "tsx scripts/inspect-homestay-user.ts",
     "generate:expo-assets": "node scripts/generate-safartrip-assets.mjs"
   },
   "dependencies": {
