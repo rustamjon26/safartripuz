@@ -98,6 +98,8 @@ export async function POST(req: Request) {
       return fail("amenities and images must be arrays", 400);
     }
 
+    // Listings are auto-approved on creation — no admin moderation step.
+    // Admins can still suspend or block listings later via /admin/homestay/listings.
     const listing = await prisma.homeStayListing.create({
       data: {
         hostId: actor.id,
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
         bathrooms: body.bathrooms,
         amenities: body.amenities,
         images: body.images,
-        status: "PENDING",
+        status: "ACTIVE",
       },
     });
 

@@ -18,6 +18,7 @@
     "db:seed": "tsx scripts/seed-test-data.ts",
     "db:fix-partners": "tsx scripts/fix-missing-partners.ts",
     "db:inspect-homestay": "tsx scripts/inspect-homestay-user.ts",
+    "db:approve-pending-homestays": "tsx scripts/approve-pending-homestays.ts",
     "generate:expo-assets": "node scripts/generate-safartrip-assets.mjs"
   },
   "dependencies": {
