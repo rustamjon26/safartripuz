@@ -152,6 +152,9 @@ export default function AdminUsersPage() {
       }
       setItems((prev) => prev.map((u) => (u.id === userId ? { ...u, ...payload } : u)));
       setEditingUser(null);
+      if (typeof payload.role === "string") {
+        void load();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");
     } finally {
@@ -281,7 +284,13 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-4 text-xs font-bold">
                         {u.partnerProfile ? (
-                          <span className="text-teal-600 uppercase text-[10px]">{u.partnerProfile.type}</span>
+                          u.role === "home_stay_partner" ? (
+                            <span className="text-purple-600 uppercase text-[10px]">Uy Mehmonxona</span>
+                          ) : (
+                            <span className="text-teal-600 uppercase text-[10px]">{u.partnerProfile.type}</span>
+                          )
+                        ) : u.role === "home_stay_partner" ? (
+                          <span className="text-purple-400 uppercase text-[10px]">Uy Mehmonxona</span>
                         ) : (
                           <span className="text-slate-300 uppercase text-[10px]">Oddiy</span>
                         )}

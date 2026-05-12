@@ -33,9 +33,107 @@ export async function PATCH(
       }
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: update,
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id },
+        data: update,
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isBlocked: true,
+          createdAt: true,
+        },
+      });
+
+      // Auto-provision Partner (and Hotel where applicable) when role changes.
+      // Mirrors logic from /api/admin/users/[id]/role so the admin UI's
+      // generic PATCH endpoint stays in sync.
+      if (role !== undefined) {
+        const displayName =
+          `${updated.first_name} ${updated.last_name}`.trim() || updated.email;
+        const newRole = updated.role;
+
+        if (newRole === "hotel_manager") {
+          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
+          if (!existing) {
+            const partner = await tx.partner.create({
+              data: {
+                userId: updated.id,
+                type: "hotel",
+                status: "approved",
+                displayName,
+                contactEmail: updated.email,
+                contactPhone: updated.phone,
+              },
+            });
+            await tx.hotel.create({
+              data: {
+                partnerId: partner.id,
+                status: "active",
+                name: `${displayName} Hotel`,
+                totalRooms: 10,
+                city: "",
+                contactEmail: updated.email,
+                contactPhone: updated.phone,
+              },
+            });
+          }
+        }
+
+        if (newRole === "guide") {
+          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
+          if (!existing) {
+            await tx.partner.create({
+              data: {
+                userId: updated.id,
+                type: "guide",
+                status: "approved",
+                displayName,
+                contactEmail: updated.email,
+                contactPhone: updated.phone,
+              },
+            });
+          }
+        }
+
+        if (newRole === "taxi" || newRole === "taxi_partner") {
+          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
+          if (!existing) {
+            await tx.partner.create({
+              data: {
+                userId: updated.id,
+                type: "taxi",
+                status: "approved",
+                displayName,
+                contactEmail: updated.email,
+                contactPhone: updated.phone,
+              },
+            });
+          }
+        }
+
+        if (newRole === "home_stay_partner") {
+          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
+          if (!existing) {
+            await tx.partner.create({
+              data: {
+                userId: updated.id,
+                type: "hotel",
+                status: "approved",
+                displayName,
+                contactEmail: updated.email,
+                contactPhone: updated.phone,
+              },
+            });
+          }
+        }
+      }
+
+      return updated;
     });
 
     return NextResponse.json({ user });
