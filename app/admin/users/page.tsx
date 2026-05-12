@@ -137,7 +137,13 @@ export default function AdminUsersPage() {
       if (!res.ok) throw new Error(data.message || "Xatolik");
 
       if (typeof payload.role === "string") {
-        toast.success("Rol o'zgartirildi va kerakli yozuvlar avtomatik yaratildi");
+        if (payload.role === "home_stay_partner") {
+          toast.success(
+            "Rol o'zgartirildi — foydalanuvchi endi Uy Mehmonxona paneliga kira oladi: /homestay-partner/dashboard",
+          );
+        } else {
+          toast.success("Rol o'zgartirildi va kerakli yozuvlar avtomatik yaratildi");
+        }
         if (payload.role === "hotel_manager") {
           toast.info("Mehmonxona ma'lumotlarini to'ldirish uchun /hotel/profile sahifasiga o'tsin");
         }
