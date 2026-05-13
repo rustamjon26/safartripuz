@@ -9,6 +9,7 @@ import {
   CheckCircle, Hash, Building
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import ImageUploader from "@/components/ui/ImageUploader";
 
 interface PhysicalRoom {
   id: string;
@@ -55,7 +56,6 @@ export default function HotelRooms() {
   // Form states
   const [editingType, setEditingType] = useState<RoomType | null>(null);
   const [typeForm,    setTypeForm]    = useState(EMPTY_TYPE_FORM);
-  const [imgInput,    setImgInput]    = useState("");
   
   const [editingPhy,  setEditingPhy]  = useState<PhysicalRoom | null>(null);
   const [phyForm,     setPhyForm]     = useState(EMPTY_PHYSICAL_FORM);
@@ -376,20 +376,13 @@ export default function HotelRooms() {
 
                    {/* Images Section */}
                     <div className="border-t border-slate-200/60 pt-6">
-                     <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><ImageIcon size={14}/> {t("rooms.modal.images_label")}</label>
-                     <div className="flex gap-2 mb-3">
-                       <input value={imgInput} onChange={e=>setImgInput(e.target.value)} placeholder={t("rooms.modal.images_placeholder")} className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-[var(--accent)]"/>
-                       <button onClick={() => { if(imgInput.trim()){ setTypeForm({...typeForm, images: [...typeForm.images, imgInput.trim()]}); setImgInput(""); } }} className="px-4 bg-slate-100 hover:bg-slate-200 text-[var(--primary)] text-xs font-bold rounded-lg border border-slate-200">{t("rooms.modal.add_img")}</button>
-                     </div>
-                     <div className="flex flex-wrap gap-2">
-                       {typeForm.images.length === 0 && <p className="text-[11px] text-slate-400 font-semibold italic">{t("rooms.modal.no_img")}</p>}
-                       {typeForm.images.map((img, i) => (
-                         <div key={i} className="relative group rounded-md border border-slate-300 overflow-hidden w-[64px] h-[64px] shrink-0 bg-slate-100 flex items-center justify-center">
-                            <img src={img} alt="x" className="object-cover w-full h-full opacity-80" onError={e => (e.currentTarget.style.display = 'none')} />
-                            <button onClick={()=>setTypeForm({...typeForm, images: typeForm.images.filter((_, idx)=>idx!==i)})} className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><X size={16}/></button>
-                         </div>
-                       ))}
-                     </div>
+                     <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><ImageIcon size={14}/> {t("rooms.modal.images_label")}</label>
+                     <ImageUploader
+                       value={typeForm.images}
+                       onChange={(urls) => setTypeForm({ ...typeForm, images: urls })}
+                       maxImages={15}
+                       compact
+                     />
                    </div>
 
                    {/* Active Status */}
