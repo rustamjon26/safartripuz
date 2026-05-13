@@ -53,6 +53,14 @@ export async function PATCH(
       // Mirrors logic from /api/admin/users/[id]/role so the admin UI's
       // generic PATCH endpoint stays in sync.
       if (role !== undefined) {
+        // Invalidate any active sessions — the user's old JWT carries the
+        // previous role, so their browser must re-authenticate to pick up
+        // the new role for middleware-protected routes.
+        await tx.refreshToken.updateMany({
+          where: { userId: updated.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+
         const displayName =
           `${updated.first_name} ${updated.last_name}`.trim() || updated.email;
         const newRole = updated.role;

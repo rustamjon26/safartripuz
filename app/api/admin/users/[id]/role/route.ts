@@ -73,6 +73,14 @@ export async function PATCH(
         },
       });
 
+      // Invalidate any active sessions — the user's old JWT carries the
+      // previous role, so their browser must re-authenticate to pick up
+      // the new role for middleware-protected routes.
+      await tx.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
       const displayName = `${user.first_name} ${user.last_name}`.trim() || user.email;
       const newRole = user.role;
 

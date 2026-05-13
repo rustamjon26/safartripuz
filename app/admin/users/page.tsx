@@ -147,6 +147,9 @@ export default function AdminUsersPage() {
         if (payload.role === "hotel_manager") {
           toast.info("Mehmonxona ma'lumotlarini to'ldirish uchun /hotel/profile sahifasiga o'tsin");
         }
+        toast.info(
+          "Foydalanuvchining sessiyasi yangilanadi: yangi rol keyingi sahifaga o'tganda avtomatik faollashadi.",
+        );
       } else {
         toast.success("Muvaffaqiyatli yangilandi");
       }
