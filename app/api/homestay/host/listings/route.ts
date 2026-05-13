@@ -26,6 +26,13 @@ type ListingInput = {
   images?: string[];
 };
 
+function isValidLat(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= -90 && v <= 90;
+}
+function isValidLng(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= -180 && v <= 180;
+}
+
 export async function GET() {
   try {
     const actor = await requireHomeStayHost();
@@ -98,6 +105,14 @@ export async function POST(req: Request) {
       return fail("amenities and images must be arrays", 400);
     }
 
+    // Location is mandatory — used for taxi/discovery matching by proximity.
+    if (!isValidLat(body.latitude) || !isValidLng(body.longitude)) {
+      return fail(
+        "Lokatsiya majburiy. Iltimos, xaritadan joyni tanlang (latitude va longitude).",
+        400,
+      );
+    }
+
     // Listings are auto-approved on creation — no admin moderation step.
     // Admins can still suspend or block listings later via /admin/homestay/listings.
     const listing = await prisma.homeStayListing.create({
@@ -108,8 +123,8 @@ export async function POST(req: Request) {
         address: body.address,
         city: body.city,
         region: body.region,
-        latitude: body.latitude ?? null,
-        longitude: body.longitude ?? null,
+        latitude: body.latitude,
+        longitude: body.longitude,
         pricePerNight: body.pricePerNight,
         maxGuests: body.maxGuests,
         rooms: body.rooms,

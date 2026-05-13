@@ -480,6 +480,8 @@ model Hotel {
   totalRooms   Int         @default(20)
   city         String?
   address      String?
+  latitude     Float?
+  longitude    Float?
   contactEmail String?
   contactPhone String?
   createdAt    DateTime    @default(now())
@@ -497,6 +499,7 @@ model Hotel {
   feedbacks           GuestFeedback[]
 
   @@index([status])
+  @@index([latitude, longitude])
 }
 
 model HotelBooking {
@@ -1021,6 +1024,10 @@ model HomeStayListing {
   address          String
   city             String
   region           String
+  // Coordinates are required at the API layer (see homestay host listings
+  // route) so taxi/discovery features can match nearby places.
+  // Stored as nullable to avoid breaking legacy rows; new/edited rows must
+  // supply valid lat/lng.
   latitude         Float?
   longitude        Float?
   pricePerNight    Decimal               @db.Decimal(10, 2)
@@ -1042,6 +1049,7 @@ model HomeStayListing {
   @@index([hostId, status])
   @@index([city, status])
   @@index([partnerId])
+  @@index([latitude, longitude])
 }
 
 model HomeStayAvailability {

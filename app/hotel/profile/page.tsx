@@ -7,6 +7,7 @@ import {
   Globe, CheckCircle2, Shield, Star,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import LocationPicker from "@/components/ui/LocationPicker";
 
 interface HotelFields {
   name: string;
@@ -14,11 +15,21 @@ interface HotelFields {
   address: string;
   contactEmail: string;
   contactPhone: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export default function HotelProfile() {
   const { t } = useLanguage();
-  const [fields,  setFields]  = useState<HotelFields>({ name: "", city: "", address: "", contactEmail: "", contactPhone: "" });
+  const [fields,  setFields]  = useState<HotelFields>({
+    name: "",
+    city: "",
+    address: "",
+    contactEmail: "",
+    contactPhone: "",
+    latitude: null,
+    longitude: null,
+  });
   const [status,  setStatus]  = useState<"draft" | "active" | "suspended">("draft");
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -35,6 +46,8 @@ export default function HotelProfile() {
           address:      data.hotel.address      || "",
           contactEmail: data.hotel.contactEmail || "",
           contactPhone: data.hotel.contactPhone || "",
+          latitude:     typeof data.hotel.latitude  === "number" ? data.hotel.latitude  : null,
+          longitude:    typeof data.hotel.longitude === "number" ? data.hotel.longitude : null,
         });
         setStatus(data.hotel.status || "draft");
       }
@@ -44,6 +57,10 @@ export default function HotelProfile() {
   useEffect(() => { void load(); }, []);
 
   async function handleSave() {
+    if (fields.latitude === null || fields.longitude === null) {
+      toast.error("Iltimos, xaritadan mehmonxona joyini tanlang");
+      return;
+    }
     setSaving(true);
     setSaved(false);
     try {
@@ -52,7 +69,8 @@ export default function HotelProfile() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fields),
       });
-      if (!res.ok) throw new Error(t("profile.toasts.error"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || t("profile.toasts.error"));
       toast.success(t("profile.toasts.success"));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -163,6 +181,31 @@ export default function HotelProfile() {
               value={fields.address}
               onChange={e => setFields({ ...fields, address: e.target.value })} />
           </div>
+        </div>
+      </div>
+
+      {/* Location */}
+      <div className="h-card-flat overflow-hidden">
+        <div className="flex items-center gap-3 px-7 py-5 border-b border-slate-100"
+          style={{ background: "#fafbfc" }}>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(16,185,129,0.1)", color: "#059669" }}>
+            <MapPin size={16} />
+          </div>
+          <h3 className="font-black text-slate-900">Lokatsiya (majburiy)</h3>
+        </div>
+        <div className="p-7">
+          <LocationPicker
+            value={{ latitude: fields.latitude, longitude: fields.longitude }}
+            onChange={(v) =>
+              setFields((prev) => ({
+                ...prev,
+                latitude: v.latitude,
+                longitude: v.longitude,
+              }))
+            }
+            hint="Bu manzil mehmonlar va taxi xizmatlariga mehmonxonangizni topish uchun ishlatiladi."
+          />
         </div>
       </div>
 

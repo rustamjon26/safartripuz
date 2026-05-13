@@ -73,6 +73,31 @@ export async function PUT(
     const body = (await req.json()) as ListingUpdateInput;
     if ("status" in body) return fail("status cannot be updated by host", 400);
 
+    // If the client sends location fields, they must be valid. Partial
+    // updates without lat/lng are allowed (the existing values are kept),
+    // but the listing must end up with both coordinates set.
+    const sentLat = body.latitude !== undefined;
+    const sentLng = body.longitude !== undefined;
+    if (sentLat || sentLng) {
+      const lat = body.latitude;
+      const lng = body.longitude;
+      const validLat =
+        typeof lat === "number" && Number.isFinite(lat) && lat >= -90 && lat <= 90;
+      const validLng =
+        typeof lng === "number" && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+      if (!validLat || !validLng) {
+        return fail(
+          "Lokatsiya noto'g'ri. Iltimos, xaritadan joyni tanlang (latitude va longitude).",
+          400,
+        );
+      }
+    } else if (existing.latitude === null || existing.longitude === null) {
+      return fail(
+        "Lokatsiya majburiy. Iltimos, xaritadan joyni tanlang.",
+        400,
+      );
+    }
+
     const updated = await prisma.homeStayListing.update({
       where: { id: existing.id },
       data: {

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import ImageUploader from "@/components/ui/ImageUploader";
+import LocationPicker from "@/components/ui/LocationPicker";
 
 const AMENITIES = ["wifi", "parking", "kitchen", "AC", "TV", "washing machine", "pool", "BBQ"];
 
@@ -16,6 +17,8 @@ type ListingData = {
   address: string;
   city: string;
   region: string;
+  latitude: number | null;
+  longitude: number | null;
   pricePerNight: number;
   maxGuests: number;
   rooms: number;
@@ -42,6 +45,8 @@ export default function ListingForm({
       address: "",
       city: "",
       region: "",
+      latitude: null,
+      longitude: null,
       pricePerNight: 0,
       maxGuests: 1,
       rooms: 1,
@@ -68,6 +73,10 @@ export default function ListingForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (form.latitude === null || form.longitude === null) {
+      toast.error("Iltimos, xaritadan joyni tanlang");
+      return;
+    }
     setSaving(true);
     try {
       const endpoint =
@@ -137,6 +146,23 @@ export default function ListingForm({
         <Field label="Description">
           <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required className="h-input min-h-[110px]" />
         </Field>
+
+        <div>
+          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 block">
+            Lokatsiya (majburiy)
+          </label>
+          <LocationPicker
+            value={{ latitude: form.latitude, longitude: form.longitude }}
+            onChange={(v) =>
+              setForm((prev) => ({
+                ...prev,
+                latitude: v.latitude,
+                longitude: v.longitude,
+              }))
+            }
+            hint="Bu manzil mehmonlar va taxi xizmatlariga uyni topish uchun ishlatiladi."
+          />
+        </div>
 
         <div>
           <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Amenities</label>
