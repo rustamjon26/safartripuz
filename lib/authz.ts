@@ -12,14 +12,32 @@ async function resolveAccessToken() {
   return token;
 }
 
+/**
+ * Resolve the current actor from the request.
+ *
+ * The role is read **from the database**, not from the JWT payload, so that
+ * admin-driven role changes take effect on the user's very next API call
+ * (without waiting for token refresh). The same query also enforces
+ * `isBlocked` — a blocked user is rejected as Unauthorized immediately.
+ *
+ * Adds one indexed lookup per protected request, which is the right trade-off
+ * for an app where role/block changes must be authoritative across all
+ * sessions.
+ */
 export async function requireUser(): Promise<{
   id: string;
   role: AppRole;
 }> {
   const token = await resolveAccessToken();
   if (!token) throw new Error("UNAUTHORIZED");
-  const { sub, role } = await verifyAccessToken(token);
-  return { id: sub, role };
+  const { sub } = await verifyAccessToken(token);
+
+  const u = await prisma.user.findUnique({
+    where: { id: sub },
+    select: { id: true, role: true, isBlocked: true },
+  });
+  if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
+  return { id: u.id, role: u.role as AppRole };
 }
 
 /** Like `requireUser` but loads profile fields needed for guest matching / display. */
@@ -30,13 +48,29 @@ export async function requireUserWithProfile(): Promise<{
   last_name: string | null;
   phone: string | null;
 }> {
-  const { id, role } = await requireUser();
+  const token = await resolveAccessToken();
+  if (!token) throw new Error("UNAUTHORIZED");
+  const { sub } = await verifyAccessToken(token);
+
   const u = await prisma.user.findUnique({
-    where: { id },
-    select: { first_name: true, last_name: true, phone: true },
+    where: { id: sub },
+    select: {
+      id: true,
+      role: true,
+      isBlocked: true,
+      first_name: true,
+      last_name: true,
+      phone: true,
+    },
   });
-  if (!u) throw new Error("UNAUTHORIZED");
-  return { id, role, first_name: u.first_name, last_name: u.last_name, phone: u.phone };
+  if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
+  return {
+    id: u.id,
+    role: u.role as AppRole,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    phone: u.phone,
+  };
 }
 
 export async function requireRole(allowed: AppRole[]) {
