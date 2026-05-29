@@ -14,7 +14,13 @@ const nextConfig = {
       ],
     },
   },
+  /**
+   * `unoptimized: true` — `/_next/image` optimizatorisiz to‘g‘ridan-to‘g‘ri `/hero-bg.png` va boshqa
+   * `public/` fayllarini beradi. VPSda sharp o‘rnatilmasa yoki nginx `/_next/image` ni noto‘g‘ri
+   * proxylasa hero/favicon “ochilib qolgan” ko‘rinadi.
+   */
   images: {
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "safartrip.uz", pathname: "/**" },
       { protocol: "http", hostname: "localhost", pathname: "/**" },

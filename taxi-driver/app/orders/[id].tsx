@@ -17,6 +17,15 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { PLATFORM_FEE_PERCENT, COLORS } from "@/lib/constants";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useDriver } from "@/hooks/useDriver";
+
+const ACTION_TO_STATUS: Record<string, string> = {
+  accept: "ACCEPTED",
+  arrive: "ARRIVED",
+  start: "IN_PROGRESS",
+  complete: "COMPLETED",
+  cancel: "CANCELLED",
+};
 
 type OrderLog = {
   id: string;
@@ -37,7 +46,8 @@ type DriverOrderDetail = {
   estimatedDistanceKm?: number;
   vehicleId?: string | null;
   customer?: {
-    name?: string;
+    first_name?: string;
+    last_name?: string;
     phone?: string;
   };
   logs?: OrderLog[];
@@ -83,6 +93,7 @@ function nextAction(status: string): "accept" | "arrive" | "start" | "complete" 
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { profile: driverProfile } = useDriver();
   const [order, setOrder] = useState<DriverOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +157,19 @@ export default function OrderDetailScreen() {
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.patch(`/api/taxi/driver/orders/${id}`, { action, ...payload });
+      const status = ACTION_TO_STATUS[action];
+      const body: Record<string, unknown> = { status, ...payload };
+      if (action === "accept") {
+        const vehicles = (driverProfile?.vehicles ?? []) as Array<{ id: string; isActive?: boolean }>;
+        const activeVehicle = vehicles.find((v) => v.isActive);
+        if (!activeVehicle) {
+          setError("Faol transport topilmadi. Avval transport qo'shing.");
+          setIsSubmitting(false);
+          return;
+        }
+        body.vehicleId = activeVehicle.id;
+      }
+      await api.patch(`/api/taxi/driver/orders/${id}`, body);
       await fetchOrder();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Holat yangilanmadi");
@@ -249,7 +272,9 @@ export default function OrderDetailScreen() {
             {showCustomerCard ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Mijoz ma'lumotlari</Text>
-                <Text style={styles.cardText}>Ism: {order.customer?.name ?? "-"}</Text>
+                <Text style={styles.cardText}>
+                  Ism: {[order.customer?.first_name, order.customer?.last_name].filter(Boolean).join(" ") || "-"}
+                </Text>
                 <Pressable onPress={() => order.customer?.phone && void Linking.openURL(`tel:${order.customer.phone}`)}>
                   <Text style={[styles.cardText, styles.phone]}>
                     Telefon: {order.customer?.phone ?? "-"}

@@ -5,6 +5,24 @@ type DriverProfile = {
   isOnline?: boolean;
   totalTrips?: number;
   rating?: number;
+  licenseNumber?: string;
+  licenseExpiry?: string;
+  isVerified?: boolean;
+};
+
+type Vehicle = {
+  id: string;
+  make?: string;
+  model?: string;
+  plateNumber?: string;
+  category?: string;
+  isActive?: boolean;
+};
+
+type DriverUser = {
+  name?: string;
+  email?: string;
+  phone?: string;
 };
 
 type DriverResponse = {
@@ -12,22 +30,15 @@ type DriverResponse = {
   todayTrips?: number;
   todayEarnings?: number;
   driverProfile?: DriverProfile;
-  user?: {
-    name?: string;
-    email?: string;
-  };
-  vehicles?: Array<{
-    id: string;
-    make?: string;
-    model?: string;
-    plateNumber?: string;
-    category?: string;
-    isActive?: boolean;
-  }>;
+  user?: DriverUser;
+  vehicles?: Vehicle[];
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeProfile(payload: any): DriverResponse | null {
-  return payload?.data ?? payload ?? null;
+  const raw = payload?.data ?? payload ?? null;
+  if (!raw) return null;
+  return raw as DriverResponse;
 }
 
 export function useDriver() {
@@ -58,7 +69,8 @@ export function useDriver() {
     setIsToggling(true);
     setError(null);
     try {
-      const response = await api.patch("/api/taxi/driver/profile/online");
+      const nextOnline = !profile?.driverProfile?.isOnline;
+      const response = await api.patch("/api/taxi/driver/profile/online", { isOnline: nextOnline });
       const updated = normalizeProfile(response);
       if (updated) {
         setProfile(updated);
@@ -69,7 +81,7 @@ export function useDriver() {
             ...prev,
             driverProfile: {
               ...prev.driverProfile,
-              isOnline: !prev.driverProfile?.isOnline,
+              isOnline: nextOnline,
             },
           };
         });
@@ -79,7 +91,7 @@ export function useDriver() {
     } finally {
       setIsToggling(false);
     }
-  }, []);
+  }, [profile?.driverProfile?.isOnline]);
 
   useEffect(() => {
     void refetch();

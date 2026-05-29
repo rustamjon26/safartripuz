@@ -24,12 +24,12 @@
       "android": {
         "buildType": "apk",
         "env": {
-          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+          "EXPO_PUBLIC_API_URL": "https://safartrip.uz"
         }
       },
       "ios": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+          "EXPO_PUBLIC_API_URL": "https://safartrip.uz"
         }
       }
     },
@@ -38,12 +38,12 @@
       "android": {
         "buildType": "app-bundle",
         "env": {
-          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+          "EXPO_PUBLIC_API_URL": "https://safartrip.uz"
         }
       },
       "ios": {
         "env": {
-          "EXPO_PUBLIC_API_URL": "https://api.safartrip.uz"
+          "EXPO_PUBLIC_API_URL": "https://safartrip.uz"
         }
       }
     }

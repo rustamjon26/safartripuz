@@ -16,7 +16,16 @@ import { OrderCard, type DriverOrder } from "@/components/OrderCard";
 import { COLORS } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useOrders } from "@/hooks/useOrders";
+import { useDriver } from "@/hooks/useDriver";
 import { api } from "@/lib/api";
+
+const ACTION_TO_STATUS: Record<string, string> = {
+  accept: "ACCEPTED",
+  arrive: "ARRIVED",
+  start: "IN_PROGRESS",
+  complete: "COMPLETED",
+  cancel: "CANCELLED",
+};
 
 type TabType = "active" | "history";
 
@@ -32,6 +41,7 @@ export default function OrdersScreen() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const { profile: driverProfile } = useDriver();
   const activeHook = useOrders({
     status: "PENDING,ACCEPTED,ARRIVED,IN_PROGRESS",
   });
@@ -60,7 +70,18 @@ export default function OrdersScreen() {
   ) {
     setActionError(null);
     try {
-      await api.patch(`/api/taxi/driver/orders/${id}`, { action, ...payload });
+      const status = ACTION_TO_STATUS[action];
+      const body: Record<string, unknown> = { status, ...payload };
+      if (action === "accept") {
+        const vehicles = (driverProfile?.vehicles ?? []) as Array<{ id: string; isActive?: boolean }>;
+        const activeVehicle = vehicles.find((v) => v.isActive);
+        if (!activeVehicle) {
+          setActionError("Faol transport topilmadi. Avval transport qo'shing.");
+          return;
+        }
+        body.vehicleId = activeVehicle.id;
+      }
+      await api.patch(`/api/taxi/driver/orders/${id}`, body);
       await Promise.all([activeHook.refetch(), historyHook.refetch()]);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Buyurtma holati yangilanmadi");

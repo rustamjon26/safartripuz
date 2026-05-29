@@ -22,6 +22,16 @@ if [ -z "${NODE_OPTIONS:-}" ]; then
 fi
 npm run build
 
+echo "5b. Verify static assets (hero + favicon)..."
+if [ ! -f public/hero-bg.png ]; then
+  echo "ERROR: public/hero-bg.png missing — git pull / LFS?"
+  exit 1
+fi
+if [ ! -f public/favicon.ico ] && [ ! -f app/favicon.ico ]; then
+  echo "ERROR: no favicon in public/ or app/"
+  exit 1
+fi
+
 echo "6. Restart PM2..."
 pm2 reload ecosystem.config.js --env production
 

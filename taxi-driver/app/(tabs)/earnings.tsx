@@ -16,18 +16,25 @@ import { api } from "@/lib/api";
 
 type EarningsItem = {
   id: string;
-  date?: string;
-  pickupCity?: string;
-  dropoffCity?: string;
   grossAmount?: number;
   status?: "PENDING" | "SETTLED" | string;
+  createdAt?: string;
+  order?: {
+    pickupAddress?: string;
+    dropoffAddress?: string;
+    createdAt?: string;
+  };
+};
+
+type EarningsSummary = {
+  totalGross?: number;
+  totalFee?: number;
+  totalNet?: number;
 };
 
 type EarningsResponse = {
-  grossAmount?: number;
-  platformFee?: number;
-  netAmount?: number;
-  earnings?: EarningsItem[];
+  data?: EarningsItem[];
+  summary?: EarningsSummary;
 };
 
 function monthParam(date: Date) {
@@ -46,12 +53,8 @@ function monthLabel(date: Date) {
 export default function EarningsScreen() {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
-  const [summary, setSummary] = useState<EarningsResponse>({
-    grossAmount: 0,
-    platformFee: 0,
-    netAmount: 0,
-    earnings: [],
-  });
+  const [items, setItems] = useState<EarningsItem[]>([]);
+  const [summaryData, setSummaryData] = useState<EarningsSummary>({});
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -62,12 +65,8 @@ export default function EarningsScreen() {
         `/api/taxi/driver/earnings?month=${monthParam(selectedMonth)}`,
       );
       const payload = (response?.data ?? response) as EarningsResponse;
-      setSummary({
-        grossAmount: payload?.grossAmount ?? 0,
-        platformFee: payload?.platformFee ?? 0,
-        netAmount: payload?.netAmount ?? 0,
-        earnings: payload?.earnings ?? [],
-      });
+      setItems(payload?.data ?? []);
+      setSummaryData(payload?.summary ?? {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Daromadlar yuklanmadi");
     } finally {
@@ -92,7 +91,7 @@ export default function EarningsScreen() {
     setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   }
 
-  const data = summary.earnings ?? [];
+  const data = items;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -110,18 +109,18 @@ export default function EarningsScreen() {
       <View style={styles.summaryRow}>
         <StatCard
           label="Jami daromad"
-          value={`${Number(summary.grossAmount ?? 0).toLocaleString()} so'm`}
+          value={`${Number(summaryData.totalGross ?? 0).toLocaleString()} so'm`}
           icon="payments"
         />
         <StatCard
           label="Platforma ulushi (15%)"
-          value={`${Number(summary.platformFee ?? 0).toLocaleString()} so'm`}
+          value={`${Number(summaryData.totalFee ?? 0).toLocaleString()} so'm`}
           color={COLORS.gray}
           icon="account-balance"
         />
         <StatCard
           label="Sof daromad"
-          value={`${Number(summary.netAmount ?? 0).toLocaleString()} so'm`}
+          value={`${Number(summaryData.totalNet ?? 0).toLocaleString()} so'm`}
           color={COLORS.success}
           icon="trending-up"
         />
@@ -138,11 +137,13 @@ export default function EarningsScreen() {
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
             <View style={styles.itemTop}>
-              <Text style={styles.itemDate}>{item.date ?? "-"}</Text>
+              <Text style={styles.itemDate}>
+                {item.order?.createdAt?.slice(0, 10) ?? item.createdAt?.slice(0, 10) ?? "-"}
+              </Text>
               <StatusBadge status={item.status ?? "PENDING"} size="sm" />
             </View>
             <Text style={styles.routeText}>
-              {item.pickupCity ?? "-"} {"->"} {item.dropoffCity ?? "-"}
+              {item.order?.pickupAddress ?? "-"} {"→"} {item.order?.dropoffAddress ?? "-"}
             </Text>
             <Text style={styles.priceText}>
               {Number(item.grossAmount ?? 0).toLocaleString()} so'm

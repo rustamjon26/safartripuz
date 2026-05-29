@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
 import { formatPrice } from "@/lib/formatDate";
@@ -43,8 +43,9 @@ function serviceLabel(serviceType: string): "STANDARD" | "COMFORT" | "MINIVAN" |
 }
 
 export default function TaxiOrderScreen() {
-  const [pickup, setPickup] = useState("");
-  const [dropoff, setDropoff] = useState("");
+  const params = useLocalSearchParams<{ pickup?: string; dropoff?: string }>();
+  const [pickup, setPickup] = useState(params.pickup ?? "");
+  const [dropoff, setDropoff] = useState(params.dropoff ?? "");
   const [services, setServices] = useState<TaxiService[]>([]);
   const [serviceId, setServiceId] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);

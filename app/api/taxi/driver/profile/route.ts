@@ -9,7 +9,12 @@ type ProfileInput = {
 export async function GET() {
   try {
     const actor = await requireTaxiDriver();
-    const [profile, vehicles] = await Promise.all([
+
+    const [user, driverProfile, vehicles] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: actor.id },
+        select: { first_name: true, last_name: true, email: true, phone: true },
+      }),
       prisma.driverProfile.findUnique({
         where: { driverId: actor.id },
       }),
@@ -18,10 +23,47 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       }),
     ]);
-    if (!profile || !(await hasVehicle(actor.id))) {
+
+    if (!driverProfile || !(await hasVehicle(actor.id))) {
       return onboardingResponse();
     }
-    return ok({ profile, vehicles, onboarding: false });
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [todayCompletedOrders, todayEarningsAgg] = await Promise.all([
+      prisma.taxiOrder.count({
+        where: {
+          driverId: actor.id,
+          status: "COMPLETED",
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.driverEarning.aggregate({
+        where: {
+          driverId: actor.id,
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+        _sum: { netAmount: true },
+      }),
+    ]);
+
+    const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Haydovchi";
+
+    return ok({
+      driverProfile,
+      vehicles,
+      onboarding: false,
+      todayTrips: todayCompletedOrders,
+      todayEarnings: Number(todayEarningsAgg._sum.netAmount ?? 0),
+      user: {
+        name,
+        email: user?.email ?? "",
+        phone: user?.phone ?? "",
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }
