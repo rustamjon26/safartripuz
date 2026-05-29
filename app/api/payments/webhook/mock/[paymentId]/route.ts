@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { emitDidoxInvoiceForPayment } from "@/lib/didox/emitDidoxInvoiceForPayment";
 
 export async function POST(req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
   try {
@@ -130,6 +131,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ payment
 
        return { next, payment: p };
     });
+
+    void emitDidoxInvoiceForPayment(payment.id);
 
     return NextResponse.json({ message: "Tolov muvaffaqiyatli qabul qilindi", ...updated });
   } catch (error) {

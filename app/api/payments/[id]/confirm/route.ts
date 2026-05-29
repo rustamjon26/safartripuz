@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { emitDidoxInvoiceForPayment } from "@/lib/didox/emitDidoxInvoiceForPayment";
 
 export async function POST(
   _req: Request,
@@ -33,6 +34,8 @@ export async function POST(
         previousPaymentStatus: payment.status,
       }),
     );
+
+    void emitDidoxInvoiceForPayment(payment.id);
 
     return NextResponse.json(result, { status: 200 });
   } catch (e) {

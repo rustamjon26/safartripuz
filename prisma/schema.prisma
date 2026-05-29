@@ -656,9 +656,10 @@ model Payment {
   currency       String          @default("UZS")
   idempotencyKey String?         @unique
   externalRef    String?
-  metadata       Json?
-  paidAt         DateTime?
-  createdAt      DateTime        @default(now())
+  metadata         Json?
+  didoxDocumentId  String?
+  paidAt           DateTime?
+  createdAt        DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   @@index([travelPlanId, status])
