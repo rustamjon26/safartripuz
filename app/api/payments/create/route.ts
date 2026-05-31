@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { z } from "zod";
 import { PaymentProvider } from "@prisma/client";
+import {
+  appBaseUrl,
+  getClickConfig,
+  getPaymeConfig,
+  getPaymentProvidersConfig,
+} from "@/lib/payments/providerConfig";
 
 const schema = z.object({
   planId: z.string(),
@@ -29,22 +35,18 @@ export async function POST(req: Request) {
     if (!plan) return NextResponse.json({ error: "Sayohat topilmadi" }, { status: 404 });
     if (plan.status !== "PENDING_PAYMENT") return NextResponse.json({ error: "Faqat PENDING_PAYMENT holatida to'lov qilinadi" }, { status: 400 });
 
-    const settings = await prisma.systemSetting.findUnique({
-      where: { key: "payment_providers" }
-    });
-    
+    const providers = await getPaymentProvidersConfig();
     type ProviderCfg = {
       enabled?: boolean;
       serviceId?: string;
       merchantId?: string;
     };
-    type PaymentProvidersValue = Record<string, ProviderCfg | undefined>;
-    const raw = settings?.value;
-    const providers =
-      typeof raw === "object" && raw !== null && !Array.isArray(raw)
-        ? (raw as PaymentProvidersValue)
-        : {};
-    const config = providers[String(provider).toLowerCase()] ?? {};
+    const config =
+      provider === "CLICK"
+        ? getClickConfig(providers)
+        : provider === "PAYME"
+          ? getPaymeConfig(providers)
+          : ((providers[String(provider).toLowerCase()] ?? {}) as ProviderCfg);
     if (!config.enabled && provider !== "MOCK") {
       return NextResponse.json({ error: "Ushbu to'lov tizimi o'chirilgan" }, { status: 400 });
     }
@@ -61,14 +63,27 @@ export async function POST(req: Request) {
     });
 
     // Mock link yoki haqiqiy generatsiya qilingan gateway URL
+    const baseUrl = appBaseUrl();
+    const returnUrl = baseUrl
+      ? `${baseUrl}/payments/success?paymentId=${payment.id}`
+      : `/payments/success?paymentId=${payment.id}`;
+
     let paymentUrl = "";
     if (provider === "CLICK") {
-      // url format: https://my.click.uz/services/pay?service_id=xxx&merchant_id=yyy&amount=zzz&transaction_param=www
-       paymentUrl = `https://my.click.uz/services/pay?service_id=${config.serviceId}&merchant_id=${config.merchantId}&amount=${plan.totalAmount}&transaction_param=${payment.id}`;
+      const amount = Number(plan.totalAmount);
+      paymentUrl =
+        `https://my.click.uz/services/pay` +
+        `?service_id=${config.serviceId}` +
+        `&merchant_id=${config.merchantId}` +
+        `&amount=${amount}` +
+        `&transaction_param=${payment.id}` +
+        `&merchant_trans_id=${payment.id}` +
+        `&return_url=${encodeURIComponent(returnUrl)}`;
     } else if (provider === "PAYME") {
-      // Payme is somewhat base64 encoded string: 
-      const amountTipiy = Number(plan.totalAmount) * 100;
-      const b64 = Buffer.from(`m=${config.merchantId};ac.order_id=${payment.id};a=${amountTipiy}`).toString('base64');
+      const amountTiyin = Math.round(Number(plan.totalAmount) * 100);
+      const b64 = Buffer.from(
+        `m=${config.merchantId};ac.order_id=${payment.id};a=${amountTiyin}`,
+      ).toString("base64");
       paymentUrl = `https://checkout.paycom.uz/${b64}`;
     } else if (provider === "UZUM") {
        paymentUrl = `https://uzumbank.uz/pay?merchant=${config.merchantId}&amount=${plan.totalAmount}&order=${payment.id}`;

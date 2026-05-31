@@ -1,140 +1,79 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
 import { emitDidoxInvoiceForPayment } from "@/lib/didox/emitDidoxInvoiceForPayment";
 
-export async function POST(req: Request, { params }: { params: Promise<{ paymentId: string }> }) {
+function appBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    process.env.APP_URL?.replace(/\/$/, "") ||
+    ""
+  );
+}
+
+function successRedirect(paymentId: string, already = false) {
+  const base = appBaseUrl();
+  const suffix = already ? "&already=true" : "";
+  return NextResponse.redirect(`${base}/payments/success?paymentId=${paymentId}${suffix}`);
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ paymentId: string }> },
+) {
   try {
     const actor = await requireUser();
     const { paymentId } = await params;
-    
+    const url = new URL(req.url);
+    const shouldRedirect = url.searchParams.get("redirect") === "1";
+
     const payment = await prisma.payment.findUnique({
-      where: { id: paymentId }
+      where: { id: paymentId },
+      include: { travelPlan: { select: { id: true, userId: true, totalAmount: true } } },
     });
-    
-    if (!payment) return NextResponse.json({ error: "To'lov topilmadi" }, { status: 404 });
+
+    if (!payment) {
+      return NextResponse.json({ error: "Payment topilmadi" }, { status: 404 });
+    }
+
+    if (payment.travelPlan.userId !== actor.id) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
+
     if (payment.status === "SUCCESS") {
+      if (shouldRedirect) {
+        return successRedirect(paymentId, true);
+      }
       return NextResponse.json({ message: "Allaqachon to'langan" }, { status: 400 });
     }
-    
-    const travelPlan = await prisma.travelPlan.findFirst({
-       where: { id: payment.travelPlanId, userId: actor.id }
-    });
-    if (!travelPlan) return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
-    // Mark as paid
-    const updated = await prisma.$transaction(async (tx) => {
-       const p = await tx.payment.update({
-          where: { id: payment.id },
-          data: { status: "SUCCESS", paidAt: new Date() }
-       });
-       
-       const next = await tx.travelPlan.update({
-         where: { id: travelPlan.id },
-         data: { status: "CONFIRMED" },
-         select: { id: true, status: true, totalAmount: true }
-       });
+    if (payment.status !== "INITIATED" && payment.status !== "PENDING") {
+      return NextResponse.json(
+        { error: "To'lovni tasdiqlash uchun noto'g'ri holat", status: payment.status },
+        { status: 400 },
+      );
+    }
 
-       await tx.hotelBooking.updateMany({
-         where: { note: { contains: travelPlan.id }, status: "PENDING" },
-         data: { status: "CONFIRMED" }
-       });
-
-       const pendingHomeStayBookings = await tx.homeStayBooking.findMany({
-         where: {
-           travelPlanId: travelPlan.id,
-           status: "PENDING",
-         },
-         select: {
-           id: true,
-           listingId: true,
-           checkIn: true,
-           checkOut: true,
-         },
-       });
-
-       if (pendingHomeStayBookings.length) {
-         await tx.homeStayBooking.updateMany({
-           where: { id: { in: pendingHomeStayBookings.map((b) => b.id) } },
-           data: { status: "CONFIRMED" },
-         });
-
-         for (const booking of pendingHomeStayBookings) {
-           const existingAvailability = await tx.homeStayAvailability.findFirst({
-             where: {
-               OR: [
-                 { bookingId: booking.id },
-                 {
-                   listingId: booking.listingId,
-                   startDate: booking.checkIn,
-                   endDate: booking.checkOut,
-                   reason: "BOOKED",
-                 },
-               ],
-             },
-             select: { id: true },
-           });
-
-           if (existingAvailability) {
-             await tx.homeStayAvailability.update({
-               where: { id: existingAvailability.id },
-               data: { bookingId: booking.id },
-             });
-             continue;
-           }
-
-           await tx.homeStayAvailability.create({
-             data: {
-               listingId: booking.listingId,
-               bookingId: booking.id,
-               startDate: booking.checkIn,
-               endDate: booking.checkOut,
-               reason: "BOOKED",
-             },
-           });
-         }
-       }
-
-       const pendingGuideBookings = await tx.guideBooking.findMany({
-         where: {
-           travelPlanId: travelPlan.id,
-           status: "PENDING",
-         },
-         select: { id: true },
-       });
-       if (pendingGuideBookings.length) {
-         await tx.guideBooking.updateMany({
-           where: { id: { in: pendingGuideBookings.map((b) => b.id) } },
-           data: { status: "CONFIRMED" },
-         });
-         await tx.guideBookingLog.createMany({
-           data: pendingGuideBookings.map((booking) => ({
-             bookingId: booking.id,
-             actorId: actor.id,
-             actorRole: "system",
-             fromStatus: "PENDING",
-             toStatus: "CONFIRMED",
-             note: "Confirmed after payment success",
-           })),
-         });
-       }
-
-       await tx.auditLog.create({
-         data: {
-           actorId: actor.id,
-           action: "PAYMENT_SUCCESS",
-           entity: "Payment",
-           entityId: p.id,
-           newData: { status: "SUCCESS", amount: p.amount }
-         }
-       });
-
-       return { next, payment: p };
-    });
+    const updated = await prisma.$transaction(async (tx) =>
+      completeSuccessfulPaymentInTx(tx, {
+        paymentId: payment.id,
+        travelPlanId: payment.travelPlanId,
+        actorId: actor.id,
+        previousPaymentStatus: payment.status,
+      }),
+    );
 
     void emitDidoxInvoiceForPayment(payment.id);
 
-    return NextResponse.json({ message: "Tolov muvaffaqiyatli qabul qilindi", ...updated });
+    if (shouldRedirect) {
+      return successRedirect(paymentId);
+    }
+
+    return NextResponse.json(
+      { message: "Tolov muvaffaqiyatli qabul qilindi", ...updated },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("[POST /api/payments/webhook/mock/[paymentId]] error:", error);
     return NextResponse.json(

@@ -11,6 +11,13 @@ type BreakdownRow = {
   platformFee: number;
 };
 
+const EARNING_LABELS: Record<string, string> = {
+  HOTEL: "Mehmonxona",
+  HOMESTAY: "Uy mehmonxona",
+  GUIDE: "Gid",
+  TAXI: "Taxi",
+};
+
 const LABELS: Record<string, string> = {
   HOTEL: "Hotel",
   HOMESTAY: "Uy Mehmonxona",
@@ -34,6 +41,9 @@ export function RevenueReportSection() {
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
   const [grandTotal, setGrandTotal] = useState(0);
   const [totalPlatformFee, setTotalPlatformFee] = useState(0);
+  const [commissionSummary, setCommissionSummary] = useState<
+    Array<{ type: string; totalGross: number; totalCommission: number; totalNet: number; count: number }>
+  >([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +54,8 @@ export function RevenueReportSection() {
       if (!res.ok) throw new Error(data.message || "Xatolik");
       setBreakdown(data.breakdown ?? []);
       setGrandTotal(Number(data.grandTotal ?? 0));
-      setTotalPlatformFee(Number(data.totalPlatformFee ?? 0));
+      setTotalPlatformFee(Number(data.totalPlatformCommission ?? data.totalPlatformFee ?? 0));
+      setCommissionSummary(data.commissionSummary ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");
     } finally {
@@ -144,6 +155,35 @@ export function RevenueReportSection() {
           </tbody>
         </table>
       </div>
+
+      {commissionSummary.length > 0 ? (
+        <div className="adm-table-wrap border border-emerald-100 rounded-2xl overflow-hidden bg-emerald-50/30">
+          <div className="px-6 py-4 border-b border-emerald-100">
+            <h3 className="text-sm font-black text-slate-900">PartnerEarning bo&apos;yicha komissiya</h3>
+            <p className="text-xs font-bold text-slate-500 mt-1">To&apos;lov tasdiqlanganda avtomatik yozilgan</p>
+          </div>
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th className="pl-6">Tur</th>
+                <th>Soni</th>
+                <th>Jami tushum</th>
+                <th className="pr-6">Komissiya</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commissionSummary.map((row) => (
+                <tr key={row.type}>
+                  <td className="py-3 pl-6 font-black text-slate-900">{EARNING_LABELS[row.type] ?? row.type}</td>
+                  <td className="py-3 font-bold text-slate-600">{row.count}</td>
+                  <td className="py-3 font-black text-slate-900">{row.totalGross.toLocaleString()} UZS</td>
+                  <td className="py-3 pr-6 font-bold text-emerald-700">{row.totalCommission.toLocaleString()} UZS</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <div>
         <div className="text-xs font-black text-slate-400 uppercase mb-2">Diagramma (jami)</div>

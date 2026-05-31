@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { travelPlanPrimaryRevenueCategory, type RevenueCategory } from "@/lib/payments/travelPlanBookingTypes";
-
-const FEE_RATE = 0.15;
+import { getCommissionRates } from "@/lib/getCommissionRates";
 
 function parseDay(value: string | null, endOfDay: boolean) {
   if (!value) return null;
@@ -24,31 +23,44 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "startDate va endDate kerak (YYYY-MM-DD)" }, { status: 400 });
     }
 
-    const payments = await prisma.payment.findMany({
-      where: {
-        status: "SUCCESS",
-        OR: [
-          { paidAt: { gte: start, lte: end } },
-          { paidAt: null, createdAt: { gte: start, lte: end } },
-        ],
-      },
-      select: {
-        id: true,
-        amount: true,
-        travelPlan: {
-          select: {
-            items: { select: { type: true } },
-            _count: {
-              select: {
-                homeStayBookings: true,
-                guideBookings: true,
-                taxiOrders: true,
+    const [payments, earningsStats, rates] = await Promise.all([
+      prisma.payment.findMany({
+        where: {
+          status: "SUCCESS",
+          OR: [
+            { paidAt: { gte: start, lte: end } },
+            { paidAt: null, createdAt: { gte: start, lte: end } },
+          ],
+        },
+        select: {
+          id: true,
+          amount: true,
+          travelPlan: {
+            select: {
+              items: { select: { type: true } },
+              _count: {
+                select: {
+                  homeStayBookings: true,
+                  guideBookings: true,
+                  taxiOrders: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.partnerEarning.groupBy({
+        by: ["bookingType"],
+        where: { createdAt: { gte: start, lte: end } },
+        _sum: {
+          grossAmount: true,
+          commissionFee: true,
+          netAmount: true,
+        },
+        _count: { id: true },
+      }),
+      getCommissionRates(),
+    ]);
 
     const buckets: Record<
       RevenueCategory,
@@ -72,9 +84,19 @@ export async function GET(req: Request) {
       const amt = Number(p.amount);
       buckets[cat].count += 1;
       buckets[cat].total += amt;
-      if (cat === "TAXI" || cat === "GUIDE") {
-        buckets[cat].platformFee += Math.round(amt * FEE_RATE * 100) / 100;
-      }
+    }
+
+    const earningTypeToCategory: Record<string, RevenueCategory> = {
+      HOTEL: "HOTEL",
+      HOMESTAY: "HOMESTAY",
+      GUIDE: "GUIDE",
+      TAXI: "TAXI",
+    };
+
+    for (const row of earningsStats) {
+      const cat = earningTypeToCategory[row.bookingType];
+      if (!cat) continue;
+      buckets[cat].platformFee += Number(row._sum.commissionFee ?? 0);
     }
 
     const breakdown = (["HOTEL", "HOMESTAY", "TAXI", "GUIDE", "OTHER"] as const).map((type) => ({
@@ -84,8 +106,19 @@ export async function GET(req: Request) {
       platformFee: buckets[type].platformFee,
     }));
 
+    const commissionSummary = earningsStats.map((e) => ({
+      type: e.bookingType,
+      totalGross: Number(e._sum.grossAmount ?? 0),
+      totalCommission: Number(e._sum.commissionFee ?? 0),
+      totalNet: Number(e._sum.netAmount ?? 0),
+      count: e._count.id,
+    }));
+
     const grandTotal = breakdown.reduce((s, b) => s + b.total, 0);
-    const totalPlatformFee = breakdown.reduce((s, b) => s + b.platformFee, 0);
+    const totalPlatformCommission = commissionSummary.reduce(
+      (sum, e) => sum + e.totalCommission,
+      0,
+    );
 
     return NextResponse.json(
       {
@@ -93,8 +126,10 @@ export async function GET(req: Request) {
         endDate: end.toISOString(),
         breakdown,
         grandTotal,
-        totalPlatformFee,
-        feeRate: FEE_RATE,
+        totalPlatformFee: totalPlatformCommission,
+        totalPlatformCommission,
+        commissionSummary,
+        commissionRates: rates,
       },
       { status: 200 },
     );

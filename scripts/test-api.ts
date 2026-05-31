@@ -484,7 +484,7 @@ async function step6Payment() {
         endDate: tomorrow(7).toISOString(),
         pax: 2,
         taxi: state.taxiServiceId
-          ? { id: state.taxiServiceId, title: "API test taxi", price: 50000 }
+          ? { id: state.taxiServiceId, title: "API test taxi" }
           : undefined,
         note: "Created by test-api.ts",
       },

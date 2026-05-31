@@ -12,6 +12,7 @@ type Body = {
   guestName?: string;
   guestPhone?: string;
   note?: string;
+  provider?: "MOCK" | "CLICK" | "PAYME" | "UZUM" | "MANUAL";
 };
 
 function calcNights(start: Date, end: Date) {
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
 
     const roomCount = Math.max(1, Math.min(20, Number(body.roomCount ?? 1)));
     const guestCount = Math.max(1, Math.min(20, Number(body.guests ?? 1)));
+    const provider = body.provider ?? "MOCK";
 
     const hotel = await prisma.hotel.findFirst({
       where: {
@@ -67,14 +69,16 @@ export async function POST(req: Request) {
         status: "active",
         partner: { status: "approved", type: "hotel" },
       },
-      select: { id: true },
+      select: { id: true, name: true, city: true },
     });
     if (!hotel) return fail("Mehmonxona topilmadi", 404);
 
     const roomType = await prisma.roomType.findFirst({
       where: { id: body.roomTypeId, hotelId: body.hotelId, isActive: true },
+      select: { id: true, basePrice: true, hotelId: true, name: true, capacityAdults: true, capacityChildren: true },
     });
     if (!roomType) return fail("Xona turi topilmadi", 404);
+    if (roomType.hotelId !== body.hotelId) return fail("Xona turi bu mehmonxonaga tegishli emas", 400);
 
     const capacity = roomType.capacityAdults + roomType.capacityChildren;
     if (guestCount > capacity * roomCount) {
@@ -95,32 +99,105 @@ export async function POST(req: Request) {
       `${actor.first_name} ${actor.last_name}`.trim() ||
       "Mehmon";
 
-    const booking = await prisma.hotelBooking.create({
-      data: {
-        hotelId: hotel.id,
-        roomTypeId: roomType.id,
-        guestName,
-        guestPhone: body.guestPhone?.trim() || actor.phone || null,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
-        roomCount,
-        totalAmount,
-        paidAmount: 0,
-        status: "PENDING",
-        source: "SAFARTRIP",
-        note: body.note?.trim() || null,
-        guests: {
-          create: [
-            {
-              firstName: actor.first_name,
-              lastName: actor.last_name,
-            },
-          ],
+    const destination = hotel.city?.trim() || hotel.name;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const plan = await tx.travelPlan.create({
+        data: {
+          userId: actor.id,
+          destination,
+          startDate: checkIn,
+          endDate: checkOut,
+          pax: guestCount,
+          status: "PENDING_PAYMENT",
+          totalAmount,
+          note: body.note?.trim() || null,
         },
-      },
+      });
+
+      await tx.travelPlanItem.create({
+        data: {
+          travelPlanId: plan.id,
+          type: "HOTEL",
+          title: `${hotel.name} — ${roomType.name}`,
+          providerId: hotel.id,
+          quantity: roomCount,
+          unitPrice: unit,
+          totalPrice: totalAmount,
+          details: { nights, roomTypeId: roomType.id, roomCount },
+        },
+      });
+
+      const booking = await tx.hotelBooking.create({
+        data: {
+          hotelId: hotel.id,
+          roomTypeId: roomType.id,
+          guestName,
+          guestPhone: body.guestPhone?.trim() || actor.phone || null,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          roomCount,
+          totalAmount,
+          paidAmount: 0,
+          status: "PENDING",
+          source: "SAFARTRIP",
+          note: `TravelPlan: ${plan.id}`,
+          guests: {
+            create: [
+              {
+                firstName: actor.first_name,
+                lastName: actor.last_name,
+              },
+            ],
+          },
+        },
+      });
+
+      const payment = await tx.payment.create({
+        data: {
+          travelPlanId: plan.id,
+          provider,
+          status: "INITIATED",
+          amount: totalAmount,
+          currency: "UZS",
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: actor.id,
+          action: "HOTEL_BOOKING_CREATED",
+          entity: "HotelBooking",
+          entityId: booking.id,
+          newData: {
+            planId: plan.id,
+            paymentId: payment.id,
+            totalAmount,
+          },
+        },
+      });
+
+      return { plan, booking, payment };
     });
 
-    return ok(booking, 201);
+    const paymentUrl =
+      provider === "MOCK"
+        ? `/payments/mock/${result.payment.id}`
+        : provider === "MANUAL"
+          ? `/payments/manual/${result.payment.id}`
+          : `/payments/checkout/${result.plan.id}`;
+
+    return ok(
+      {
+        bookingId: result.booking.id,
+        planId: result.plan.id,
+        paymentId: result.payment.id,
+        totalAmount,
+        paymentUrl,
+        status: "PENDING_PAYMENT",
+      },
+      201,
+    );
   } catch (error) {
     return handleApiError(error);
   }

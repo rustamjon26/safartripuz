@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/lib/api";
@@ -120,15 +120,36 @@ export default function HotelDetailScreen() {
     }
     setSubmitting(true);
     try {
-      await api.post("/api/hotels/bookings", {
+      const res = (await api.post("/api/hotels/bookings", {
         hotelId: hotel.id,
         roomTypeId: selectedRoom.id,
         checkIn: toIso(checkIn),
         checkOut: toIso(checkOut),
         guests: g,
         roomCount: 1,
+      })) as {
+        data: {
+          bookingId: string;
+          planId: string;
+          paymentId: string;
+          totalAmount: number;
+          paymentUrl: string;
+          status: string;
+        };
+      };
+
+      const { bookingId, planId, paymentId, totalAmount, paymentUrl } = res.data;
+
+      router.push({
+        pathname: "/payment/webview",
+        params: {
+          paymentUrl,
+          paymentId,
+          planId,
+          bookingId,
+          totalAmount: String(totalAmount),
+        },
       });
-      Alert.alert("OK", "Bron so'rovi yuborildi", [{ text: "Yaxshi" }]);
     } catch (e) {
       Alert.alert("Xato", e instanceof Error ? e.message : "Bron qilishda xato");
     } finally {

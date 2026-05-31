@@ -25,6 +25,8 @@ type InventoryItem = {
   title: string;
   price?: number;
   nightlyPrice?: number;
+  roomTypeId?: string;
+  roomTypeName?: string;
   pricePerDay?: number;
   pricePerHour?: number;
   city?: string;
@@ -139,7 +141,12 @@ export default function TripBuilderPage() {
       
       const { data } = json;
       setDestination(data.destination); setStartDate(data.startDate); setEndDate(data.endDate); setPax(data.pax);
-      if (data.hotel) setSelectedHotel({ ...data.hotel, nightlyPrice: data.hotel.nightlyPrice });
+      if (data.hotel)
+        setSelectedHotel({
+          ...data.hotel,
+          roomTypeId: data.hotel.roomTypeId,
+          nightlyPrice: data.hotel.nightlyPrice,
+        });
       if (data.taxi) setSelectedTaxi({ ...data.taxi, price: data.taxi.price });
       if (data.guide)
         setSelectedGuide({
@@ -162,15 +169,26 @@ export default function TripBuilderPage() {
       setActiveTab("basics");
       return;
     }
+    if (selectedHotel && !selectedHotel.roomTypeId) {
+      toast.error("Mehmonxona xona turi topilmadi");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/travel-plans", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           destination, startDate: new Date(startDate).toISOString(), endDate: new Date(endDate).toISOString(), pax,
-          hotel: selectedHotel ? { id: selectedHotel.id, title: selectedHotel.title, roomCount, nightlyPrice: selectedHotel.nightlyPrice } : undefined,
-          taxi: selectedTaxi ? { id: selectedTaxi.id, title: selectedTaxi.title, price: selectedTaxi.price } : undefined,
-          guide: selectedGuide ? { id: selectedGuide.id, title: selectedGuide.title, pricePerDay: selectedGuide.pricePerDay } : undefined,
+          hotel: selectedHotel
+            ? {
+                id: selectedHotel.id,
+                roomTypeId: selectedHotel.roomTypeId,
+                title: selectedHotel.title,
+                roomCount,
+              }
+            : undefined,
+          taxi: selectedTaxi ? { id: selectedTaxi.id, title: selectedTaxi.title } : undefined,
+          guide: selectedGuide ? { id: selectedGuide.id, title: selectedGuide.title } : undefined,
         }),
       });
       if (res.status === 401) {
@@ -181,11 +199,18 @@ export default function TripBuilderPage() {
         router.push(loginWithNext(back || "/trip-builder"));
         return;
       }
-      if (!res.ok) throw new Error("Server xatosi");
-      toast.success("Safaringiz saqlandi! 🎉");
-      setTimeout(() => router.push("/bookings"), 1500);
-    } catch {
-      toast.error("Saqlashda xatolik");
+      const data = (await res.json()) as { planId?: string; totalAmount?: number; message?: string };
+      if (!res.ok) throw new Error(data.message || "Server xatosi");
+      toast.success(
+        `Safaringiz saqlandi! Jami: ${formatPrice(Number(data.totalAmount ?? grandTotal))} 🎉`,
+      );
+      if (data.planId) {
+        router.push(`/payments/checkout/${data.planId}`);
+      } else {
+        setTimeout(() => router.push("/bookings"), 1500);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Saqlashda xatolik");
     } finally { setSubmitting(false); }
   }
 

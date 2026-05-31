@@ -43,16 +43,34 @@ export async function GET(req: Request) {
     where: hotelWhere,
     take: 30,
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, city: true, totalRooms: true },
+    select: {
+      id: true,
+      name: true,
+      city: true,
+      totalRooms: true,
+      roomTypes: {
+        where: { isActive: true },
+        orderBy: { basePrice: "asc" },
+        take: 1,
+        select: { id: true, basePrice: true, name: true },
+      },
+    },
   });
 
-  const hotels = hotelsFromDb.map((h, i) => ({
-    id: h.id,
-    title: h.name,
-    city: h.city ?? "Noma'lum",
-    availableRooms: h.totalRooms,
-    nightlyPrice: 280000 + i * 40000,
-  }));
+  const hotels = hotelsFromDb
+    .filter((h) => h.roomTypes.length > 0)
+    .map((h) => {
+      const room = h.roomTypes[0];
+      return {
+        id: h.id,
+        title: h.name,
+        city: h.city ?? "Noma'lum",
+        availableRooms: h.totalRooms,
+        roomTypeId: room.id,
+        roomTypeName: room.name,
+        nightlyPrice: Number(room.basePrice),
+      };
+    });
 
   const [taxiFromDb, guidesFromDb] = await Promise.all([
     prisma.taxiService.findMany({

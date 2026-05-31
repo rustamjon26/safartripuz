@@ -19,6 +19,7 @@ import {
   X,
   Compass,
   Bell,
+  Percent,
 } from "lucide-react";
 import { DirectionsCarIcon } from "@/components/admin/taxi/DirectionsCarIcon";
 import { ExploreMapIcon } from "@/components/admin/guide/ExploreMapIcon";
@@ -42,6 +43,8 @@ const NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/guide", label: "Ekskursiya", icon: GuideSidebarIcon, section: "Kontent" },
   { href: "/admin/payments", label: "To'lovlar", icon: CreditCard, section: "Moliya" },
   { href: "/admin/settings", label: "Sozlamalar", icon: Settings, section: "Tizim" },
+  { href: "/admin/settings/commission", label: "Komissiya", icon: Percent, section: "Tizim" },
+  { href: "/admin/settings/payments", label: "To'lov provayderlari", icon: CreditCard, section: "Tizim" },
   { href: "/admin/partners", label: "Hamkorlar", icon: CheckSquare, section: "Tizim", badgeKey: "pending" },
   { href: "/admin/tours", label: "Tur Paketlar", icon: Compass, section: "Tizim" },
   { href: "/admin/audit", label: "Audit Logs", icon: FileText, section: "Tizim" },

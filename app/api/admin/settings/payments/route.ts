@@ -14,6 +14,7 @@ const schema = z.object({
     enabled: z.boolean(),
     merchantId: z.string().optional(),
     secretKey: z.string().optional(),
+    merchantKey: z.string().optional(),
   }).optional(),
   uzum: z.object({
     enabled: z.boolean(),

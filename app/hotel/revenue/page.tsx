@@ -10,18 +10,30 @@ import { useLanguage } from "@/context/LanguageContext";
 
 interface Metric { label: string; value: number; unit?: string; icon: any; color: string; bg: string; }
 interface Trend { date: string; amount: number; }
+interface EarningsSummary {
+  totalGross: number;
+  totalCommission: number;
+  totalNet: number;
+  pendingNet: number;
+}
 
 export default function RevenuePage() {
   const { t, language } = useLanguage();
-  const [data, setData] = useState<{ metrics: any, dailyTrend: Trend[] } | null>(null);
+  const [data, setData] = useState<{ metrics: any; dailyTrend: Trend[]; sources?: any[] } | null>(null);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/revenue");
-      const result = await res.json();
-      if (res.ok) setData(result);
+      const [revRes, earnRes] = await Promise.all([
+        fetch("/api/hotel/revenue"),
+        fetch("/api/hotel/earnings"),
+      ]);
+      const result = await revRes.json();
+      if (revRes.ok) setData(result);
+      const earnData = await earnRes.json();
+      if (earnRes.ok) setEarnings(earnData.summary ?? null);
     } catch { toast.error(t("common.toasts.error")); }
     setLoading(false);
   }
@@ -37,6 +49,13 @@ export default function RevenuePage() {
 
   const metrics = data ? [
     { label: t("revenue.metrics.total_revenue"), value: data.metrics.totalRevenue, unit: t("common.currency"), icon: DollarSign, color: "text-green-600", bg: "bg-green-50" },
+    ...(earnings
+      ? [
+          { label: "SafarTrip komissiyasi", value: earnings.totalCommission, unit: t("common.currency"), icon: TrendingDown, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Sof daromad", value: earnings.totalNet, unit: t("common.currency"), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Kutilayotgan to'lov", value: earnings.pendingNet, unit: t("common.currency"), icon: CalendarCheck, color: "text-blue-600", bg: "bg-blue-50" },
+        ]
+      : []),
     { label: t("revenue.metrics.adr"), value: data.metrics.adr, unit: t("common.currency"), icon: Target, color: "text-blue-600", bg: "bg-blue-50" },
     { label: t("revenue.metrics.occupancy"), value: data.metrics.occupancyRate, unit: "%", icon: Users, color: "text-[var(--accent)]", bg: "bg-[var(--bg-light-blue)]" },
     { label: t("revenue.metrics.revpar"), value: data.metrics.revpar, unit: t("common.currency"), icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-50" },

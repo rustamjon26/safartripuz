@@ -1,4 +1,5 @@
-import type { Prisma } from "@prisma/client";
+import type { PartnerEarningType, Prisma } from "@prisma/client";
+import { calcCommission, getCommissionRates } from "@/lib/getCommissionRates";
 
 /**
  * Marks payment SUCCESS, confirms travel plan, and confirms linked hotel / homestay / guide bookings.
@@ -26,14 +27,41 @@ export async function completeSuccessfulPaymentInTx(
     select: { id: true, status: true },
   });
 
-  await tx.hotelBooking.updateMany({
+  const rates = await getCommissionRates(tx);
+
+  const pendingHotelBookings = await tx.hotelBooking.findMany({
     where: {
       note: { contains: travelPlanId },
       status: "PENDING",
       source: "SAFARTRIP",
     },
-    data: { status: "CONFIRMED" },
+    select: { id: true, hotelId: true, totalAmount: true },
   });
+
+  for (const booking of pendingHotelBookings) {
+    await tx.hotelBooking.update({
+      where: { id: booking.id },
+      data: {
+        status: "CONFIRMED",
+        paidAmount: booking.totalAmount,
+      },
+    });
+
+    const hotel = await tx.hotel.findUnique({
+      where: { id: booking.hotelId },
+      select: { partner: { select: { userId: true } } },
+    });
+    const partnerUserId = hotel?.partner?.userId;
+    if (partnerUserId) {
+      await createPartnerEarningIfMissing(tx, {
+        partnerId: partnerUserId,
+        bookingType: "HOTEL",
+        bookingId: booking.id,
+        grossAmount: Number(booking.totalAmount),
+        rate: rates.HOTEL,
+      });
+    }
+  }
 
   const pendingHomeStayBookings = await tx.homeStayBooking.findMany({
     where: {
@@ -45,6 +73,7 @@ export async function completeSuccessfulPaymentInTx(
       listingId: true,
       checkIn: true,
       checkOut: true,
+      totalPrice: true,
     },
   });
 
@@ -57,6 +86,21 @@ export async function completeSuccessfulPaymentInTx(
     });
 
     for (const booking of pendingHomeStayBookings) {
+      const listing = await tx.homeStayListing.findUnique({
+        where: { id: booking.listingId },
+        select: { hostId: true },
+      });
+
+      if (listing?.hostId) {
+        await createPartnerEarningIfMissing(tx, {
+          partnerId: listing.hostId,
+          bookingType: "HOMESTAY",
+          bookingId: booking.id,
+          grossAmount: Number(booking.totalPrice),
+          rate: rates.HOMESTAY,
+        });
+      }
+
       const existingAvailability = await tx.homeStayAvailability.findFirst({
         where: {
           OR: [
@@ -97,13 +141,25 @@ export async function completeSuccessfulPaymentInTx(
       travelPlanId,
       status: "PENDING",
     },
-    select: { id: true },
+    select: { id: true, guideId: true, totalPrice: true },
   });
+
   if (pendingGuideBookings.length) {
     await tx.guideBooking.updateMany({
       where: { id: { in: pendingGuideBookings.map((b) => b.id) } },
       data: { status: "CONFIRMED" },
     });
+
+    for (const booking of pendingGuideBookings) {
+      await createPartnerEarningIfMissing(tx, {
+        partnerId: booking.guideId,
+        bookingType: "GUIDE",
+        bookingId: booking.id,
+        grossAmount: Number(booking.totalPrice),
+        rate: rates.GUIDE,
+      });
+    }
+
     await tx.guideBookingLog.createMany({
       data: pendingGuideBookings.map((booking) => ({
         bookingId: booking.id,
@@ -128,4 +184,41 @@ export async function completeSuccessfulPaymentInTx(
   });
 
   return { payment: updatedPayment, plan: updatedPlan };
+}
+
+async function createPartnerEarningIfMissing(
+  tx: Prisma.TransactionClient,
+  opts: {
+    partnerId: string;
+    bookingType: PartnerEarningType;
+    bookingId: string;
+    grossAmount: number;
+    rate: number;
+  },
+) {
+  const existing = await tx.partnerEarning.findUnique({
+    where: {
+      bookingType_bookingId: {
+        bookingType: opts.bookingType,
+        bookingId: opts.bookingId,
+      },
+    },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  const { commissionFee, netAmount } = calcCommission(opts.grossAmount, opts.rate);
+
+  await tx.partnerEarning.create({
+    data: {
+      partnerId: opts.partnerId,
+      bookingType: opts.bookingType,
+      bookingId: opts.bookingId,
+      grossAmount: opts.grossAmount,
+      commissionRate: opts.rate,
+      commissionFee,
+      netAmount,
+      status: "PENDING",
+    },
+  });
 }

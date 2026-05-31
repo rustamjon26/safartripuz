@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { toast } from "sonner";
-import { Loader2, CreditCard, Save, Box, ShieldCheck, Banknote } from "lucide-react";
+import { Loader2, CreditCard, Save, Box, ShieldCheck, Banknote, Link2 } from "lucide-react";
 
 type ProviderConfig = {
   enabled: boolean;
   merchantId?: string;
   serviceId?: string;
   secretKey?: string;
+  merchantKey?: string;
   cardNumber?: string;
   cardHolder?: string;
 };
@@ -24,9 +25,15 @@ type PaymentSettings = {
 export default function PaymentSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const webhookBase = useMemo(() => {
+    if (typeof window !== "undefined" && window.location.origin) {
+      return window.location.origin;
+    }
+    return process.env.NEXT_PUBLIC_APP_URL ?? "https://safartrip.uz";
+  }, []);
   const [settings, setSettings] = useState<PaymentSettings>({
     click: { enabled: false, merchantId: "", serviceId: "", secretKey: "" },
-    payme: { enabled: false, merchantId: "", secretKey: "" },
+    payme: { enabled: false, merchantId: "", secretKey: "", merchantKey: "" },
     uzum: { enabled: false, merchantId: "", secretKey: "" },
     manual: { enabled: false, cardNumber: "", cardHolder: "" }
   });
@@ -149,6 +156,12 @@ export default function PaymentSettingsPage() {
                 placeholder="Click Secret Key"
               />
             </div>
+            <div className="md:col-span-2 rounded-xl bg-blue-50 border border-blue-100 p-4 text-sm">
+              <div className="flex items-center gap-2 font-bold text-blue-900 mb-1">
+                <Link2 size={16} /> Webhook URL (Click kabinetiga)
+              </div>
+              <code className="text-xs text-blue-800 break-all">{webhookBase}/api/payments/webhook/click</code>
+            </div>
           </div>
         </section>
 
@@ -186,14 +199,23 @@ export default function PaymentSettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Secret Key (Password)</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Merchant Key (Basic Auth)</label>
               <input 
                 type="password" 
-                value={settings.payme.secretKey}
-                onChange={(e) => handleProviderChange("payme", "secretKey", e.target.value)}
+                value={settings.payme.merchantKey ?? settings.payme.secretKey ?? ""}
+                onChange={(e) => {
+                  handleProviderChange("payme", "merchantKey", e.target.value);
+                  handleProviderChange("payme", "secretKey", e.target.value);
+                }}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50"
-                placeholder="Payme Secret Key"
+                placeholder="Payme Merchant Key"
               />
+            </div>
+            <div className="md:col-span-2 rounded-xl bg-teal-50 border border-teal-100 p-4 text-sm">
+              <div className="flex items-center gap-2 font-bold text-teal-900 mb-1">
+                <Link2 size={16} /> Callback URL (Payme kabinetiga)
+              </div>
+              <code className="text-xs text-teal-800 break-all">{webhookBase}/api/payments/webhook/payme</code>
             </div>
           </div>
         </section>

@@ -152,22 +152,35 @@ export async function POST(req: Request) {
     const startStr = startDate.toISOString().split("T")[0];
     const endStr = endDate.toISOString().split("T")[0];
 
-    // Hotels
+    // Hotels — narx va roomTypeId DB dan
     const hotels = await prisma.hotel.findMany({
       where: { city: destination, status: "active" },
-      select: { id: true, name: true, city: true },
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        roomTypes: {
+          where: { isActive: true },
+          orderBy: { basePrice: "asc" },
+          take: 1,
+          select: { id: true, basePrice: true, name: true },
+        },
+      },
     });
 
-    const mappedHotels = hotels.map((h) => ({
-      id: h.id,
-      title: h.name,
-      city: h.city,
-      nightlyPrice: budget === "cheap"
-        ? 300000
-        : budget === "expensive"
-        ? 900000
-        : 500000,
-    }));
+    const mappedHotels = hotels
+      .filter((h) => h.roomTypes.length > 0)
+      .map((h) => {
+        const room = h.roomTypes[0];
+        return {
+          id: h.id,
+          title: h.name,
+          city: h.city,
+          roomTypeId: room.id,
+          roomTypeName: room.name,
+          nightlyPrice: Number(room.basePrice),
+        };
+      });
 
     if (budget === "cheap") mappedHotels.sort((a, b) => a.nightlyPrice - b.nightlyPrice);
     if (budget === "expensive") mappedHotels.sort((a, b) => b.nightlyPrice - a.nightlyPrice);

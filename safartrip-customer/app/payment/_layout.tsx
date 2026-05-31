@@ -12,6 +12,8 @@ export default function PaymentStackLayout() {
       }}
     >
       <Stack.Screen name="[planId]" options={{ title: "To'lov" }} />
+      <Stack.Screen name="webview" options={{ title: "To'lov" }} />
+      <Stack.Screen name="success" options={{ title: "Muvaffaqiyat" }} />
       <Stack.Screen name="result" options={{ title: "To'lov natijasi" }} />
     </Stack>
   );

@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 
     // Daily Trend (Group by day) - Simple real trend for last 7 days
     const dailyTrend = [];
-    const sourceDistribution: Record<string, number> = { "PLATFORM": 0, "ADMIN": 0, "RECEPTION": 0 };
+    const sourceDistribution: Record<string, number> = { SAFARTRIP: 0, ADMIN: 0, RECEPTION: 0 };
 
     for(let i=6; i>=0; i--) {
        const d = new Date(today);
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
 
     const totalB = bookings.length || 1;
     const sources = [
-      { label: "SafarTrip", val: Math.round((sourceDistribution["PLATFORM"] / totalB) * 100), color: "bg-[var(--accent)]" },
+      { label: "SafarTrip", val: Math.round((sourceDistribution["SAFARTRIP"] / totalB) * 100), color: "bg-[var(--accent)]" },
       { label: "To'g'ridan to'g'ri", val: Math.round((sourceDistribution["ADMIN"] / totalB) * 100), color: "bg-slate-400" },
       { label: "Qabulxona", val: Math.round((sourceDistribution["RECEPTION"] / totalB) * 100), color: "bg-blue-500" },
     ];

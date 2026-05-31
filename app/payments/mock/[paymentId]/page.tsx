@@ -15,12 +15,16 @@ export default function MockPaymentPage({ params }: { params: Promise<{ paymentI
   async function simulatePayment() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/payments/webhook/mock/${paymentId}`, {
+      const res = await fetch(`/api/payments/webhook/mock/${paymentId}?redirect=1`, {
          method: "POST"
       });
+      if (res.redirected) {
+        window.location.href = res.url;
+        return;
+      }
       if (!res.ok) throw new Error("Mock payment error");
       toast.success("To'lov muvaffaqiyatli amalga oshirildi! 🎉");
-      router.push("/payments");
+      router.push(`/payments/success?paymentId=${paymentId}`);
     } catch (err: any) {
       toast.error(err.message);
       setLoading(false);

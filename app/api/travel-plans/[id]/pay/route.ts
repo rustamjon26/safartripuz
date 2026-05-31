@@ -1,66 +1,102 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
 
-export async function POST(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> },
-) {
+type RouteCtx = { params: Promise<{ id: string }> };
+
+export async function POST(_req: Request, ctx: RouteCtx) {
   try {
     const actor = await requireUser();
-    const { id } = await ctx.params;
+    const planId = (await ctx.params).id;
 
-    const plan = await prisma.travelPlan.findFirst({
-      where: { id, userId: actor.id },
-      select: { id: true, status: true },
+    const plan = await prisma.travelPlan.findUnique({
+      where: { id: planId },
+      include: {
+        payments: {
+          where: { status: "SUCCESS" },
+          orderBy: { paidAt: "desc" },
+          take: 1,
+        },
+      },
     });
+
     if (!plan) {
-      return NextResponse.json({ message: "Travel plan topilmadi" }, { status: 404 });
+      return NextResponse.json({ error: "Sayohat rejasi topilmadi" }, { status: 404 });
     }
-    if (plan.status !== "PENDING_PAYMENT") {
+
+    if (plan.userId !== actor.id) {
+      return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
+    }
+
+    if (plan.status === "CONFIRMED") {
       return NextResponse.json(
-        { message: "Faqat PENDING_PAYMENT holatidagi plan to‘lanadi" },
-        { status: 400 },
+        { error: "Bu buyurtma allaqachon tasdiqlangan" },
+        { status: 409 },
       );
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const next = await tx.travelPlan.update({
-        where: { id: plan.id },
-        data: { status: "CONFIRMED" },
-        select: { id: true, status: true, totalAmount: true },
-      });
-
-      await tx.hotelBooking.updateMany({
-        where: {
-          note: { contains: plan.id },
-          status: "PENDING",
-        },
-        data: {
-          status: "CONFIRMED",
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          actorId: actor.id,
-          action: "TRAVEL_PLAN_PAID",
-          entity: "TravelPlan",
-          entityId: next.id,
-          newData: { status: next.status, totalAmount: next.totalAmount },
-        },
-      });
-
-      return next;
-    });
-
-    return NextResponse.json({ plan: updated }, { status: 200 });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Server xatosi";
-    if (msg === "UNAUTHORIZED") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    if (plan.status === "CANCELLED") {
+      return NextResponse.json({ error: "Bu buyurtma bekor qilingan" }, { status: 410 });
     }
-    return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
+
+    const successPayment = plan.payments[0] ?? null;
+
+    if (!successPayment) {
+      return NextResponse.json(
+        {
+          error: "To'lov tasdiqlanmagan",
+          message: "Avval to'lovni amalga oshiring",
+          planStatus: plan.status,
+        },
+        { status: 402 },
+      );
+    }
+
+    if (Number(successPayment.amount) < Number(plan.totalAmount)) {
+      return NextResponse.json(
+        {
+          error: "To'lov summasi yetarli emas",
+          paid: Number(successPayment.amount),
+          required: Number(plan.totalAmount),
+        },
+        { status: 402 },
+      );
+    }
+
+    await prisma.$transaction(async (tx) =>
+      completeSuccessfulPaymentInTx(tx, {
+        paymentId: successPayment.id,
+        travelPlanId: plan.id,
+        actorId: actor.id,
+        previousPaymentStatus: successPayment.status,
+      }),
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: "Buyurtma tasdiqlandi",
+      planId,
+      paymentId: successPayment.id,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Server xatosi";
+    if (msg === "UNAUTHORIZED") {
+      return NextResponse.json({ error: "Avtorizatsiya talab etiladi" }, { status: 401 });
+    }
+    console.error("[travel-plans/pay] Error:", error);
+    return NextResponse.json({ error: "Serverda xatolik yuz berdi" }, { status: 500 });
   }
 }
 
+export async function GET() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
+
+export async function PUT() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
+
+export async function DELETE() {
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
