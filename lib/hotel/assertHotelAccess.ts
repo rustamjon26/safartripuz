@@ -23,3 +23,10 @@ export const HOTEL_ROOM_MANAGER_ROLES = [
 ] as const;
 
 export const HOTEL_ROOM_WRITE_ROLES = ["hotel_manager", "admin", "super_admin"] as const;
+
+export const HOTEL_BOOKING_DETAIL_ROLES = [
+  "hotel_manager",
+  "admin",
+  "super_admin",
+  "receptionist",
+] as const;

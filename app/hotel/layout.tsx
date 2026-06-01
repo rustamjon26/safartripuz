@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import "./hotel.css";
 import {
-  LayoutDashboard, Building2, BedDouble, CalendarCheck,
+  LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
   LogOut, Menu, X, Hotel, Bell, ChevronLeft, ChevronRight,
   Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart3, Globe
 } from "lucide-react";
@@ -26,6 +26,7 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel",               label: t("nav.dashboard"), icon: LayoutDashboard, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/bookings",      label: t("nav.reception"), icon: CalendarCheck, roles: ["hotel_manager", "admin", "receptionist"] },
+      { href: "/hotel/calendar",      label: t("nav.calendar"), icon: CalendarDays, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/rooms",         label: t("nav.rooms"),    icon: BedDouble, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/housekeeping",  label: t("nav.housekeeping"), icon: Brush, roles: ["hotel_manager", "admin", "receptionist", "cleaner"] },
     ]

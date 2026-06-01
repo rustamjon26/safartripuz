@@ -1,222 +1,778 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Users, Search, Plus, Loader2, Mail, Phone, Crown, CalendarDays,
-  X, Verified, RefreshCw, ChevronRight, TrendingUp
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Plus,
+  Search,
+  Star,
+  Users,
+  X,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
-interface Guest {
+type SortOption = "last_visit" | "visit_count" | "total_spent" | "name";
+
+type GuestListItem = {
   id: string;
-  firstName: string;
-  lastName: string | null;
-  phone: string | null;
+  full_name: string;
+  phone: string;
   email: string | null;
-  vipStatus: string;
-  totalVisits: number;
-  totalSpent: number;
-  notes: string | null;
-  createdAt: string;
+  nationality: string | null;
+  is_vip: boolean;
+  is_blacklist: boolean;
+  visit_count: number;
+  total_spent: number;
+  last_visit: string | null;
+};
+
+type GuestListResponse = {
+  guests: GuestListItem[];
+  pagination: {
+    total: number;
+    page: number;
+    per_page: number;
+    total_pages: number;
+  };
+};
+
+type GuestStats = {
+  total: number;
+  vip: number;
+  returning: number;
+};
+
+type CreateGuestForm = {
+  fullName: string;
+  phone: string;
+  email: string;
+  passportId: string;
+  nationality: string;
+  birthDate: string;
+  gender: "" | "MALE" | "FEMALE";
+  address: string;
+  notes: string;
+  isVip: boolean;
+};
+
+const PER_PAGE = 20;
+
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: "last_visit", label: "So'nggi tashrif" },
+  { value: "visit_count", label: "Ko'p tashrif" },
+  { value: "total_spent", label: "Ko'p xarajat" },
+  { value: "name", label: "Ism" },
+];
+
+const NATIONALITY_OPTIONS = [
+  { value: "UZ", label: "O'zbekiston" },
+  { value: "RU", label: "Rossiya" },
+  { value: "KZ", label: "Qozog'iston" },
+  { value: "TJ", label: "Tojikiston" },
+  { value: "KG", label: "Qirg'iziston" },
+  { value: "OTHER", label: "Boshqa" },
+] as const;
+
+const EMPTY_FORM: CreateGuestForm = {
+  fullName: "",
+  phone: "",
+  email: "",
+  passportId: "",
+  nationality: "UZ",
+  birthDate: "",
+  gender: "",
+  address: "",
+  notes: "",
+  isVip: false,
+};
+
+function formatMoney(value: number) {
+  return `${value.toLocaleString("uz-UZ")} so'm`;
 }
 
-export default function GuestsPage() {
-  const { t } = useLanguage();
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [adding, setAdding] = useState(false);
+function formatShortDate(ymd: string | null) {
+  if (!ymd) return "—";
+  const [, m, d] = ymd.split("-").map(Number);
+  const months = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+  return `${d}-${months[m - 1]}`;
+}
 
-  // Form State
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", phone: "", email: "", vipStatus: "REGULAR", notes: "" });
+function nationalityFlag(code: string | null) {
+  switch (code?.toUpperCase()) {
+    case "UZ":
+      return "🇺🇿";
+    case "RU":
+      return "🇷🇺";
+    case "KZ":
+      return "🇰🇿";
+    default:
+      return "🌍";
+  }
+}
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/hotel/guests");
-      const data = await res.json();
-      if (res.ok) setGuests(data.guests);
-    } catch { toast.error(t("common.error")); }
-    setLoading(false);
+function guestInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+async function fetchGuests(
+  hotelId: string,
+  opts: {
+    search: string;
+    vipOnly: boolean;
+    blacklistOnly: boolean;
+    sort: SortOption;
+    page: number;
+  },
+): Promise<GuestListResponse> {
+  const params = new URLSearchParams({
+    page: String(opts.page),
+    per_page: String(PER_PAGE),
+    sort: opts.sort,
+  });
+  if (opts.search.trim()) params.set("search", opts.search.trim());
+  if (opts.vipOnly) params.set("is_vip", "true");
+  if (opts.blacklistOnly) params.set("is_blacklist", "true");
+
+  const res = await fetch(`/api/hotels/${hotelId}/guests?${params.toString()}`);
+  const data = (await res.json()) as GuestListResponse & { error?: string };
+  if (!res.ok) throw new Error(data.error || "Mehmonlar yuklanmadi");
+  return data;
+}
+
+async function loadGuestStats(hotelId: string): Promise<GuestStats> {
+  const base = `/api/hotels/${hotelId}/guests`;
+
+  const [allRes, vipRes] = await Promise.all([
+    fetch(`${base}?per_page=1`),
+    fetch(`${base}?is_vip=true&per_page=1`),
+  ]);
+
+  const all = (await allRes.json()) as GuestListResponse;
+  const vip = (await vipRes.json()) as GuestListResponse;
+
+  if (!allRes.ok) throw new Error("Statistika yuklanmadi");
+
+  let returning = 0;
+  const totalPages = all.pagination.total_pages;
+
+  for (let page = 1; page <= totalPages; page++) {
+    const res = await fetch(`${base}?per_page=100&page=${page}`);
+    const data = (await res.json()) as GuestListResponse;
+    if (!res.ok) break;
+    returning += data.guests.filter((guest) => guest.visit_count > 1).length;
   }
 
-  useEffect(() => { void load(); }, []);
+  return {
+    total: all.pagination.total,
+    vip: vipRes.ok ? vip.pagination.total : 0,
+    returning,
+  };
+}
 
-  const filtered = guests.filter(g => 
-     g.firstName.toLowerCase().includes(q.toLowerCase()) || 
-     (g.lastName && g.lastName.toLowerCase().includes(q.toLowerCase())) ||
-     (g.phone && g.phone.includes(q))
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent?: "green" | "default";
+}) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+      <p
+        className={`text-2xl font-black mt-2 ${
+          accent === "green" ? "text-green-700" : "text-[var(--primary)]"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
   );
+}
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
+function GuestTableRow({ guest }: { guest: GuestListItem }) {
+  return (
+    <tr className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[11px] font-black shrink-0">
+            {guestInitials(guest.full_name)}
+          </div>
+          <span className="text-sm font-black text-slate-800">{guest.full_name}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3 text-sm font-bold text-slate-600">{guest.phone}</td>
+      <td className="px-4 py-3 text-lg">{nationalityFlag(guest.nationality)}</td>
+      <td className="px-4 py-3 text-sm font-bold text-slate-700">{guest.visit_count} marta</td>
+      <td className="px-4 py-3 text-sm font-black text-[var(--primary)]">
+        {formatMoney(guest.total_spent)}
+      </td>
+      <td className="px-4 py-3 text-sm font-bold text-slate-600">
+        {formatShortDate(guest.last_visit)}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-1.5">
+          {guest.is_vip && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black uppercase">
+              <Star size={10} className="fill-amber-500 text-amber-500" />
+              VIP
+            </span>
+          )}
+          {guest.is_blacklist && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-200 text-[10px] font-black uppercase">
+              <Ban size={10} />
+              Blacklist
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <Link
+          href={`/hotel/guests/${guest.id}`}
+          className="text-[12px] font-black text-[var(--accent)] hover:underline uppercase"
+        >
+          Ko'rish →
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+function GuestCard({ guest }: { guest: GuestListItem }) {
+  return (
+    <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[12px] font-black">
+            {guestInitials(guest.full_name)}
+          </div>
+          <div>
+            <p className="text-base font-black text-slate-800">{guest.full_name}</p>
+            <p className="text-[11px] font-bold text-slate-400 mt-0.5">{guest.phone}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1 justify-end">
+          {guest.is_vip && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black">
+              ⭐ VIP
+            </span>
+          )}
+          {guest.is_blacklist && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-[10px] font-black">
+              🚫
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-bold text-slate-600">{guest.visit_count} marta</span>
+        <span className="font-black text-[var(--primary)]">{formatMoney(guest.total_spent)}</span>
+      </div>
+      <Link
+        href={`/hotel/guests/${guest.id}`}
+        className="block text-center text-[12px] font-black text-[var(--accent)] hover:underline uppercase pt-1 border-t border-slate-100"
+      >
+        Ko'rish →
+      </Link>
+    </article>
+  );
+}
+
+export default function HotelGuestsPage() {
+  const { t } = useLanguage();
+  const [hotelId, setHotelId] = useState("");
+  const [guests, setGuests] = useState<GuestListItem[]>([]);
+  const [pagination, setPagination] = useState<GuestListResponse["pagination"]>({
+    total: 0,
+    page: 1,
+    per_page: PER_PAGE,
+    total_pages: 0,
+  });
+  const [stats, setStats] = useState<GuestStats>({ total: 0, vip: 0, returning: 0 });
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [vipOnly, setVipOnly] = useState(false);
+  const [blacklistOnly, setBlacklistOnly] = useState(false);
+  const [sort, setSort] = useState<SortOption>("last_visit");
+  const [page, setPage] = useState(1);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<CreateGuestForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  const loadList = useCallback(async () => {
+    if (!hotelId) return;
+    setLoading(true);
+    setError(null);
     try {
-       const res = await fetch("/api/hotel/guests", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData)
-       });
-       if(res.ok) {
-          toast.success(t("guests.toasts.save_success"));
-          setAdding(false);
-          setFormData({ firstName: "", lastName: "", phone: "", email: "", vipStatus: "REGULAR", notes: "" });
-          void load();
-       } else {
-          toast.error(t("guests.toasts.save_error"));
-       }
-    } catch { toast.error(t("guests.toasts.network_error")); }
+      const result = await fetchGuests(hotelId, {
+        search,
+        vipOnly,
+        blacklistOnly,
+        sort,
+        page,
+      });
+      setGuests(result.guests);
+      setPagination(result.pagination);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Mehmonlar yuklanmadi");
+      setGuests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [hotelId, search, vipOnly, blacklistOnly, sort, page]);
+
+  const loadStats = useCallback(async () => {
+    if (!hotelId) return;
+    setStatsLoading(true);
+    try {
+      const data = await loadGuestStats(hotelId);
+      setStats(data);
+    } catch {
+      /* stats optional */
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [hotelId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      try {
+        const res = await fetch("/api/hotel/me");
+        const data = (await res.json()) as { hotel?: { id: string } };
+        if (!res.ok || !data.hotel?.id) throw new Error("Mehmonxona topilmadi");
+        if (!cancelled) setHotelId(data.hotel.id);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Mehmonxona topilmadi");
+          setLoading(false);
+          setStatsLoading(false);
+        }
+      }
+    }
+    void init();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hotelId) void loadList();
+  }, [hotelId, loadList]);
+
+  useEffect(() => {
+    if (hotelId) void loadStats();
+  }, [hotelId, loadStats]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  async function handleCreateGuest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!hotelId) return;
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        fullName: form.fullName.trim(),
+        phone: form.phone.trim(),
+        isVip: form.isVip,
+      };
+      if (form.email.trim()) body.email = form.email.trim();
+      if (form.passportId.trim()) body.passportId = form.passportId.trim();
+      if (form.nationality) body.nationality = form.nationality;
+      if (form.birthDate) body.birthDate = form.birthDate;
+      if (form.gender) body.gender = form.gender;
+      if (form.address.trim()) body.address = form.address.trim();
+      if (form.notes.trim()) body.notes = form.notes.trim();
+
+      const res = await fetch(`/api/hotels/${hotelId}/guests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Saqlab bo'lmadi");
+
+      toast.success("Mehmon qo'shildi");
+      setModalOpen(false);
+      setForm(EMPTY_FORM);
+      void loadList();
+      void loadStats();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Saqlab bo'lmadi");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="space-y-8 pb-10 max-w-[1600px] mx-auto">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-4">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight flex items-center gap-2">
-             <Users size={24} className="text-[var(--accent)]"/> {t("guests.title")}
+          <h1 className="text-2xl font-black text-[var(--primary)] flex items-center gap-2">
+            <Users size={24} className="text-[var(--accent)]" />
+            Mehmonlar
           </h1>
-          <p className="text-[13px] font-semibold text-slate-500 mt-1">
-            {t("guests.subtitle")}
-          </p>
+          <p className="text-sm font-bold text-slate-400 mt-1">{t("nav.guests")}</p>
         </div>
-        <div className="flex gap-2">
-           <button onClick={() => void load()} className="p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-           </button>
-           <button onClick={() => setAdding(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--secondary)] transition-colors shadow-sm">
-              <Plus size={16}/> {t("guests.add_new")}
-           </button>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--primary)] text-white text-[12px] font-black uppercase tracking-wide hover:opacity-90"
+        >
+          <Plus size={16} />
+          Yangi mehmon
+        </button>
+      </header>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          label="Jami mehmonlar"
+          value={statsLoading ? "…" : stats.total}
+        />
+        <StatCard
+          label="VIP mehmonlar"
+          value={statsLoading ? "…" : stats.vip}
+          accent="green"
+        />
+        <StatCard
+          label="Qaytib kelgan"
+          value={statsLoading ? "…" : stats.returning}
+        />
+      </div>
+
+      {/* Filters */}
+      <section className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+          <div className="relative flex-1 min-w-0">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Ism yoki telefon..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)] focus:bg-white"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={vipOnly}
+                onChange={(e) => {
+                  setVipOnly(e.target.checked);
+                  setPage(1);
+                }}
+                className="rounded border-slate-300 accent-[var(--accent)]"
+              />
+              <span className="text-[12px] font-black text-slate-600 uppercase">VIP</span>
+            </label>
+            <label className="inline-flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={blacklistOnly}
+                onChange={(e) => {
+                  setBlacklistOnly(e.target.checked);
+                  setPage(1);
+                }}
+                className="rounded border-slate-300 accent-red-500"
+              />
+              <span className="text-[12px] font-black text-slate-600 uppercase">Qora ro'yxat</span>
+            </label>
+          </div>
+
+          <select
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value as SortOption);
+              setPage(1);
+            }}
+            className="px-3 py-2.5 border border-slate-200 rounded-xl text-[12px] font-black text-slate-700 bg-white outline-none focus:border-[var(--accent)]"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
+      </section>
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase">{t("guests.stats.total")}</span>
-            <span className="text-2xl font-black text-[var(--primary)] mt-1">{guests.length}</span>
-         </div>
-         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-            <span className="text-[11px] font-black text-amber-500 uppercase flex items-center gap-1"><Crown size={12}/> {t("guests.stats.vip")}</span>
-            <span className="text-2xl font-black text-amber-600 mt-1">{guests.filter(g => g.vipStatus !== "REGULAR").length}</span>
-         </div>
-         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-            <span className="text-[11px] font-black text-green-500 uppercase flex items-center gap-1"><TrendingUp size={12}/> {t("guests.stats.revenue")}</span>
-            <span className="text-xl font-black text-green-700 mt-1 uppercase">
-               {guests.reduce((sum, g) => sum + Number(g.totalSpent || 0), 0).toLocaleString()} {t("common.currency")}
-            </span>
-         </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex items-center relative max-w-md">
-         <Search size={16} className="absolute left-4 text-slate-400" />
-         <input 
-            value={q} onChange={e => setQ(e.target.value)}
-            placeholder={t("guests.search_placeholder")} 
-            className="w-full pl-11 pr-4 py-2.5 text-[13px] font-bold border border-slate-200 rounded-xl outline-none focus:border-[var(--accent)] shadow-sm bg-white" 
-         />
-      </div>
-
-      {/* Table List */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-           <thead>
-              <tr className="bg-[var(--bg-light-blue)] border-b border-slate-200 text-[11px] font-black text-[var(--accent)] uppercase tracking-wider">
-                 <th className="py-3 px-5">{t("guests.table.name")}</th>
-                 <th className="py-3 px-5">{t("guests.table.contact")}</th>
-                 <th className="py-3 px-5">{t("guests.table.status")}</th>
-                 <th className="py-3 px-5 text-center">{t("guests.table.visits")}</th>
-                 <th className="py-3 px-5">{t("guests.table.notes")}</th>
-                 <th className="py-3 px-5"></th>
-              </tr>
-           </thead>
-           <tbody className="text-[13px]">
-              {loading ? (
-                 <tr><td colSpan={6} className="py-16 text-center"><Loader2 size={24} className="animate-spin mx-auto text-slate-300"/></td></tr>
-              ) : filtered.length === 0 ? (
-                 <tr><td colSpan={6} className="py-16 text-center text-slate-400 font-bold">{t("guests.table.no_data")}</td></tr>
-              ) : filtered.map(g => (
-                 <tr key={g.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors group cursor-pointer">
-                    <td className="py-3 px-5">
-                       <div className="font-bold text-[var(--primary)] text-[14px]">{g.firstName} {g.lastName || ""}</div>
-                       <div className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 flex items-center gap-1">
-                          <CalendarDays size={10}/> {new Date(g.createdAt).toLocaleDateString()}
-                       </div>
-                    </td>
-                    <td className="py-3 px-5 font-semibold text-slate-600">
-                       {g.phone && <div className="flex items-center gap-1"><Phone size={12} className="text-slate-400"/> {g.phone}</div>}
-                       {g.email && <div className="flex items-center gap-1 mt-0.5"><Mail size={12} className="text-slate-400"/> {g.email}</div>}
-                       {(!g.phone && !g.email) && <span className="text-slate-300">-</span>}
-                    </td>
-                    <td className="py-3 px-5">
-                       {g.vipStatus === "REGULAR" ? (
-                          <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-[10px] font-black uppercase">{t("guests.table.standard")}</span>
-                       ) : (
-                          <span className="px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded flex items-center gap-1 w-fit text-[10px] font-black uppercase">
-                             <Crown size={10}/> {t("guests.table.vip")}
-                          </span>
-                       )}
-                    </td>
-                    <td className="py-3 px-5 text-center font-black text-slate-700">{g.totalVisits} {t("common.unit")}</td>
-                    <td className="py-3 px-5 text-[11px] text-slate-500 font-medium max-w-[200px] truncate">
-                       {g.notes || <span className="text-slate-300 italic">{t("guests.table.no_notes")}</span>}
-                    </td>
-                    <td className="py-3 px-5 text-right">
-                       <button className="p-1.5 text-slate-400 hover:text-[var(--accent)] hover:bg-[var(--bg-light-blue)] rounded transition-colors opacity-0 group-hover:opacity-100">
-                          <ChevronRight size={16}/>
-                       </button>
-                    </td>
-                 </tr>
-              ))}
-           </tbody>
-        </table>
-      </div>
-
-      {/* Add Drawer */}
-      {adding && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-               <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
-                  <h3 className="font-bold text-[var(--primary)] text-[15px]">{t("guests.modal.title")}</h3>
-                  <button onClick={() => setAdding(false)} className="p-1.5 text-slate-400 hover:text-slate-600 bg-white rounded-md shadow-sm"><X size={16}/></button>
-               </div>
-               <form onSubmit={handleAdd} className="p-5 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("guests.modal.first_name")}</label>
-                        <input required value={formData.firstName} onChange={e=>setFormData({...formData, firstName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)]"/>
-                     </div>
-                     <div>
-                        <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("guests.modal.last_name")}</label>
-                        <input value={formData.lastName} onChange={e=>setFormData({...formData, lastName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)]"/>
-                     </div>
-                  </div>
-                  <div>
-                     <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("guests.modal.phone")}</label>
-                     <input value={formData.phone} onChange={e=>setFormData({...formData, phone: e.target.value})} placeholder={t("guests.modal.phone_placeholder")} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)]"/>
-                  </div>
-                  <div>
-                     <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("guests.modal.vip_status")}</label>
-                     <select value={formData.vipStatus} onChange={e=>setFormData({...formData, vipStatus: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)] appearance-none bg-white cursor-pointer">
-                        <option value="REGULAR">{t("guests.modal.vip_regular")}</option>
-                        <option value="VIP">{t("guests.modal.vip_gold")}</option>
-                     </select>
-                  </div>
-                  <div>
-                     <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("guests.modal.notes")}</label>
-                     <textarea value={formData.notes} onChange={e=>setFormData({...formData, notes: e.target.value})} rows={2} placeholder={t("guests.modal.notes_placeholder")} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-[var(--accent)] resize-none" />
-                  </div>
-                  <div className="pt-2">
-                     <button type="submit" className="w-full py-2.5 bg-[var(--accent)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--accent-hover)] transition-colors flex items-center justify-center gap-2">
-                       <Verified size={16}/> {t("guests.modal.save_btn")}
-                     </button>
-                  </div>
-               </form>
+      {/* List */}
+      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-10 flex justify-center text-slate-400">
+            <Loader2 className="animate-spin" size={24} />
+          </div>
+        ) : error ? (
+          <div className="p-10 text-center text-sm font-bold text-red-600">{error}</div>
+        ) : guests.length === 0 ? (
+          <div className="p-10 text-center text-sm font-bold text-slate-400">Mehmonlar topilmadi</div>
+        ) : (
+          <>
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/60">
+                    {[
+                      "Mehmon",
+                      "Telefon",
+                      "Millat",
+                      "Tashriflar",
+                      "Jami xarajat",
+                      "So'nggi tashrif",
+                      "Belgilar",
+                      "Amallar",
+                    ].map((col) => (
+                      <th
+                        key={col}
+                        className={`px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest ${
+                          col === "Amallar" ? "text-right" : ""
+                        }`}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {guests.map((guest) => (
+                    <GuestTableRow key={guest.id} guest={guest} />
+                  ))}
+                </tbody>
+              </table>
             </div>
-         </div>
+
+            <div className="lg:hidden p-4 space-y-3">
+              {guests.map((guest) => (
+                <GuestCard key={guest.id} guest={guest} />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Pagination */}
+      {!loading && !error && pagination.total_pages > 0 && (
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <p className="text-[12px] font-bold text-slate-400">
+            Jami {pagination.total} ta · {pagination.page}/{pagination.total_pages} sahifa
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-[12px] font-black text-slate-600 hover:bg-white disabled:opacity-40"
+            >
+              <ChevronLeft size={16} />
+              Oldingi
+            </button>
+            <button
+              type="button"
+              disabled={page >= pagination.total_pages}
+              onClick={() => setPage((p) => p + 1)}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 text-[12px] font-black text-slate-600 hover:bg-white disabled:opacity-40"
+            >
+              Keyingi
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       )}
 
+      {/* Create modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="text-lg font-black text-[var(--primary)]">Yangi mehmon</h3>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="p-2 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGuest} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                  Ism *
+                </label>
+                <input
+                  required
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                  Telefon *
+                </label>
+                <input
+                  required
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Pasport
+                  </label>
+                  <input
+                    value={form.passportId}
+                    onChange={(e) => setForm({ ...form, passportId: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Millat
+                  </label>
+                  <select
+                    value={form.nationality}
+                    onChange={(e) => setForm({ ...form, nationality: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)] bg-white"
+                  >
+                    {NATIONALITY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Tug&apos;ilgan sana
+                  </label>
+                  <input
+                    type="date"
+                    value={form.birthDate}
+                    onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Jinsi
+                  </label>
+                  <select
+                    value={form.gender}
+                    onChange={(e) =>
+                      setForm({ ...form, gender: e.target.value as CreateGuestForm["gender"] })
+                    }
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)] bg-white"
+                  >
+                    <option value="">Tanlanmagan</option>
+                    <option value="MALE">Erkak</option>
+                    <option value="FEMALE">Ayol</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                    Manzil
+                  </label>
+                  <input
+                    value={form.address}
+                    onChange={(e) => setForm({ ...form, address: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 uppercase mb-2">
+                  Izoh
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-[var(--accent)] resize-none"
+                />
+              </div>
+
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isVip}
+                  onChange={(e) => setForm({ ...form, isVip: e.target.checked })}
+                  className="rounded border-slate-300 accent-amber-500"
+                />
+                <span className="text-sm font-black text-slate-700">VIP mehmon</span>
+              </label>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-sm font-black text-slate-600"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-3 rounded-xl bg-[var(--primary)] text-white text-sm font-black disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+                  Saqlash
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

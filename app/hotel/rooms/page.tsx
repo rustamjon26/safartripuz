@@ -3,24 +3,17 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  BedDouble, Plus, Edit3, Trash2,
+  Plus,
   Loader2, X,
-  Search, RefreshCw, Layers,
+  Layers,
   CheckCircle, Hash, Building,
   Sparkles,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import BulkCreateRooms from "@/components/hotel/BulkCreateRooms";
 import RoomTypes from "@/components/hotel/RoomTypes";
-
-interface PhysicalRoom {
-  id: string;
-  roomTypeId: string;
-  roomNumber: string;
-  floor: string | null;
-  status: string; // AVAILABLE, OCCUPIED, CLEANING, MAINTENANCE, BLOCKED
-  isActive: boolean;
-}
+import PhysicalRoomsList, { type PhysicalRoom } from "@/components/hotel/rooms/PhysicalRoomsList";
 
 interface RoomType {
   id: string;
@@ -40,13 +33,13 @@ const EMPTY_PHYSICAL_FORM = {
 
 export default function HotelRooms() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
   const [activeTab,   setActiveTab]   = useState<"types" | "physical" | "bulk">("types");
   const [hotelId,     setHotelId]     = useState("");
   const [bulkRoomTypeId, setBulkRoomTypeId] = useState<string | undefined>();
   
   const [roomTypes,   setRoomTypes]   = useState<RoomType[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [search,      setSearch]      = useState("");
   
   const [drawerMode,  setDrawerMode]  = useState<"none" | "physical">("none");
   const [closing,     setClosing]     = useState(false);
@@ -73,6 +66,10 @@ export default function HotelRooms() {
   }
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    if (searchParams.get("status")) setActiveTab("physical");
+  }, [searchParams]);
 
   function handleCloseSlideOver() {
     setClosing(true);
@@ -124,18 +121,6 @@ export default function HotelRooms() {
 
   // Prepare Views
   const allPhysicalRooms = roomTypes.flatMap(rt => (rt.rooms || []).map(pr => ({ ...pr, categoryName: rt.name })));
-  const phyResults = allPhysicalRooms.filter(pr => pr.roomNumber.toLowerCase().includes(search.toLowerCase()) || pr.categoryName.toLowerCase().includes(search.toLowerCase()));
-
-  // Helpers
-  const StatusBadge = ({ status }: { status: string }) => {
-    switch (status) {
-      case "AVAILABLE": return <span className="h-badge h-badge-green"><CheckCircle size={12}/> {t("rooms.status.AVAILABLE")}</span>;
-      case "OCCUPIED": return <span className="h-badge h-badge-red"><BedDouble size={12}/> {t("rooms.status.OCCUPIED")}</span>;
-      case "CLEANING": return <span className="h-badge h-badge-blue"><RefreshCw size={12} className="animate-spin-slow"/> {t("rooms.status.CLEANING")}</span>;
-      case "MAINTENANCE": return <span className="h-badge h-badge-amber">{t("rooms.status.MAINTENANCE")}</span>;
-      default: return <span className="h-badge h-badge-gray">{status}</span>;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -164,29 +149,6 @@ export default function HotelRooms() {
         </div>
       </div>
 
-      {/* Control Bar */}
-      {activeTab === "physical" && (
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t("rooms.search.physical")}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-semibold focus:border-[var(--accent)] outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-           <button onClick={() => void load()} className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg border border-slate-200">
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-           </button>
-           <button onClick={openAddPhy} 
-             className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--secondary)] transition-colors shadow-sm">
-             <Plus size={16} />
-             {t("rooms.add_new")}
-           </button>
-        </div>
-      </div>
-      )}
-
       {activeTab === "bulk" ? (
         <BulkCreateRooms
           hotelId={hotelId}
@@ -207,48 +169,15 @@ export default function HotelRooms() {
           onChange={() => void load()}
         />
       ) : (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden min-h-[500px]">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-slate-400">
-            <Loader2 size={32} className="animate-spin mb-4" />
-            <p className="font-bold text-sm tracking-widest uppercase">{t("common.loading")}</p>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-5">{t("rooms.table.room_number")}</th>
-                <th className="py-3 px-5">{t("rooms.table.category")}</th>
-                <th className="py-3 px-5">{t("rooms.table.floor")}</th>
-                <th className="py-3 px-5">{t("rooms.table.status")}</th>
-                <th className="py-3 px-5 text-right">{t("rooms.table.actions")}</th>
-              </tr>
-            </thead>
-            <tbody className="text-[14px]">
-              {phyResults.length === 0 ? (
-                 <tr><td colSpan={5} className="text-center py-20 text-slate-500 font-medium">{t("rooms.table.no_rooms")}</td></tr>
-              ) : phyResults.map(pr => (
-                <tr key={pr.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="py-3 px-5">
-                     <div className="font-extrabold text-[var(--primary)] flex items-center gap-2">
-                        <Hash size={14} className="text-slate-400"/>
-                        {pr.roomNumber}
-                        {!pr.isActive && <span className="w-2 h-2 rounded-full bg-slate-300" title="Aktiv Emas"/>}
-                     </div>
-                  </td>
-                  <td className="py-3 px-5 font-bold text-slate-700 text-[13px]">{pr.categoryName}</td>
-                  <td className="py-3 px-5 font-semibold text-slate-500 text-[13px]">{pr.floor || "-"}</td>
-                  <td className="py-3 px-5"><StatusBadge status={pr.status} /></td>
-                  <td className="py-3 px-5 text-right">
-                    <button onClick={() => openEditPhy(pr)} className="p-1.5 text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100 rounded-md transition-colors mr-1"><Edit3 size={15} strokeWidth={2.5}/></button>
-                    <button onClick={() => handlePhyDelete(pr.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} strokeWidth={2.5}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        <PhysicalRoomsList
+          hotelId={hotelId}
+          roomTypes={roomTypes}
+          loading={loading}
+          onReload={() => void load()}
+          onAdd={openAddPhy}
+          onEdit={openEditPhy}
+          onDelete={handlePhyDelete}
+        />
       )}
 
       {drawerMode === "physical" && (

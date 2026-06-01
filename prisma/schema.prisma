@@ -505,6 +505,7 @@ model Hotel {
   roomTypes           RoomType[]
   rooms               PhysicalRoom[]
   guestProfiles       GuestProfile[]
+  hotelGuests         HotelGuest[]
   staff               HotelStaff[]
   inventoryItems      InventoryItem[]
   inventoryCategories InventoryCategory[]
@@ -522,6 +523,8 @@ model HotelBooking {
   hotel           Hotel                   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   roomTypeId      String?
   roomType        RoomType?               @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  guestId         String?
+  guest           HotelGuest?             @relation(fields: [guestId], references: [id], onDelete: SetNull)
   guestName       String
   guestPhone      String?
   passportData    String?                 @db.Text
@@ -545,6 +548,7 @@ model HotelBooking {
   @@index([hotelId, checkInDate])
   @@index([hotelId, status])
   @@index([roomTypeId])
+  @@index([guestId])
 }
 
 model BookingGuest {
@@ -874,6 +878,37 @@ model GuestProfile {
   updatedAt    DateTime  @updatedAt
 
   @@index([hotelId, vipStatus])
+  @@index([phone])
+}
+
+model HotelGuest {
+  id          String    @id @default(cuid())
+  hotelId     String
+  hotel       Hotel     @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  fullName    String
+  phone       String
+  email       String?
+  passportId  String?
+  nationality String?
+  birthDate   DateTime?
+  gender      String?
+  address     String?
+
+  notes       String?   @db.Text
+  isVip       Boolean   @default(false)
+  isBlacklist Boolean   @default(false)
+
+  visitCount  Int       @default(0)
+  totalSpent  Decimal   @default(0) @db.Decimal(14, 2)
+
+  bookings    HotelBooking[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([hotelId, phone])
+  @@index([hotelId])
   @@index([phone])
 }
 
