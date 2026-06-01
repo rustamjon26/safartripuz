@@ -25,11 +25,11 @@ const listSelect = {
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ hotelId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const actor = await requireRole([...HOTEL_ROOM_MANAGER_ROLES]);
-    const { hotelId } = await params;
+    const { id: hotelId } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {
@@ -60,11 +60,11 @@ export async function GET(
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ hotelId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const actor = await requireRole([...HOTEL_ROOM_WRITE_ROLES]);
-    const { hotelId } = await params;
+    const { id: hotelId } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {

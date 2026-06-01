@@ -25,11 +25,11 @@ const listSelect = {
 
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ hotelId: string; id: string }> },
+  { params }: { params: Promise<{ id: string; roomTypeId: string }> },
 ) {
   try {
     const actor = await requireRole([...HOTEL_ROOM_WRITE_ROLES]);
-    const { hotelId, id } = await params;
+    const { id: hotelId, roomTypeId: id } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {
@@ -93,11 +93,11 @@ export async function PUT(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: Promise<{ hotelId: string; id: string }> },
+  { params }: { params: Promise<{ id: string; roomTypeId: string }> },
 ) {
   try {
     const actor = await requireRole([...HOTEL_ROOM_WRITE_ROLES]);
-    const { hotelId, id } = await params;
+    const { id: hotelId, roomTypeId: id } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {
@@ -153,14 +153,13 @@ export async function DELETE(
   }
 }
 
-// GET single — foydali bo'lishi mumkin
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ hotelId: string; id: string }> },
+  { params }: { params: Promise<{ id: string; roomTypeId: string }> },
 ) {
   try {
     const actor = await requireRole([...HOTEL_ROOM_MANAGER_ROLES]);
-    const { hotelId, id } = await params;
+    const { id: hotelId, roomTypeId: id } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {

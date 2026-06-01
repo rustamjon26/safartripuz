@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/authz";
-import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { BulkRoomsError, bulkCreatePhysicalRooms } from "@/lib/hotel/bulkCreateRooms";
+import { assertHotelAccess } from "@/lib/hotel/assertHotelAccess";
 import { prisma } from "@/lib/prisma";
 
 const bulkBodySchema = z
@@ -34,28 +34,13 @@ const bulkBodySchema = z
     }
   });
 
-async function assertHotelAccess(actorId: string, actorRole: string, hotelId: string) {
-  if (actorRole === "admin" || actorRole === "super_admin") {
-    const hotel = await prisma.hotel.findUnique({
-      where: { id: hotelId },
-      select: { id: true },
-    });
-    if (!hotel) return null;
-    return hotel;
-  }
-
-  const ctx = await getApprovedHotelContextByUserId(actorId);
-  if (!ctx || ctx.hotel.id !== hotelId) return null;
-  return ctx.hotel;
-}
-
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ hotelId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const actor = await requireRole(["hotel_manager", "admin", "super_admin", "receptionist"]);
-    const { hotelId } = await params;
+    const { id: hotelId } = await params;
 
     const hotel = await assertHotelAccess(actor.id, actor.role, hotelId);
     if (!hotel) {
