@@ -8,7 +8,7 @@ import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
   LogOut, Menu, X, Hotel, Bell, ChevronLeft, ChevronRight,
-  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart3, Globe
+  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2, Globe
 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 
@@ -51,7 +51,7 @@ const GET_NAV_GROUPS = (t: any) => [
     label: t("nav.quality"),
     items: [
       { href: "/hotel/marketing",     label: t("nav.marketing"), icon: Megaphone, roles: ["hotel_manager", "admin"] },
-      { href: "/hotel/reports",       label: t("nav.reports"),       icon: BarChart3, roles: ["hotel_manager", "admin"] },
+      { href: "/hotel/reports",       label: t("nav.reports"),       icon: BarChart2, roles: ["hotel_manager", "admin"] },
       { href: "/hotel/settings",      label: t("nav.settings"),icon: Settings, roles: ["hotel_manager", "admin", "receptionist", "waiter", "cleaner"] },
     ]
   }

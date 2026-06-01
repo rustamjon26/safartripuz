@@ -25,6 +25,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.2",
+    "@react-pdf/renderer": "^4.5.1",
     "autoprefixer": "^10.4.27",
     "bcryptjs": "^3.0.3",
     "didox": "^1.0.6",
