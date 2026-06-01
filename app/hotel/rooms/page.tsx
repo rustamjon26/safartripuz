@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  BedDouble, Plus, Edit3, Trash2, Users, Baby,
-  Loader2, X, CheckCircle2, XCircle, DollarSign,
-  Search, Tag, Layers, RefreshCw, Image as ImageIcon,
-  CheckCircle, Hash, Building
+  BedDouble, Plus, Edit3, Trash2,
+  Loader2, X,
+  Search, RefreshCw, Layers,
+  CheckCircle, Hash, Building,
+  Sparkles,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
-import ImageUploader from "@/components/ui/ImageUploader";
+import BulkCreateRooms from "@/components/hotel/BulkCreateRooms";
+import RoomTypes from "@/components/hotel/RoomTypes";
 
 interface PhysicalRoom {
   id: string;
@@ -32,30 +34,22 @@ interface RoomType {
   rooms?: PhysicalRoom[];
 }
 
-const EMPTY_TYPE_FORM = {
-  name: "", description: "", capacityAdults: 2,
-  capacityChildren: 0, basePrice: 0, isActive: true, images: [] as string[]
-};
-
 const EMPTY_PHYSICAL_FORM = {
   roomTypeId: "", roomNumber: "", floor: "", status: "AVAILABLE", isActive: true
 };
 
 export default function HotelRooms() {
   const { t } = useLanguage();
-  const [activeTab,   setActiveTab]   = useState<"types" | "physical">("types");
+  const [activeTab,   setActiveTab]   = useState<"types" | "physical" | "bulk">("types");
+  const [hotelId,     setHotelId]     = useState("");
+  const [bulkRoomTypeId, setBulkRoomTypeId] = useState<string | undefined>();
   
   const [roomTypes,   setRoomTypes]   = useState<RoomType[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState("");
   
-  // Drawer states
-  const [drawerMode,  setDrawerMode]  = useState<"none" | "type" | "physical">("none");
+  const [drawerMode,  setDrawerMode]  = useState<"none" | "physical">("none");
   const [closing,     setClosing]     = useState(false);
-  
-  // Form states
-  const [editingType, setEditingType] = useState<RoomType | null>(null);
-  const [typeForm,    setTypeForm]    = useState(EMPTY_TYPE_FORM);
   
   const [editingPhy,  setEditingPhy]  = useState<PhysicalRoom | null>(null);
   const [phyForm,     setPhyForm]     = useState(EMPTY_PHYSICAL_FORM);
@@ -65,9 +59,16 @@ export default function HotelRooms() {
   async function load() {
     setLoading(true);
     try {
-      const res  = await fetch("/api/hotel/rooms");
-      const data = await res.json();
-      if (res.ok) setRoomTypes(data.rooms || []);
+      const [roomsRes, meRes] = await Promise.all([
+        fetch("/api/hotel/rooms"),
+        hotelId ? Promise.resolve(null) : fetch("/api/hotel/me"),
+      ]);
+      const data = await roomsRes.json();
+      if (roomsRes.ok) setRoomTypes(data.rooms || []);
+      if (meRes) {
+        const meData = await meRes.json();
+        if (meRes.ok && meData.hotel?.id) setHotelId(meData.hotel.id);
+      }
     } catch { /* suppress */ } finally { setLoading(false); }
   }
 
@@ -79,47 +80,6 @@ export default function HotelRooms() {
       setDrawerMode("none");
       setClosing(false);
     }, 300);
-  }
-
-  // ==== Room Types Methods ====
-  function openAddType() {
-    setEditingType(null);
-    setTypeForm(EMPTY_TYPE_FORM);
-    setDrawerMode("type");
-  }
-  function openEditType(r: RoomType) {
-    setEditingType(r);
-    setTypeForm({ 
-      name: r.name, description: r.description || "", 
-      capacityAdults: r.capacityAdults, capacityChildren: r.capacityChildren, 
-      basePrice: r.basePrice ? Number(r.basePrice) : 0, isActive: r.isActive,
-      images: Array.isArray(r.images) ? r.images : []
-    });
-    setDrawerMode("type");
-  }
-
-  async function handleTypeSubmit() {
-    if (!typeForm.name.trim()) { toast.error(t("rooms.toasts.name_required")); return; }
-    setSubmitting(true);
-    try {
-      const url    = editingType ? `/api/hotel/rooms/${editingType.id}` : "/api/hotel/rooms";
-      const method = editingType ? "PATCH" : "POST";
-      const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(typeForm) });
-      if (!res.ok) throw new Error(t("common.toasts.error"));
-      toast.success(t("rooms.toasts.save_success"));
-      handleCloseSlideOver();
-      void load();
-    } catch (e) { toast.error((e as Error).message); } finally { setSubmitting(false); }
-  }
-
-  async function handleTypeDelete(id: string) {
-    if (!confirm(t("rooms.toasts.delete_confirm_type"))) return;
-    try {
-      const res = await fetch(`/api/hotel/rooms/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(t("common.toasts.error"));
-      toast.success(t("rooms.toasts.delete_success"));
-      void load();
-    } catch (e) { toast.error((e as Error).message); }
   }
 
   // ==== Physical Rooms Methods ====
@@ -163,7 +123,6 @@ export default function HotelRooms() {
   }
 
   // Prepare Views
-  const typeResults = roomTypes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
   const allPhysicalRooms = roomTypes.flatMap(rt => (rt.rooms || []).map(pr => ({ ...pr, categoryName: rt.name })));
   const phyResults = allPhysicalRooms.filter(pr => pr.roomNumber.toLowerCase().includes(search.toLowerCase()) || pr.categoryName.toLowerCase().includes(search.toLowerCase()));
 
@@ -198,15 +157,20 @@ export default function HotelRooms() {
             className={`flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "physical" ? "bg-white text-[var(--primary)] shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}>
             <Hash size={16} /> {t("rooms.tabs.physical")} ({allPhysicalRooms.length})
           </button>
+          <button onClick={() => setActiveTab("bulk")}
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "bulk" ? "bg-white text-[var(--primary)] shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"}`}>
+            <Sparkles size={16} /> Ko&apos;p yaratish
+          </button>
         </div>
       </div>
 
       {/* Control Bar */}
+      {activeTab === "physical" && (
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 justify-between bg-white px-4 py-3 rounded-2xl border border-slate-200 shadow-sm">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={activeTab === "types" ? t("rooms.search.types") : t("rooms.search.physical")}
+            placeholder={t("rooms.search.physical")}
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-semibold focus:border-[var(--accent)] outline-none"
           />
         </div>
@@ -214,75 +178,42 @@ export default function HotelRooms() {
            <button onClick={() => void load()} className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg border border-slate-200">
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
            </button>
-           <button onClick={activeTab === "types" ? openAddType : openAddPhy} 
+           <button onClick={openAddPhy} 
              className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--secondary)] transition-colors shadow-sm">
              <Plus size={16} />
              {t("rooms.add_new")}
            </button>
         </div>
       </div>
+      )}
 
-      {/* Main Table Area */}
+      {activeTab === "bulk" ? (
+        <BulkCreateRooms
+          hotelId={hotelId}
+          roomTypes={roomTypes}
+          initialRoomTypeId={bulkRoomTypeId}
+          onSuccess={() => {
+            void load();
+            setActiveTab("physical");
+          }}
+        />
+      ) : activeTab === "types" ? (
+        <RoomTypes
+          hotelId={hotelId}
+          onBulkCreate={(roomTypeId) => {
+            setBulkRoomTypeId(roomTypeId);
+            setActiveTab("bulk");
+          }}
+          onChange={() => void load()}
+        />
+      ) : (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden min-h-[500px]">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-32 text-slate-400">
             <Loader2 size={32} className="animate-spin mb-4" />
             <p className="font-bold text-sm tracking-widest uppercase">{t("common.loading")}</p>
           </div>
-        ) : activeTab === "types" ? (
-          /* TYPES TAB */
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
-                <th className="py-3 px-5">{t("rooms.table.type_info")}</th>
-                <th className="py-3 px-5">{t("rooms.table.images")}</th>
-                <th className="py-3 px-5">{t("rooms.table.capacity")}</th>
-                <th className="py-3 px-5">{t("rooms.table.base_price")}</th>
-                <th className="py-3 px-5">{t("rooms.table.rooms_count")}</th>
-                <th className="py-3 px-5 text-right">{t("rooms.table.actions")}</th>
-              </tr>
-            </thead>
-            <tbody className="text-[14px]">
-              {typeResults.length === 0 ? (
-                 <tr><td colSpan={6} className="text-center py-20 text-slate-500 font-medium">{t("rooms.table.no_data")}</td></tr>
-              ) : typeResults.map(r => (
-                <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="py-4 px-5">
-                    <div className="font-bold text-[var(--primary)] flex items-center gap-2">
-                       {r.name} {!r.isActive && <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-600 uppercase font-black tracking-wider">{t("rooms.table.inactive")}</span>}
-                    </div>
-                    <div className="text-[12px] text-slate-500 line-clamp-1 mt-0.5">{r.description || "-"}</div>
-                  </td>
-                  <td className="py-4 px-5">
-                    <div className="flex items-center gap-1.5 text-slate-600 font-bold text-[13px]">
-                      <ImageIcon size={14} className="text-slate-400" />
-                      {(Array.isArray(r.images) && r.images.length > 0) ? t("rooms.table.loaded_count", { count: r.images.length }) : <span className="opacity-50">-</span>}
-                    </div>
-                  </td>
-                  <td className="py-4 px-5">
-                    <div className="flex gap-3">
-                       <span className="flex items-center gap-1 font-bold text-slate-700 text-[13px]"><Users size={14} className="text-slate-400"/> {r.capacityAdults}</span>
-                       <span className="flex items-center gap-1 font-bold text-slate-700 text-[13px]"><Baby size={14} className="text-slate-400"/> {r.capacityChildren}</span>
-                    </div>
-                  </td>
-                  <td className="py-4 px-5 font-black text-slate-800 text-[13px]">
-                     {Number(r.basePrice).toLocaleString()}
-                  </td>
-                  <td className="py-4 px-5">
-                     <span className="px-2 py-1 bg-[var(--bg-light-blue)] text-[var(--secondary)] font-bold rounded-md text-[12px]">
-                       {t("rooms.table.linked_count", { count: r.rooms?.length || 0 })}
-                     </span>
-                  </td>
-                  <td className="py-4 px-5 text-right">
-                    <button onClick={() => openEditType(r)} className="p-1.5 text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100 rounded-md transition-colors mr-1"><Edit3 size={15} strokeWidth={2.5}/></button>
-                    <button onClick={() => handleTypeDelete(r.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} strokeWidth={2.5}/></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         ) : (
-          /* PHYSICAL ROOMS TAB */
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
@@ -318,96 +249,12 @@ export default function HotelRooms() {
           </table>
         )}
       </div>
+      )}
 
-      {/* ==================================================
-          SLIDEOVERS (DRAWERS)
-          ================================================== */}
-      
-      {drawerMode !== "none" && (
+      {drawerMode === "physical" && (
         <>
           <div className="h-slide-over-overlay" onClick={handleCloseSlideOver} />
           <div className={`h-slide-over ${closing ? "closing" : ""} w-[480px] max-w-full border-l border-slate-200/50 shadow-2xl`}>
-            
-            {drawerMode === "type" && (
-              /* --- ROOM TYPE DRAWER --- */
-              <>
-                <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between">
-                  <div>
-                     <h3 className="text-base font-black text-[var(--primary)] font-display">{editingType ? t("rooms.modal.type_title_edit") : t("rooms.modal.type_title_add")}</h3>
-                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{t("rooms.modal.type_subtitle")}</p>
-                  </div>
-                  <button onClick={handleCloseSlideOver} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-lg"><X size={18} /></button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 space-y-6">
-                   {/* Main info */}
-                    <div className="space-y-4">
-                     <div>
-                       <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 block">{t("rooms.modal.name")}</label>
-                       <input value={typeForm.name} onChange={e=>setTypeForm({...typeForm, name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-[14px] outline-none focus:border-[var(--accent)]" placeholder={t("rooms.modal.name_placeholder")}/>
-                     </div>
-                     <div>
-                       <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 block">{t("rooms.modal.desc")}</label>
-                       <textarea value={typeForm.description} onChange={e=>setTypeForm({...typeForm, description: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-[13px] outline-none focus:border-[var(--accent)] min-h-[80px]" placeholder={t("rooms.modal.desc_placeholder")}/>
-                     </div>
-                   </div>
-
-                   {/* Capacity & Price */}
-                    <div className="grid grid-cols-2 gap-4 border-t border-slate-200/60 pt-6">
-                     <div>
-                       <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 block">{t("rooms.modal.adults")}</label>
-                       <div className="relative">
-                         <Users size={16} className="absolute left-3 top-2.5 text-slate-400"/>
-                         <input type="number" min={1} value={typeForm.capacityAdults} onChange={e=>setTypeForm({...typeForm, capacityAdults: +e.target.value})} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 font-black text-center text-[15px] outline-none focus:border-[var(--accent)]"/>
-                       </div>
-                     </div>
-                     <div>
-                       <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 block">{t("rooms.modal.children")}</label>
-                       <div className="relative">
-                         <Baby size={16} className="absolute left-3 top-2.5 text-slate-400"/>
-                         <input type="number" min={0} value={typeForm.capacityChildren} onChange={e=>setTypeForm({...typeForm, capacityChildren: +e.target.value})} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 font-black text-center text-[15px] outline-none focus:border-[var(--accent)]"/>
-                       </div>
-                     </div>
-                     <div className="col-span-2">
-                       <label className="text-[12px] font-extrabold text-[#16a34a] uppercase tracking-wider mb-2 block">{t("rooms.modal.price")}</label>
-                       <input type="number" value={typeForm.basePrice || ""} onChange={e=>setTypeForm({...typeForm, basePrice: +e.target.value})} className="w-full px-4 py-3 rounded-xl border border-slate-300 font-black text-[18px] text-[var(--primary)] outline-none focus:border-[#16a34a] text-right" placeholder="0" />
-                     </div>
-                   </div>
-
-                   {/* Images Section */}
-                    <div className="border-t border-slate-200/60 pt-6">
-                     <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><ImageIcon size={14}/> {t("rooms.modal.images_label")}</label>
-                     <ImageUploader
-                       value={typeForm.images}
-                       onChange={(urls) => setTypeForm({ ...typeForm, images: urls })}
-                       maxImages={15}
-                       compact
-                     />
-                   </div>
-
-                   {/* Active Status */}
-                   <div className="border border-slate-200 bg-white rounded-xl p-4 flex items-center gap-4">
-                     <button onClick={() => setTypeForm({ ...typeForm, isActive: !typeForm.isActive })}
-                        className={`w-10 h-6 rounded-full relative transition-colors ${typeForm.isActive ? "bg-[var(--success)]" : "bg-slate-300"}`}>
-                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${typeForm.isActive ? "left-[22px]" : "left-1"}`}/>
-                     </button>
-                     <div>
-                       <div className="text-[13px] font-bold text-slate-900 leading-none">{typeForm.isActive ? t("rooms.modal.active_label") : t("rooms.modal.inactive_label")}</div>
-                     </div>
-                   </div>
-                </div>
-
-                <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3">
-                   <button onClick={handleCloseSlideOver} className="px-5 py-2.5 bg-slate-100 text-[13px] font-bold text-slate-600 rounded-xl hover:bg-slate-200">{t("rooms.modal.close_btn")}</button>
-                   <button onClick={handleTypeSubmit} disabled={submitting} className="px-6 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-xl hover:bg-[var(--secondary)] flex items-center gap-2">
-                      {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16}/>} {t("rooms.modal.save_btn")}
-                   </button>
-                </div>
-              </>
-            )}
-
-            {drawerMode === "physical" && (
-              /* --- PHYSICAL ROOM DRAWER --- */
               <>
                 <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between">
                   <div>
@@ -467,7 +314,6 @@ export default function HotelRooms() {
                    </button>
                 </div>
               </>
-            )}
           </div>
         </>
       )}

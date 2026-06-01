@@ -573,6 +573,7 @@ model RoomType {
   capacityChildren Int            @default(0)
   basePrice        Decimal        @db.Decimal(12, 2)
   isActive         Boolean        @default(true)
+  amenities        Json?          @default("[]")
   images           Json?          @default("[]")
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
