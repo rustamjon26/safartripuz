@@ -511,7 +511,9 @@ export function AdminTourDetailClient({ data: initial }: Props) {
           setPendingStatus(null);
           setStatusReason("");
         }}
-        onConfirm={() => pendingStatus && void applyStatus(pendingStatus)}
+        onConfirm={() => {
+          if (pendingStatus) void applyStatus(pendingStatus);
+        }}
       >
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
           Sabab (ixtiyoriy)
