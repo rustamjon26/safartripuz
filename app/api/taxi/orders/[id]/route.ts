@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/authz";
+import { notifyDriverOrderCancelled } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
@@ -103,6 +104,10 @@ export async function PATCH(
       orderId: updated.id,
       status: "CANCELLED",
     });
+
+    if (updated.driverId) {
+      void notifyDriverOrderCancelled(updated.driverId, updated.id);
+    }
 
     return ok(updated);
   } catch (error) {

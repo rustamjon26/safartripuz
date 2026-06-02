@@ -1,13 +1,25 @@
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { getEffectiveApiBaseUrl } from "@/lib/api";
+import { registerPushToken } from "@/lib/registerPushToken";
 import { getToken, removeToken, removeUser } from "@/lib/storage";
 import { COLORS } from "@/lib/constants";
 import { LoadingScreen } from "@/components/LoadingScreen";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 type AuthState =
   | { phase: "checking"; apiUrl: string }
@@ -68,6 +80,19 @@ export default function RootLayout() {
       }
 
       router.replace("/(tabs)");
+      void registerPushToken();
+
+      const lastNotification = await Notifications.getLastNotificationResponseAsync();
+      if (lastNotification) {
+        const data = lastNotification.notification.request.content.data as {
+          screen?: string;
+          orderId?: string;
+        };
+        if (data.screen === "taxi" && data.orderId) {
+          router.push(`/taxi/${data.orderId}`);
+        }
+      }
+
       setState({ phase: "ok" });
     } catch (err) {
       clearTimeout(timeout);
@@ -86,6 +111,30 @@ export default function RootLayout() {
   useEffect(() => {
     void runAuthCheck();
   }, [runAuthCheck]);
+
+  useEffect(() => {
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        screen?: string;
+        orderId?: string;
+      };
+
+      if (data.screen === "taxi" && data.orderId) {
+        router.push(`/taxi/${data.orderId}`);
+      } else if (data.screen === "bookings") {
+        router.push("/(tabs)/bookings");
+      }
+    });
+
+    const receiveSub = Notifications.addNotificationReceivedListener((notification) => {
+      console.log("Notification received in foreground:", notification.request.content.title);
+    });
+
+    return () => {
+      responseSub.remove();
+      receiveSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (state.phase !== "checking") {

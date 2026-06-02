@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { api, getEffectiveApiBaseUrl } from "@/lib/api";
+import { registerPushToken } from "@/lib/registerPushToken";
 import { saveToken, saveUser } from "@/lib/storage";
 import { COLORS } from "@/lib/constants";
 
@@ -63,6 +64,7 @@ export default function LoginScreen() {
       await saveToken(token);
       await saveUser(user);
       router.replace("/(tabs)/dashboard");
+      void registerPushToken();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kirishda xatolik yuz berdi");
     } finally {

@@ -1,5 +1,6 @@
 import { Prisma, type TaxiOrderStatus } from "@prisma/client";
 import { requireUser } from "@/lib/authz";
+import { notifyDriverNewOrder } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { emitToDriver } from "@/lib/socket";
 import { haversineDistanceKm } from "@/lib/taxi/haversine";
@@ -176,6 +177,15 @@ export async function POST(req: Request) {
         serviceType: service.serviceType,
         createdAt: created.createdAt,
       });
+    }
+
+    for (const driver of onlineDrivers) {
+      void notifyDriverNewOrder(
+        driver.driverId,
+        created.id,
+        created.pickupAddress,
+        created.estimatedPrice != null ? Number(created.estimatedPrice) : 0,
+      );
     }
 
     return ok(created, 201);

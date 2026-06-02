@@ -1,13 +1,25 @@
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { getEffectiveApiBaseUrl } from "@/lib/api";
+import { registerPushToken } from "@/lib/registerPushToken";
 import { getToken, removeToken, removeUser } from "@/lib/storage";
 import { COLORS } from "@/lib/constants";
 import { LoadingScreen } from "@/components/LoadingScreen";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 type AuthState =
   | { phase: "checking"; apiUrl: string }
@@ -77,6 +89,7 @@ export default function RootLayout() {
       }
 
       router.replace("/(tabs)/dashboard");
+      void registerPushToken();
       setState({ phase: "ok" });
     } catch (err) {
       clearTimeout(timeout);
@@ -95,6 +108,19 @@ export default function RootLayout() {
   useEffect(() => {
     void runAuthCheck();
   }, [runAuthCheck]);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        screen?: string;
+        orderId?: string;
+      };
+      if (data.screen === "orders" && data.orderId) {
+        router.push(`/orders/${data.orderId}`);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (state.phase !== "checking") {

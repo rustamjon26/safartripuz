@@ -1,3 +1,10 @@
+import {
+  notifyCustomerDriverArrived,
+  notifyCustomerOrderAccepted,
+  notifyCustomerOrderCompleted,
+  notifyCustomerOrderStarted,
+  notifyDriverOrderCancelled,
+} from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
@@ -201,6 +208,41 @@ export async function PATCH(
         finalPrice: result.finalPrice != null ? Number(result.finalPrice) : null,
         distanceKm: result.distanceKm,
       });
+    }
+
+    const orderWithUsers = await prisma.taxiOrder.findUnique({
+      where: { id: result.id },
+      select: {
+        customerId: true,
+        driverId: true,
+        finalPrice: true,
+        customer: { select: { first_name: true, last_name: true } },
+        driver: { select: { first_name: true, last_name: true } },
+      },
+    });
+
+    const driverName = orderWithUsers?.driver
+      ? [orderWithUsers.driver.first_name, orderWithUsers.driver.last_name].filter(Boolean).join(" ")
+      : "";
+
+    if (targetStatus === "ACCEPTED" && orderWithUsers?.customerId && driverName) {
+      void notifyCustomerOrderAccepted(orderWithUsers.customerId, result.id, driverName);
+    }
+    if (targetStatus === "ARRIVED" && orderWithUsers?.customerId) {
+      void notifyCustomerDriverArrived(orderWithUsers.customerId, result.id);
+    }
+    if (targetStatus === "IN_PROGRESS" && orderWithUsers?.customerId) {
+      void notifyCustomerOrderStarted(orderWithUsers.customerId, result.id);
+    }
+    if (targetStatus === "COMPLETED" && orderWithUsers?.customerId) {
+      void notifyCustomerOrderCompleted(
+        orderWithUsers.customerId,
+        result.id,
+        orderWithUsers.finalPrice != null ? Number(orderWithUsers.finalPrice) : 0,
+      );
+    }
+    if (targetStatus === "CANCELLED" && orderWithUsers?.driverId) {
+      void notifyDriverOrderCancelled(orderWithUsers.driverId, result.id);
     }
 
     return ok(result);

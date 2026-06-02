@@ -29,6 +29,7 @@
     "autoprefixer": "^10.4.27",
     "bcryptjs": "^3.0.3",
     "didox": "^1.0.6",
+    "expo-server-sdk": "^6.1.0",
     "jose": "^6.2.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.7.0",
