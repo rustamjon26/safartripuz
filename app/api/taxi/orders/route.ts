@@ -1,6 +1,7 @@
 import { Prisma, type TaxiOrderStatus } from "@prisma/client";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { emitToDriver } from "@/lib/socket";
 import { haversineDistanceKm } from "@/lib/taxi/haversine";
 import { fail, handleApiError, ok } from "../_utils";
 
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
 
     const service = await prisma.taxiService.findFirst({
       where: { id: body.serviceId, isActive: true },
-      select: { id: true, price: true },
+      select: { id: true, price: true, serviceType: true },
     });
     if (!service) return fail("Taxi service topilmadi", 404);
 
@@ -153,6 +154,29 @@ export async function POST(req: Request) {
 
       return order;
     });
+
+    const onlineDrivers = await prisma.driverProfile.findMany({
+      where: {
+        isOnline: true,
+        isVerified: true,
+        driver: {
+          isBlocked: false,
+          taxiVehicles: { some: { isActive: true } },
+        },
+      },
+      select: { driverId: true },
+    });
+
+    for (const driver of onlineDrivers) {
+      emitToDriver(driver.driverId, "order:new", {
+        id: created.id,
+        pickupAddress: created.pickupAddress,
+        dropoffAddress: created.dropoffAddress,
+        estimatedPrice: Number(created.estimatedPrice),
+        serviceType: service.serviceType,
+        createdAt: created.createdAt,
+      });
+    }
 
     return ok(created, 201);
   } catch (error) {

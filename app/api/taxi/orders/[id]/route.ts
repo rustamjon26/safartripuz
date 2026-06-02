@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
 import { fail, handleApiError, ok } from "../../_utils";
 
@@ -96,6 +97,11 @@ export async function PATCH(
       });
 
       return next;
+    });
+
+    emitToOrder(updated.id, "order:cancelled", {
+      orderId: updated.id,
+      status: "CANCELLED",
     });
 
     return ok(updated);

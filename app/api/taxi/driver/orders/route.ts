@@ -3,6 +3,34 @@ import { expirePendingTaxiOrders } from "@/lib/taxi/expireOrders";
 import { handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../_utils";
 import type { TaxiOrderStatus } from "@prisma/client";
 
+const TAXI_ORDER_STATUSES: TaxiOrderStatus[] = [
+  "PENDING",
+  "ACCEPTED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+  "DISPUTE",
+];
+
+function isTaxiOrderStatus(s: string): s is TaxiOrderStatus {
+  return (TAXI_ORDER_STATUSES as string[]).includes(s);
+}
+
+function parseStatusFilter(
+  statusParam: string | null,
+): TaxiOrderStatus | { in: TaxiOrderStatus[] } | undefined {
+  if (!statusParam || statusParam === "ALL") return undefined;
+  const statuses = statusParam
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter(isTaxiOrderStatus);
+  if (statuses.length === 0) return undefined;
+  if (statuses.length === 1) return statuses[0];
+  return { in: statuses };
+}
+
 function parseDate(value: string | null) {
   if (!value) return null;
   const d = new Date(value);
@@ -32,17 +60,25 @@ export async function GET(req: Request) {
           }
         : undefined;
 
+    const statusFilter = parseStatusFilter(status);
+    const statusList =
+      statusFilter === undefined
+        ? []
+        : typeof statusFilter === "string"
+          ? [statusFilter]
+          : statusFilter.in;
+
     const where: {
       OR: Array<{ driverId: string } | { driverId: null; status: "PENDING" }>;
-      status?: TaxiOrderStatus;
+      status?: TaxiOrderStatus | { in: TaxiOrderStatus[] };
       createdAt?: { gte?: Date; lte?: Date };
     } = {
       OR: [{ driverId: actor.id }, { driverId: null, status: "PENDING" }],
     };
 
-    if (status && status !== "ALL") {
-      where.status = status as TaxiOrderStatus;
-      if (status !== "PENDING") {
+    if (statusFilter) {
+      where.status = statusFilter;
+      if (!statusList.includes("PENDING")) {
         where.OR = [{ driverId: actor.id }];
       }
     }

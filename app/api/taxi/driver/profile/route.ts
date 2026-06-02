@@ -53,6 +53,7 @@ export async function GET() {
     const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Haydovchi";
 
     return ok({
+      id: actor.id,
       driverProfile,
       vehicles,
       onboarding: false,

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
 import { fail, handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../../_utils";
 
@@ -41,7 +42,19 @@ export async function GET(
     const { id } = await params;
     const order = await prisma.taxiOrder.findFirst({
       where: { id, driverId: actor.id },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        pickupAddress: true,
+        dropoffAddress: true,
+        pickupLat: true,
+        pickupLng: true,
+        dropoffLat: true,
+        dropoffLng: true,
+        estimatedPrice: true,
+        finalPrice: true,
+        distanceKm: true,
+        vehicleId: true,
         customer: {
           select: { id: true, first_name: true, last_name: true, phone: true, email: true },
         },
@@ -166,6 +179,29 @@ export async function PATCH(
 
       return updated;
     });
+
+    emitToOrder(result.id, "order:status", {
+      orderId: result.id,
+      status: result.status,
+      driverId: result.driverId,
+      vehicleId: result.vehicleId,
+      updatedAt: result.updatedAt,
+    });
+
+    if (targetStatus === "ACCEPTED") {
+      emitToOrder(result.id, "order:accepted", {
+        orderId: result.id,
+        driverId: result.driverId,
+      });
+    }
+
+    if (targetStatus === "COMPLETED" || targetStatus === "CANCELLED") {
+      emitToOrder(result.id, `order:${targetStatus.toLowerCase()}`, {
+        orderId: result.id,
+        finalPrice: result.finalPrice != null ? Number(result.finalPrice) : null,
+        distanceKm: result.distanceKm,
+      });
+    }
 
     return ok(result);
   } catch (error) {
