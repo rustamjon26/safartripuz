@@ -13,6 +13,10 @@ export async function GET(req: Request) {
   const baseUrl = process.env.NEXTAUTH_URL || "https://safartrip.uz";
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
+  const isProduction = process.env.NODE_ENV === "production";
+
+  console.log("[Google OAuth] redirect_uri:", `${baseUrl}/api/auth/google/callback`);
+  console.log("[Google OAuth] code received:", !!code);
 
   if (!code) {
     return NextResponse.redirect(new URL("/login", baseUrl));
@@ -35,7 +39,8 @@ export async function GET(req: Request) {
 
     if (!tokenData.access_token) {
       console.error("Token error:", tokenData);
-      return NextResponse.redirect(new URL("/login", baseUrl));
+      const errorMsg = encodeURIComponent("Google kirish xatosi. Qayta urinib ko'ring.");
+      return NextResponse.redirect(new URL(`/login?error=${errorMsg}`, baseUrl));
     }
 
     const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -94,7 +99,7 @@ export async function GET(req: Request) {
 
     response.cookies.set("access_token", accessToken, {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 15,
@@ -102,7 +107,7 @@ export async function GET(req: Request) {
 
     response.cookies.set("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: false,
+      secure: isProduction,
       sameSite: "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60,
@@ -111,6 +116,7 @@ export async function GET(req: Request) {
     return response;
   } catch (err) {
     console.error("Google OAuth error:", err);
-    return NextResponse.redirect(new URL("/login", baseUrl));
+    const errMsg = encodeURIComponent("Server xatosi. Qayta urinib ko'ring.");
+    return NextResponse.redirect(new URL(`/login?error=${errMsg}`, baseUrl));
   }
 }
