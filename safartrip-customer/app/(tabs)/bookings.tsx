@@ -74,13 +74,19 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "guide", label: "Ekskursiya" },
 ];
 
-function unwrapList<T>(raw: unknown): T[] {
-  if (!raw || typeof raw !== "object") return [];
+function unwrapList<T>(raw: unknown): { items: T[]; valid: boolean } {
+  if (raw === null || raw === undefined) return { items: [], valid: false };
+  if (Array.isArray(raw)) return { items: raw as T[], valid: true };
+  if (typeof raw !== "object") return { items: [], valid: false };
   const o = raw as Record<string, unknown>;
-  if (Array.isArray(o.data)) return o.data as T[];
-  const inner = o.data as Record<string, unknown> | undefined;
-  if (inner && Array.isArray(inner.data)) return inner.data as T[];
-  return [];
+  if (Array.isArray(o.data)) return { items: o.data as T[], valid: true };
+  const inner = o.data;
+  if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+    const nested = inner as Record<string, unknown>;
+    if (Array.isArray(nested.data)) return { items: nested.data as T[], valid: true };
+    if (Array.isArray(nested.items)) return { items: nested.items as T[], valid: true };
+  }
+  return { items: [], valid: false };
 }
 
 export default function BookingsScreen() {
@@ -92,7 +98,7 @@ export default function BookingsScreen() {
     taxi: false,
     guide: false,
   });
-  const [listError, setListError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [hotelRows, setHotelRows] = useState<HotelBookingRow[]>([]);
   const [homestayRows, setHomestayRows] = useState<HomestayBookingRow[]>([]);
   const [taxiRows, setTaxiRows] = useState<TaxiOrderRow[]>([]);
@@ -101,28 +107,50 @@ export default function BookingsScreen() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const fetchTab = useCallback(async (showMainLoader: boolean) => {
-    if (showMainLoader) setLoading(true);
-    setListError(null);
+    if (showMainLoader) {
+      setLoading(true);
+      setFetchError(null);
+    }
     try {
       if (tab === "hotel") {
-        const res = (await api.get("/api/user/hotel-bookings")) as { data: HotelBookingRow[] };
-        setHotelRows(Array.isArray(res.data) ? res.data : []);
+        const res = await api.get("/api/user/hotel-bookings");
+        const { items, valid } = unwrapList<HotelBookingRow>(res);
+        if (!valid) {
+          setFetchError("Ma'lumot yuklanmadi");
+          return;
+        }
+        setFetchError(null);
+        setHotelRows(items);
       } else if (tab === "homestay") {
         const res = await api.get("/api/homestay/bookings");
-        setHomestayRows(unwrapList<HomestayBookingRow>(res));
+        const { items, valid } = unwrapList<HomestayBookingRow>(res);
+        if (!valid) {
+          setFetchError("Ma'lumot yuklanmadi");
+          return;
+        }
+        setFetchError(null);
+        setHomestayRows(items);
       } else if (tab === "taxi") {
         const res = await api.get("/api/taxi/orders?limit=50");
-        setTaxiRows(unwrapList<TaxiOrderRow>(res));
+        const { items, valid } = unwrapList<TaxiOrderRow>(res);
+        if (!valid) {
+          setFetchError("Ma'lumot yuklanmadi");
+          return;
+        }
+        setFetchError(null);
+        setTaxiRows(items);
       } else {
         const res = await api.get("/api/guide/bookings?limit=50");
-        setGuideRows(unwrapList<GuideBookingRow>(res));
+        const { items, valid } = unwrapList<GuideBookingRow>(res);
+        if (!valid) {
+          setFetchError("Ma'lumot yuklanmadi");
+          return;
+        }
+        setFetchError(null);
+        setGuideRows(items);
       }
-    } catch (e) {
-      setListError(e instanceof Error ? e.message : "Xato");
-      if (tab === "hotel") setHotelRows([]);
-      if (tab === "homestay") setHomestayRows([]);
-      if (tab === "taxi") setTaxiRows([]);
-      if (tab === "guide") setGuideRows([]);
+    } catch {
+      setFetchError("Ma'lumot yuklanmadi");
     } finally {
       if (showMainLoader) setLoading(false);
     }
@@ -300,7 +328,26 @@ export default function BookingsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["bottom"]}>
-      {listError ? <Text style={styles.inlineErr}>{listError}</Text> : null}
+      {fetchError ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginHorizontal: 16,
+            marginTop: 8,
+            padding: 10,
+            backgroundColor: COLORS.surfaceDanger,
+            borderRadius: 10,
+            gap: 8,
+          }}
+        >
+          <Text style={{ color: COLORS.danger, fontWeight: "700", flex: 1 }}>{fetchError}</Text>
+          <Pressable onPress={() => void fetchTab(false)}>
+            <Text style={{ color: COLORS.primary, fontWeight: "800" }}>Qayta urinish</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {TABS.map((t) => {
           const on = tab === t.key;
@@ -354,16 +401,6 @@ export default function BookingsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.background },
-  inlineErr: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: COLORS.surfaceDanger,
-    color: COLORS.danger,
-    fontWeight: "700",
-    overflow: "hidden",
-  },
   tabs: {
     paddingHorizontal: 12,
     paddingVertical: 10,

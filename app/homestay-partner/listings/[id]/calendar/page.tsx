@@ -14,6 +14,14 @@ type Block = {
   reason: "BOOKED" | "HOST_BLOCKED" | "MAINTENANCE";
 };
 
+const REASON_LABELS: Record<Block["reason"], string> = {
+  BOOKED: "Band",
+  HOST_BLOCKED: "Bloklangan",
+  MAINTENANCE: "Ta'mirlash",
+};
+
+const WEEKDAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+
 export default function ListingCalendarPage() {
   const params = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -117,13 +125,13 @@ export default function ListingCalendarPage() {
         body: JSON.stringify(range),
       });
       const data = await res.json();
-      if (!res.ok || data.success === false) throw new Error(data.error || "Xatolik");
-      toast.success("Date range blocked");
+      if (!res.ok || data.success === false) throw new Error(data.error || "Saqlashda xatolik yuz berdi");
+      toast.success("Sana oralig'i bloklandi");
       setOpen(false);
       setRange({ startDate: "", endDate: "", reason: "HOST_BLOCKED" });
       void load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Server xatosi");
+      toast.error(err instanceof Error ? err.message : "Server xatosi, qayta urinib ko'ring");
     }
   }
 
@@ -133,11 +141,11 @@ export default function ListingCalendarPage() {
         method: "DELETE",
       });
       const data = await res.json();
-      if (!res.ok || data.success === false) throw new Error(data.error || "Xatolik");
-      toast.success("Block removed");
+      if (!res.ok || data.success === false) throw new Error(data.error || "Saqlashda xatolik yuz berdi");
+      toast.success("Blok olib tashlandi");
       void load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Server xatosi");
+      toast.error(err instanceof Error ? err.message : "Server xatosi, qayta urinib ko'ring");
     }
   }
 
@@ -146,20 +154,20 @@ export default function ListingCalendarPage() {
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
         <div>
           <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">
-            Availability Calendar
+            Mavjudlik kalendari
           </h1>
-          <p className="text-[13px] font-semibold text-slate-500 mt-1">Booked dates red, host blocks gray</p>
+          <p className="text-[13px] font-semibold text-slate-500 mt-1">Band sanalar qizil, mezbon bloklari kulrang</p>
         </div>
         <button onClick={() => setOpen(true)} className="px-4 py-2.5 bg-[var(--primary)] text-white rounded-xl text-[13px] font-black">
-          Block dates
+          Sanalarni bloklash
         </button>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
         {onboarding ? (
           <EmptyState
-            title="Onboarding kerak"
-            message="Calendar ishlashi uchun active listing kerak."
+            title="Listing topilmadi"
+            message="Kalendar ishlashi uchun faol listing kerak."
             ctaHref="/homestay-partner/listings/new"
             ctaLabel="Listing yaratish"
           />
@@ -167,7 +175,7 @@ export default function ListingCalendarPage() {
         <div className="flex items-center justify-between mb-4 text-slate-700 font-bold">
           <div className="flex items-center gap-2">
           <CalendarDays size={18} />
-          Monthly view (list format)
+          Oylik ko&apos;rinish
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -176,10 +184,10 @@ export default function ListingCalendarPage() {
               }
               className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white"
             >
-              Prev
+              Oldingi
             </button>
             <div className="text-sm font-black min-w-[140px] text-center">
-              {monthCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+              {monthCursor.toLocaleDateString("uz-UZ", { month: "long", year: "numeric" })}
             </div>
             <button
               onClick={() =>
@@ -187,12 +195,12 @@ export default function ListingCalendarPage() {
               }
               className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white"
             >
-              Next
+              Keyingi
             </button>
           </div>
         </div>
         <div className="grid grid-cols-7 gap-2 mb-4">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
+          {WEEKDAYS.map((w) => (
             <div key={w} className="text-[11px] font-black uppercase tracking-wider text-slate-400 text-center py-1">
               {w}
             </div>
@@ -216,19 +224,23 @@ export default function ListingCalendarPage() {
             ))}
           </div>
         ) : grouped.length === 0 ? (
-          <div className="py-10 text-center text-slate-400 font-semibold">No blocked dates</div>
+          <div className="py-10 text-center text-slate-400 font-semibold">Bloklangan sanalar yo&apos;q</div>
         ) : (
           <div className="space-y-2">
             {grouped.map((b) => (
               <div key={b.id} className={`flex items-center justify-between border rounded-xl px-3 py-2 ${b.color}`}>
                 <div>
-                  <div className="text-xs font-black uppercase">{b.reason}</div>
+                  <div className="text-xs font-black uppercase">{REASON_LABELS[b.reason]}</div>
                   <div className="text-sm font-bold">
                     {b.start} - {b.end}
                   </div>
                 </div>
                 {b.reason !== "BOOKED" && (
-                  <button onClick={() => void removeBlock(b.id)} className="p-1.5 hover:bg-white/60 rounded-md">
+                  <button
+                    onClick={() => void removeBlock(b.id)}
+                    title="Blokdan chiqarish"
+                    className="p-1.5 hover:bg-white/60 rounded-md"
+                  >
                     <X size={14} />
                   </button>
                 )}
@@ -241,28 +253,28 @@ export default function ListingCalendarPage() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <form onSubmit={createBlock} className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-5 space-y-4">
-            <h3 className="text-lg font-black text-[var(--primary)]">Block date range</h3>
+            <h3 className="text-lg font-black text-[var(--primary)]">Sanalarni bloklash</h3>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Start date</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Boshlanish sanasi</label>
               <input type="date" value={range.startDate} onChange={(e) => setRange({ ...range, startDate: e.target.value })} className="h-input" required />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">End date</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Tugash sanasi</label>
               <input type="date" value={range.endDate} onChange={(e) => setRange({ ...range, endDate: e.target.value })} className="h-input" required />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Reason</label>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Sabab</label>
               <select value={range.reason} onChange={(e) => setRange({ ...range, reason: e.target.value as "HOST_BLOCKED" | "MAINTENANCE" })} className="h-input">
-                <option value="HOST_BLOCKED">HOST_BLOCKED</option>
-                <option value="MAINTENANCE">MAINTENANCE</option>
+                <option value="HOST_BLOCKED">Bloklangan</option>
+                <option value="MAINTENANCE">Ta&apos;mirlash</option>
               </select>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700">
-                Cancel
+                Bekor qilish
               </button>
               <button type="submit" className="px-4 py-2 rounded-lg bg-[var(--primary)] text-sm font-bold text-white">
-                Save
+                Saqlash
               </button>
             </div>
           </form>

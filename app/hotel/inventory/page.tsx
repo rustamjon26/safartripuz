@@ -6,9 +6,10 @@ import { toast } from "sonner";
 type RoomType = {
   id: string;
   name: string;
-  basePrice: string;
+  basePrice: string | number;
   capacityAdults: number;
   capacityChildren: number;
+  roomsCount?: number;
   _count?: { rooms: number };
 };
 type Room = {
@@ -16,6 +17,7 @@ type Room = {
   roomNumber: string;
   floor: string | null;
   status: string;
+  roomTypeId?: string;
   roomType: { id: string; name: string };
 };
 
@@ -36,16 +38,48 @@ export default function HotelInventoryPage() {
   async function load() {
     setLoading(true);
     try {
+      const meRes = await fetch("/api/hotel/me");
+      const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
+      if (!meRes.ok || !meData.hotel?.id) {
+        throw new Error(meData.message || "Mehmonxona topilmadi");
+      }
+
+      const hotelId = meData.hotel.id;
       const [typesRes, roomsRes] = await Promise.all([
-        fetch("/api/hotel/room-types"),
-        fetch("/api/hotel/rooms"),
+        fetch(`/api/hotels/${hotelId}/room-types`),
+        fetch("/api/hotel/physical-rooms"),
       ]);
-      const typesData = (await typesRes.json()) as { items?: RoomType[]; message?: string };
-      const roomsData = (await roomsRes.json()) as { items?: Room[]; message?: string };
-      if (!typesRes.ok) throw new Error(typesData.message || "Room types error");
+      const typesData = (await typesRes.json()) as { items?: RoomType[]; error?: string };
+      const roomsData = (await roomsRes.json()) as {
+        physicalRooms?: Array<{
+          id: string;
+          roomNumber: string;
+          floor: string | null;
+          status: string;
+          roomTypeId: string;
+        }>;
+        message?: string;
+      };
+      if (!typesRes.ok) throw new Error(typesData.error || "Room types error");
       if (!roomsRes.ok) throw new Error(roomsData.message || "Rooms error");
-      setRoomTypes(typesData.items ?? []);
-      setRooms(roomsData.items ?? []);
+      const types = typesData.items ?? [];
+      setRoomTypes(types);
+      setRooms(
+        (roomsData.physicalRooms ?? []).map((room) => {
+          const matchedType = types.find((rt) => rt.id === room.roomTypeId);
+          return {
+            id: room.id,
+            roomNumber: room.roomNumber,
+            floor: room.floor,
+            status: room.status,
+            roomTypeId: room.roomTypeId,
+            roomType: {
+              id: room.roomTypeId ?? matchedType?.id ?? "",
+              name: matchedType?.name ?? "—",
+            },
+          };
+        }),
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");
     } finally {
@@ -60,7 +94,13 @@ export default function HotelInventoryPage() {
   async function createRoomType(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/hotel/room-types", {
+      const meRes = await fetch("/api/hotel/me");
+      const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
+      if (!meRes.ok || !meData.hotel?.id) {
+        throw new Error(meData.message || "Mehmonxona topilmadi");
+      }
+
+      const res = await fetch(`/api/hotels/${meData.hotel.id}/room-types`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -70,8 +110,8 @@ export default function HotelInventoryPage() {
           capacityChildren: rtChildren,
         }),
       });
-      const data = (await res.json()) as { message?: string };
-      if (!res.ok) throw new Error(data.message || "Create room type error");
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error || data.message || "Create room type error");
       toast.success("Room type yaratildi");
       setRtName("");
       setRtPrice("");
@@ -84,7 +124,7 @@ export default function HotelInventoryPage() {
   async function createRoom(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/hotel/rooms", {
+      const res = await fetch("/api/hotel/physical-rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,7 +188,7 @@ export default function HotelInventoryPage() {
                 <div key={rt.id} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
                   <div className="font-bold">{rt.name}</div>
                   <div className="text-xs text-slate-600">
-                    {Number(rt.basePrice).toLocaleString()} so‘m • Adults {rt.capacityAdults} • Children {rt.capacityChildren} • Rooms {rt._count?.rooms ?? 0}
+                    {Number(rt.basePrice).toLocaleString()} so‘m • Adults {rt.capacityAdults} • Children {rt.capacityChildren} • Rooms {rt.roomsCount ?? rt._count?.rooms ?? 0}
                   </div>
                 </div>
               ))}

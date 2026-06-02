@@ -6,6 +6,7 @@ import { CalendarCheck, Plus, Wallet, Home, Clock } from "lucide-react";
 import type { ElementType } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { statusLabel } from "../_lib/statusLabels";
 
 type Booking = {
   id: string;
@@ -90,27 +91,27 @@ export default function HomeStayPartnerDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-3">
         <div>
           <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">
-            Home Stay Dashboard
+            Boshqaruv paneli
           </h1>
-          <p className="text-[13px] font-semibold text-slate-500 mt-1">Host panel overview</p>
+          <p className="text-[13px] font-semibold text-slate-500 mt-1">Mezbon paneli umumiy ko&apos;rinishi</p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/homestay-partner/listings/new" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--primary)] text-white text-[13px] font-black rounded-xl">
             <Plus size={16} />
-            Add listing
+            Listing qo&apos;shish
           </Link>
           <Link href="/homestay-partner/bookings" className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-[13px] font-black rounded-xl">
             <CalendarCheck size={16} />
-            View bookings
+            Hammasini ko&apos;rish
           </Link>
         </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Home} label="Total listings" value={stats.totalListings} />
-        <StatCard icon={Clock} label="Pending bookings" value={stats.pendingBookings} />
-        <StatCard icon={CalendarCheck} label="Confirmed bookings" value={stats.confirmedBookings} />
-        <StatCard icon={Wallet} label="Revenue (month)" value={`${stats.monthRevenue.toLocaleString()} UZS`} />
+        <StatCard icon={Home} label="Faol listinglar" value={stats.totalListings} />
+        <StatCard icon={Clock} label="Kutilayotgan bronlar" value={stats.pendingBookings} />
+        <StatCard icon={CalendarCheck} label="Tasdiqlangan bronlar" value={stats.confirmedBookings} />
+        <StatCard icon={Wallet} label="Jami daromad" value={`${stats.monthRevenue.toLocaleString()} UZS`} />
       </div>
 
       {listings.length === 0 ? (
@@ -137,7 +138,7 @@ export default function HomeStayPartnerDashboardPage() {
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
-          <h3 className="font-extrabold text-[var(--primary)] text-[15px]">Recent bookings</h3>
+          <h3 className="font-extrabold text-[var(--primary)] text-[15px]">So&apos;nggi bronlar</h3>
         </div>
         {loading ? (
           <div className="p-5 space-y-2">
@@ -149,7 +150,7 @@ export default function HomeStayPartnerDashboardPage() {
           <div className="p-6">
             <EmptyState
               title="Onboarding tugallanmagan"
-              message="Dashboardda buyurtmalar ko'rinishi uchun avval bitta listing yarating."
+              message="Boshqaruv panelida buyurtmalar ko'rinishi uchun avval bitta listing yarating."
               ctaHref="/homestay-partner/listings/new"
               ctaLabel="Listing yaratish"
             />
@@ -158,18 +159,18 @@ export default function HomeStayPartnerDashboardPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">Guest</th>
+                <th className="py-3 px-5">Mehmon</th>
                 <th className="py-3 px-5">Listing</th>
-                <th className="py-3 px-5">Dates</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5 text-right">Price</th>
+                <th className="py-3 px-5">Sanalar</th>
+                <th className="py-3 px-5">Holat</th>
+                <th className="py-3 px-5 text-right">Narx</th>
               </tr>
             </thead>
             <tbody className="text-[13px]">
               {recent.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center font-semibold text-slate-400">
-                    No bookings yet
+                    Hali bronlar yo&apos;q
                   </td>
                 </tr>
               ) : (
@@ -184,7 +185,7 @@ export default function HomeStayPartnerDashboardPage() {
                     </td>
                     <td className="py-3 px-5">
                       <span className="px-2 py-1 rounded border text-[10px] font-black uppercase bg-slate-100 text-slate-600 border-slate-200">
-                        {b.status}
+                        {statusLabel(b.status)}
                       </span>
                     </td>
                     <td className="py-3 px-5 text-right font-black">{Number(b.totalPrice).toLocaleString()}</td>

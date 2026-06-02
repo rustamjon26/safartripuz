@@ -56,7 +56,7 @@ export default function ProfileHelpScreen() {
 
       <Pressable
         style={styles.supportBtn}
-        onPress={() => void Linking.openURL("mailto:support@safartrip.uz")}
+        onPress={() => void Linking.openURL("mailto:support@safartrip.uz").catch(() => {})}
       >
         <Text style={styles.supportTxt}>Qo'llab-quvvatlash</Text>
       </Pressable>

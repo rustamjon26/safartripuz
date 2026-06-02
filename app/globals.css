@@ -145,3 +145,22 @@ input, textarea, select {
 nextjs-portal {
   display: none !important;
 }
+
+/* Shared marketplace form input (homestay, guide, taxi public pages) */
+.h-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: white;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--primary);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.h-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(14, 116, 144, 0.1);
+}

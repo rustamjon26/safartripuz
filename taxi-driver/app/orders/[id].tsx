@@ -3,6 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  AppState,
   FlatList,
   Linking,
   Modal,
@@ -13,11 +14,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import TaxiMap from "@/components/TaxiMap";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { PLATFORM_FEE_PERCENT, COLORS } from "@/lib/constants";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useDriver } from "@/hooks/useDriver";
+import { useDriverLocation } from "@/hooks/useDriverLocation";
 
 const ACTION_TO_STATUS: Record<string, string> = {
   accept: "ACCEPTED",
@@ -40,6 +43,10 @@ type DriverOrderDetail = {
   status: string;
   pickupAddress?: string;
   dropoffAddress?: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffLat: number;
+  dropoffLng: number;
   estimatedPrice?: number;
   finalPrice?: number;
   distanceKm?: number;
@@ -94,6 +101,8 @@ function nextAction(status: string): "accept" | "arrive" | "start" | "complete" 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile: driverProfile } = useDriver();
+  const isOnline = driverProfile?.driverProfile?.isOnline ?? false;
+  const { coords: myCoords } = useDriverLocation(isOnline);
   const [order, setOrder] = useState<DriverOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,12 +112,20 @@ export default function OrderDetailScreen() {
   const [distanceKm, setDistanceKm] = useState("");
   const [completeError, setCompleteError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  const clearPollInterval = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
   }, []);
 
   const fetchOrder = useCallback(async () => {
@@ -130,18 +147,43 @@ export default function OrderDetailScreen() {
     }
   }, [id, showComplete]);
 
+  const startPollInterval = useCallback(() => {
+    clearPollInterval();
+    pollIntervalRef.current = setInterval(() => {
+      void fetchOrder();
+    }, 10000);
+  }, [clearPollInterval, fetchOrder]);
+
   useEffect(() => {
     setIsLoading(true);
     void fetchOrder();
   }, [fetchOrder]);
 
   useEffect(() => {
-    if (!order || !ACTIVE_STATUSES.has(order.status)) return;
-    const timer = setInterval(() => {
-      void fetchOrder();
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [fetchOrder, order]);
+    const shouldPoll = Boolean(order && ACTIVE_STATUSES.has(order.status));
+    if (!shouldPoll) {
+      clearPollInterval();
+      return;
+    }
+
+    if (AppState.currentState === "active") {
+      startPollInterval();
+    }
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void fetchOrder();
+        startPollInterval();
+      } else {
+        clearPollInterval();
+      }
+    });
+
+    return () => {
+      sub.remove();
+      clearPollInterval();
+    };
+  }, [order, fetchOrder, startPollInterval, clearPollInterval]);
 
   const fee = useMemo(() => {
     const value = Number(order?.finalPrice ?? 0);
@@ -228,6 +270,12 @@ export default function OrderDetailScreen() {
   const action = nextAction(order.status);
   const showCustomerCard = FLOW.indexOf(order.status as (typeof FLOW)[number]) >= 1;
   const logs = order.logs ?? [];
+  const orderPickup = order
+    ? { lat: order.pickupLat, lng: order.pickupLng }
+    : { lat: 41.3111, lng: 69.2797 };
+  const orderDropoff = order
+    ? { lat: order.dropoffLat, lng: order.dropoffLng }
+    : { lat: 41.2995, lng: 69.2401 };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -275,7 +323,13 @@ export default function OrderDetailScreen() {
                 <Text style={styles.cardText}>
                   Ism: {[order.customer?.first_name, order.customer?.last_name].filter(Boolean).join(" ") || "-"}
                 </Text>
-                <Pressable onPress={() => order.customer?.phone && void Linking.openURL(`tel:${order.customer.phone}`)}>
+                <Pressable
+                  onPress={() => {
+                    if (order.customer?.phone) {
+                      void Linking.openURL(`tel:${order.customer.phone}`).catch(() => {});
+                    }
+                  }}
+                >
                   <Text style={[styles.cardText, styles.phone]}>
                     Telefon: {order.customer?.phone ?? "-"}
                   </Text>
@@ -285,6 +339,14 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             ) : null}
+
+            <View style={{ height: 250, borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
+              <TaxiMap
+                pickupCoords={orderPickup}
+                dropoffCoords={orderDropoff}
+                driverCoords={myCoords}
+              />
+            </View>
 
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Yo'nalish</Text>

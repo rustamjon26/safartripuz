@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Search, UserPlus, Shield, Mail, Phone, Loader2, MoreVertical, Edit3, Trash2 } from "lucide-react";
@@ -272,7 +273,9 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-4">
                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-black text-slate-900">{u.first_name} {u.last_name}</span>
+                          <Link href={`/admin/users/${u.id}`} className="text-sm font-black text-slate-900 hover:text-slate-600">
+                            {u.first_name} {u.last_name}
+                          </Link>
                           {u.isBlocked && (
                             <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-[9px] font-black uppercase tracking-tighter">Bloklangan</span>
                           )}

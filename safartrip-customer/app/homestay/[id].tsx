@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { formatDate, formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 type Review = {
   id: string;
@@ -53,9 +54,6 @@ type CheckRes = {
   nights: number;
 };
 
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=70&auto=format&fit=crop";
-
 function startOfDay(d: Date) {
   const x = new Date(d);
   x.setHours(12, 0, 0, 0);
@@ -82,25 +80,34 @@ export default function HomestayDetailScreen() {
   const [checkErr, setCheckErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const mountedRef = useRef(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
-    setErr(null);
+    if (mountedRef.current) {
+      setLoading(true);
+      setErr(null);
+    }
     try {
       const res = (await api.get(`/api/homestay/${id}`)) as { data: Listing };
+      if (!mountedRef.current) return;
       setListing(res.data);
       setGuests(String(Math.min(Number(res.data.maxGuests), 2)));
     } catch (e) {
+      if (!mountedRef.current) return;
       setErr(e instanceof Error ? e.message : "Xato");
       setListing(null);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
+    mountedRef.current = true;
     void load();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [load]);
 
   const runCheck = useCallback(async () => {
@@ -162,7 +169,9 @@ export default function HomestayDetailScreen() {
     );
   }
 
-  const imgs = listing.images?.length ? listing.images : [PLACEHOLDER];
+  const imgs = listing.images?.length
+    ? listing.images.map((uri) => getImageUrl(uri, "homestay"))
+    : [getImageUrl(null, "homestay")];
 
   return (
     <SafeAreaView style={styles.screen} edges={["bottom"]}>

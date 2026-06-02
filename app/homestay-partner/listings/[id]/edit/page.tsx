@@ -25,11 +25,11 @@ export default function EditHomeStayListingPage() {
   }, [params.id]);
 
   if (loading) {
-    return <div className="p-10 text-center text-slate-400 font-bold">Loading...</div>;
+    return <div className="p-10 text-center text-slate-400 font-bold">Yuklanmoqda...</div>;
   }
 
   if (!initial) {
-    return <div className="p-10 text-center text-red-500 font-bold">Listing not found</div>;
+    return <div className="p-10 text-center text-red-500 font-bold">Listing topilmadi</div>;
   }
 
   return <ListingForm mode="edit" initial={initial} />;

@@ -36,18 +36,25 @@ export async function POST(req: Request) {
     if (plan.status !== "PENDING_PAYMENT") return NextResponse.json({ error: "Faqat PENDING_PAYMENT holatida to'lov qilinadi" }, { status: 400 });
 
     const providers = await getPaymentProvidersConfig();
-    type ProviderCfg = {
+    type GenericProviderCfg = {
       enabled?: boolean;
-      serviceId?: string;
       merchantId?: string;
     };
-    const config =
-      provider === "CLICK"
-        ? getClickConfig(providers)
-        : provider === "PAYME"
-          ? getPaymeConfig(providers)
-          : ((providers[String(provider).toLowerCase()] ?? {}) as ProviderCfg);
-    if (!config.enabled && provider !== "MOCK") {
+    const genericConfig = (providers[String(provider).toLowerCase()] ?? {}) as GenericProviderCfg;
+
+    if (provider === "CLICK" && !getClickConfig(providers).enabled) {
+      return NextResponse.json({ error: "Ushbu to'lov tizimi o'chirilgan" }, { status: 400 });
+    }
+    if (provider === "PAYME" && !getPaymeConfig(providers).enabled) {
+      return NextResponse.json({ error: "Ushbu to'lov tizimi o'chirilgan" }, { status: 400 });
+    }
+    if (
+      provider !== "CLICK" &&
+      provider !== "PAYME" &&
+      provider !== "MOCK" &&
+      provider !== "MANUAL" &&
+      !genericConfig.enabled
+    ) {
       return NextResponse.json({ error: "Ushbu to'lov tizimi o'chirilgan" }, { status: 400 });
     }
 
@@ -70,23 +77,25 @@ export async function POST(req: Request) {
 
     let paymentUrl = "";
     if (provider === "CLICK") {
+      const clickConfig = getClickConfig(providers);
       const amount = Number(plan.totalAmount);
       paymentUrl =
         `https://my.click.uz/services/pay` +
-        `?service_id=${config.serviceId}` +
-        `&merchant_id=${config.merchantId}` +
+        `?service_id=${clickConfig.serviceId}` +
+        `&merchant_id=${clickConfig.merchantId}` +
         `&amount=${amount}` +
         `&transaction_param=${payment.id}` +
         `&merchant_trans_id=${payment.id}` +
         `&return_url=${encodeURIComponent(returnUrl)}`;
     } else if (provider === "PAYME") {
+      const paymeConfig = getPaymeConfig(providers);
       const amountTiyin = Math.round(Number(plan.totalAmount) * 100);
       const b64 = Buffer.from(
-        `m=${config.merchantId};ac.order_id=${payment.id};a=${amountTiyin}`,
+        `m=${paymeConfig.merchantId};ac.order_id=${payment.id};a=${amountTiyin}`,
       ).toString("base64");
       paymentUrl = `https://checkout.paycom.uz/${b64}`;
     } else if (provider === "UZUM") {
-       paymentUrl = `https://uzumbank.uz/pay?merchant=${config.merchantId}&amount=${plan.totalAmount}&order=${payment.id}`;
+       paymentUrl = `https://uzumbank.uz/pay?merchant=${genericConfig.merchantId}&amount=${plan.totalAmount}&order=${payment.id}`;
     } else if (provider === "MANUAL") {
        paymentUrl = `/payments/manual/${payment.id}`;
     } else {

@@ -280,7 +280,9 @@ export default function AdminHotelsPage() {
                                <Building2 size={24} />
                             </div>
                             <div>
-                               <div className="text-sm font-black text-slate-900">{h.name}</div>
+                               <Link href={`/admin/hotels/${h.id}`} className="text-sm font-black text-slate-900 hover:text-slate-600">
+                                 {h.name}
+                               </Link>
                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                                   <MapPin size={10} className="text-slate-300" />
                                   {h.city}, {h.address || "Manzil kiritilmagan"}

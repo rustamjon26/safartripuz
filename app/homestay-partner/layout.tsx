@@ -19,10 +19,10 @@ import "../hotel/hotel.css";
 import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
-  { href: "/homestay-partner/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/homestay-partner/listings", label: "Listings", icon: ListChecks },
-  { href: "/homestay-partner/bookings", label: "Bookings", icon: CalendarCheck },
-  { href: "/homestay-partner/listings/new", label: "Add Listing", icon: Plus },
+  { href: "/homestay-partner/dashboard", label: "Boshqaruv paneli", icon: LayoutDashboard },
+  { href: "/homestay-partner/listings", label: "Listinglar", icon: ListChecks },
+  { href: "/homestay-partner/bookings", label: "Bronlar", icon: CalendarCheck },
+  { href: "/homestay-partner/listings/new", label: "Yangi listing", icon: Plus },
 ];
 
 interface CurrentUser {
@@ -93,7 +93,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
             HomeStay CRM
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-            Host Panel
+            Mezbon paneli
           </div>
         </div>
         {mobile && (
@@ -133,7 +133,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
           </div>
           <div className="min-w-0">
             <div className="text-[13px] font-bold text-slate-900 truncate">
-              {user ? `${user.first_name} ${user.last_name}` : "Host"}
+              {user ? `${user.first_name} ${user.last_name}` : "Mezbon"}
             </div>
             <div className="text-[11px] font-semibold text-slate-500 truncate">
               {user?.email || "host@safartrip.uz"}
@@ -153,7 +153,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
 
   const currentTitle =
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.label ||
-    "HomeStay";
+    "Uy mehmonxonasi";
 
   return (
     <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">
@@ -178,7 +178,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
             </button>
             <div>
               <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">
-                Home Stay
+                Uy mehmonxonasi
               </div>
               <div className="text-[15px] font-extrabold text-[var(--primary)] leading-none font-display">
                 {currentTitle}
@@ -190,7 +190,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-bold hover:bg-[var(--secondary)]"
           >
             <Plus size={14} />
-            Add Listing
+            Yangi listing
           </Link>
         </header>
 
@@ -201,15 +201,15 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
         <div className="lg:hidden border-t border-slate-200 bg-white px-2 py-2 flex items-center justify-around">
           <Link href="/homestay-partner/dashboard" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/homestay-partner/dashboard") ? "text-[var(--accent)]" : "text-slate-400"}`}>
             <LayoutDashboard size={20} />
-            <span>Home</span>
+            <span>Bosh</span>
           </Link>
           <Link href="/homestay-partner/listings" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/homestay-partner/listings") ? "text-[var(--accent)]" : "text-slate-400"}`}>
             <ListChecks size={20} />
-            <span>Listings</span>
+            <span>Listinglar</span>
           </Link>
           <Link href="/homestay-partner/bookings" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/homestay-partner/bookings") ? "text-[var(--accent)]" : "text-slate-400"}`}>
             <CalendarDays size={20} />
-            <span>Bookings</span>
+            <span>Bronlar</span>
           </Link>
         </div>
       </div>

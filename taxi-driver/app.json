@@ -26,6 +26,11 @@
         "ACCESS_NETWORK_STATE",
         "CALL_PHONE"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "$(GOOGLE_MAPS_API_KEY)"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1F4E79"
@@ -48,6 +53,12 @@
           "locationWhenInUsePermission": "SafarTrip taxi buyurtmasi uchun joylashuvingiz kerak.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": "$(GOOGLE_MAPS_API_KEY)"
         }
       ]
     ]

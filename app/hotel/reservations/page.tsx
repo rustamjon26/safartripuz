@@ -92,9 +92,15 @@ export default function HotelReservationsPage() {
   useEffect(() => {
     async function loadRoomTypes() {
       try {
-        const res = await fetch("/api/hotel/room-types");
-        const data = (await res.json()) as { items?: RoomType[]; message?: string };
-        if (!res.ok) throw new Error(data.message || "Room types load error");
+        const meRes = await fetch("/api/hotel/me");
+        const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
+        if (!meRes.ok || !meData.hotel?.id) {
+          throw new Error(meData.message || "Mehmonxona topilmadi");
+        }
+
+        const res = await fetch(`/api/hotels/${meData.hotel.id}/room-types`);
+        const data = (await res.json()) as { items?: RoomType[]; error?: string; message?: string };
+        if (!res.ok) throw new Error(data.error || data.message || "Room types load error");
         setRoomTypes(data.items ?? []);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Room types xatosi");

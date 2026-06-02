@@ -320,6 +320,6 @@ export function generateReportExcel(input: ReportExcelInput): Buffer {
   XLSX.utils.book_append_sheet(wb, buildBookingsSheet(input.report), "Bronlar ro'yxati");
   XLSX.utils.book_append_sheet(wb, buildRoomTypesSheet(input.report), "Xona turlari");
 
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx", cellFormula: true });
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
   return Buffer.from(buffer);
 }

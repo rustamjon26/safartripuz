@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { API_BASE_URL } from "./constants";
+import { API_BASE_URL, NETWORK_ERROR_MESSAGE } from "./constants";
 import { getApiUrl, getToken, removeToken, removeUser } from "./storage";
 
 type ApiOptions = RequestInit & {
@@ -30,6 +30,15 @@ export async function getEffectiveApiBaseUrl(): Promise<string> {
 /** Alias matching the spec. */
 export const getBaseUrl = getEffectiveApiBaseUrl;
 
+function isLikelyNetworkFailure(e: unknown): boolean {
+  if (e instanceof TypeError) return true;
+  if (e instanceof Error) {
+    const m = e.message.toLowerCase();
+    return m.includes("network request failed") || m.includes("failed to fetch") || m.includes("network error");
+  }
+  return false;
+}
+
 export async function apiFetch(path: string, options: ApiOptions = {}) {
   const token = await getToken();
   const headers: Record<string, string> = {
@@ -57,12 +66,15 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
           ? JSON.stringify(options.body)
           : (options.body as BodyInit | null | undefined),
     });
-  } catch (err) {
+  } catch (e) {
     clearTimeout(timeoutId);
-    if (err instanceof Error && (err.name === "AbortError" || err.message.toLowerCase().includes("abort"))) {
+    if (e instanceof Error && (e.name === "AbortError" || e.message.toLowerCase().includes("abort"))) {
       throw new Error("TIMEOUT");
     }
-    throw err;
+    if (isLikelyNetworkFailure(e)) {
+      throw new Error(NETWORK_ERROR_MESSAGE);
+    }
+    throw e instanceof Error ? e : new Error(NETWORK_ERROR_MESSAGE);
   }
   clearTimeout(timeoutId);
 

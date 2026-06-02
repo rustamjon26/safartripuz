@@ -26,6 +26,7 @@ type DriverUser = {
 };
 
 type DriverResponse = {
+  id?: string;
   onboarding?: boolean;
   todayTrips?: number;
   todayEarnings?: number;

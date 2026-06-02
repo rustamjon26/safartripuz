@@ -27,8 +27,12 @@ export default function LoginScreen() {
     if (!__DEV__) return;
     let active = true;
     void (async () => {
-      const url = await getEffectiveApiBaseUrl();
-      if (active) setCurrentUrl(url);
+      try {
+        const url = await getEffectiveApiBaseUrl();
+        if (active) setCurrentUrl(url);
+      } catch {
+        /* dev URL hint only — ignore */
+      }
     })();
     return () => {
       active = false;

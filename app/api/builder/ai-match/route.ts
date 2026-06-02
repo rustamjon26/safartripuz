@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/authz";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 async function parseWithClaude(prompt: string, availableCities: string[]) {
   try {
@@ -33,42 +35,29 @@ Faqat shu JSON ni qaytar, boshqa hech narsa yozma:
     });
 
     if (!res.ok) {
-      const err = await res.text();
-      console.error("Anthropic API error:", res.status, err);
       return { destination: "", pax: 2, budget: "any" as const, days: 2, mood: "any", message: "API xato" };
     }
 
     const data = await res.json();
-    console.log("API response:", JSON.stringify(data));
-
     const text = data.content?.[0]?.text ?? "{}";
-    console.log("Text:", text);
-
     const cleaned = text.replace(/```json|```/g, "").trim();
-    console.log("Cleaned text:", cleaned);
 
-    // JSON parse o'rniga try-catch bilan xavfsiz parse
     let result;
     try {
       result = JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.error("JSON parse failed, raw text:", text);
-
-      // Claude ba'zan JSON ni text ichiga yashiradi
-      // regex bilan ajratib olishga harakat qil
+    } catch {
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           result = JSON.parse(jsonMatch[0]);
         } catch {
-          console.error("Regex extract also failed");
           return {
             destination: "",
             pax: 2,
             budget: "any" as const,
             days: 2,
             mood: "any",
-            message: "Tushunmadim, qayta yozing."
+            message: "Tushunmadim, qayta yozing.",
           };
         }
       } else {
@@ -78,46 +67,49 @@ Faqat shu JSON ni qaytar, boshqa hech narsa yozma:
           budget: "any" as const,
           days: 2,
           mood: "any",
-          message: "Tushunmadim, qayta yozing."
+          message: "Tushunmadim, qayta yozing.",
         };
       }
     }
 
     return result;
-  } catch (e) {
-    console.error("parseWithClaude error:", e);
+  } catch {
     return { destination: "", pax: 2, budget: "any" as const, days: 2, mood: "any", message: "Xato" };
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!checkRateLimit(`ai-match:${ip}`, 10, 60_000)) {
+    return NextResponse.json(
+      { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
+      { status: 429 },
+    );
+  }
+
   try {
-    // req.json() o'rniga req.text() bilan o'qi
+    await requireUser();
+
     const rawBody = await req.text();
-    console.log("Raw body received:", rawBody);
 
     let prompt: string;
     try {
       const parsed = JSON.parse(rawBody) as { prompt?: string };
       prompt = parsed.prompt ?? "";
-    } catch (e) {
-      console.error("Body parse error:", e);
+    } catch {
       return NextResponse.json(
         { message: "JSON format noto'g'ri" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!prompt || prompt.trim().length < 5) {
       return NextResponse.json(
         { message: "Iltimos, safar haqida batafsilroq yozing." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.log("Prompt received:", prompt);
-
-    // DB dan mavjud shaharlarni ol
     const hotelCities = await prisma.hotel.findMany({
       where: { status: "active" },
       select: { city: true },
@@ -131,7 +123,6 @@ export async function POST(req: Request) {
       ),
     ];
 
-    // Claude bilan tahlil qil
     const parsed = await parseWithClaude(prompt, availableCities);
 
     if (!parsed.destination) {
@@ -141,7 +132,7 @@ export async function POST(req: Request) {
             parsed.message ||
             "Shaharni aniqlay olmadim. Samarqand, Buxoro yoki Xiva kabi shahar nomini yozing.",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -152,7 +143,6 @@ export async function POST(req: Request) {
     const startStr = startDate.toISOString().split("T")[0];
     const endStr = endDate.toISOString().split("T")[0];
 
-    // Hotels — narx va roomTypeId DB dan
     const hotels = await prisma.hotel.findMany({
       where: { city: destination, status: "active" },
       select: {
@@ -185,7 +175,6 @@ export async function POST(req: Request) {
     if (budget === "cheap") mappedHotels.sort((a, b) => a.nightlyPrice - b.nightlyPrice);
     if (budget === "expensive") mappedHotels.sort((a, b) => b.nightlyPrice - a.nightlyPrice);
 
-    // Taxis
     const taxis = await prisma.taxiService.findMany({
       where: { isActive: true },
       select: { id: true, title: true, serviceType: true, price: true },
@@ -201,7 +190,6 @@ export async function POST(req: Request) {
     if (budget === "cheap") mappedTaxis.sort((a, b) => a.price - b.price);
     if (budget === "expensive") mappedTaxis.sort((a, b) => b.price - a.price);
 
-    // Guides
     const guides = await prisma.guideListing.findMany({
       where: { isActive: true, region: destination },
       select: {
@@ -247,9 +235,11 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "";
+    if (msg === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
     console.error("AI match error:", error);
-    console.error("Error details:", JSON.stringify(error));
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }
-  

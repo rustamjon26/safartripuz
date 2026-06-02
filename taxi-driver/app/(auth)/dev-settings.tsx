@@ -39,12 +39,18 @@ export default function DevSettingsScreen() {
   useEffect(() => {
     if (!__DEV__) return;
     let mounted = true;
-    (async () => {
-      const saved = await getApiUrl();
-      if (!mounted) return;
-      setCurrentOverride(saved);
-      setInput(saved ?? API_BASE_URL);
-      setLoading(false);
+    void (async () => {
+      try {
+        const saved = await getApiUrl();
+        if (!mounted) return;
+        setCurrentOverride(saved);
+        setInput(saved ?? API_BASE_URL);
+      } catch {
+        if (!mounted) return;
+        setInput(API_BASE_URL);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     })();
     return () => {
       mounted = false;

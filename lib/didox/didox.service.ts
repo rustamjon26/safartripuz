@@ -56,25 +56,43 @@ export async function sendDidoxInvoice(params: SendDidoxInvoiceParams) {
 
   const invoicePayload = builders
     .invoice()
-    .factura(params.contractNumber, facturaDate)
-    .contract(params.contractNumber, facturaDate)
-    .seller({
-      tin: params.sellerTin,
-      name: params.sellerName,
-      account: params.sellerBankAccount,
-      bankId: params.sellerBankId,
-      address: params.sellerAddress,
-    })
-    .buyer({
-      tin: params.buyerTin,
-      name: params.buyerName,
-    })
-    .addProduct({
-      catalogCode: params.catalogCode,
-      name: params.productName,
-      quantity: 1,
-      price: params.amount,
-      vatRate: 12,
+    .raw({
+      factura: {
+        no: params.contractNumber,
+        date: facturaDate,
+      },
+      contract: {
+        no: params.contractNumber,
+        date: facturaDate,
+      },
+      seller: {
+        tin: params.sellerTin,
+        name: params.sellerName,
+        vatRegCode: "",
+        account: params.sellerBankAccount,
+        bankId: params.sellerBankId,
+        address: params.sellerAddress,
+      },
+      buyer: {
+        tin: params.buyerTin,
+        name: params.buyerName,
+        vatRegCode: "",
+        account: "",
+        bankId: "",
+        address: "",
+      },
+      products: [
+        {
+          catalogCode: params.catalogCode,
+          name: params.productName,
+          packageCode: "1",
+          packageName: "dona",
+          quantity: 1,
+          price: params.amount,
+          vatRate: 12,
+          origin: 1,
+        },
+      ],
     })
     .build();
 

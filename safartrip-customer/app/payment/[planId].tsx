@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api } from "@/lib/api";
-import { API_BASE_URL, COLORS } from "@/lib/constants";
+import { api, getEffectiveApiBaseUrl } from "@/lib/api";
+import { COLORS } from "@/lib/constants";
 import { formatPrice } from "@/lib/formatDate";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
@@ -31,9 +31,9 @@ const PROVIDER_UI: {
   { id: "MOCK", label: "Test (MOCK)", icon: "🧪" },
 ];
 
-function absolutePaymentUrl(pathOrUrl: string) {
+function absolutePaymentUrl(pathOrUrl: string, baseUrl: string) {
   if (pathOrUrl.startsWith("http")) return pathOrUrl;
-  const base = API_BASE_URL.replace(/\/$/, "");
+  const base = baseUrl.replace(/\/$/, "");
   return `${base}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
 }
 
@@ -88,6 +88,7 @@ export default function PaymentScreen() {
     setPaying(true);
     setErr(null);
     try {
+      const baseUrl = await getEffectiveApiBaseUrl();
       const res = (await api.post("/api/payments/create", {
         planId,
         provider: selected,
@@ -103,7 +104,7 @@ export default function PaymentScreen() {
         return;
       }
       if (url) {
-        const open = absolutePaymentUrl(url);
+        const open = absolutePaymentUrl(url, baseUrl);
         const can = await Linking.canOpenURL(open);
         if (can) await Linking.openURL(open);
         else throw new Error("URL ochilmadi");

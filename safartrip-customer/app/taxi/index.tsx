@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -13,8 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import TaxiMap from "@/components/TaxiMap";
+import { useLocation } from "@/hooks/useLocation";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
+import { forwardGeocode, reverseGeocode } from "@/lib/geocoding";
 import { formatPrice } from "@/lib/formatDate";
 
 type TaxiService = {
@@ -32,8 +37,7 @@ type Estimate = {
   estimatedMinutes: number;
 };
 
-const TASH_PICKUP = { lat: 41.3111, lng: 69.2797 };
-const TASH_DROPOFF = { lat: 41.2995, lng: 69.2401 };
+const DEFAULT_DROPOFF_COORDS = { lat: 41.2995, lng: 69.2401 };
 
 function serviceLabel(serviceType: string): "STANDARD" | "COMFORT" | "MINIVAN" | "PREMIUM" {
   if (serviceType === "INTERCITY_TRANSFER") return "STANDARD";
@@ -56,21 +60,46 @@ export default function TaxiOrderScreen() {
   const [showTime, setShowTime] = useState(false);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number }>({
+    lat: 41.3111,
+    lng: 69.2797,
+  });
+  const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lng: number }>({
+    ...DEFAULT_DROPOFF_COORDS,
+  });
+  const [coordsReady, setCoordsReady] = useState(false);
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { coords, permissionStatus, loading: locationLoading, refetch } = useLocation();
+
   useEffect(() => {
-    (async () => {
+    if (coords) {
+      setPickupCoords(coords);
+      setCoordsReady(true);
+      void reverseGeocode(coords.lat, coords.lng).then((address) => {
+        setPickup(address);
+      });
+    }
+  }, [coords]);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
       try {
         const res = (await api.get("/api/taxi/services")) as {
           data: { data: TaxiService[] };
         };
         const list = res.data?.data ?? [];
+        if (!mounted) return;
         setServices(list);
         if (list[0]) setServiceId(list[0].id);
       } catch {
-        setServices([]);
+        if (mounted) setServices([]);
       }
     })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const runEstimate = useCallback(async () => {
@@ -79,10 +108,10 @@ export default function TaxiOrderScreen() {
     setEstimateErr(null);
     try {
       const res = (await api.post("/api/taxi/estimate", {
-        pickupLat: TASH_PICKUP.lat,
-        pickupLng: TASH_PICKUP.lng,
-        dropoffLat: TASH_DROPOFF.lat,
-        dropoffLng: TASH_DROPOFF.lng,
+        pickupLat: pickupCoords.lat,
+        pickupLng: pickupCoords.lng,
+        dropoffLat: dropoffCoords.lat,
+        dropoffLng: dropoffCoords.lng,
         serviceId,
       })) as { data: Estimate };
       setEstimate(res.data);
@@ -92,7 +121,7 @@ export default function TaxiOrderScreen() {
     } finally {
       setEstimating(false);
     }
-  }, [serviceId]);
+  }, [serviceId, pickupCoords, dropoffCoords]);
 
   useEffect(() => {
     if (!serviceId) return;
@@ -103,9 +132,22 @@ export default function TaxiOrderScreen() {
     return () => {
       if (debRef.current) clearTimeout(debRef.current);
     };
-  }, [serviceId, pickup, dropoff, runEstimate]);
+  }, [serviceId, pickupCoords.lat, pickupCoords.lng, dropoffCoords.lat, dropoffCoords.lng, runEstimate]);
 
   const selected = useMemo(() => services.find((s) => s.id === serviceId), [services, serviceId]);
+
+  const dropoffGeocoded = useMemo(
+    () =>
+      dropoffCoords.lat !== DEFAULT_DROPOFF_COORDS.lat ||
+      dropoffCoords.lng !== DEFAULT_DROPOFF_COORDS.lng,
+    [dropoffCoords],
+  );
+
+  async function handleGeocodeDropoff() {
+    if (!dropoff.trim()) return;
+    const result = await forwardGeocode(dropoff.trim());
+    if (result) setDropoffCoords({ lat: result.lat, lng: result.lng });
+  }
 
   async function submit() {
     if (!pickup.trim() || !dropoff.trim() || !serviceId) return;
@@ -113,11 +155,11 @@ export default function TaxiOrderScreen() {
     try {
       const body: Record<string, unknown> = {
         pickupAddress: pickup.trim(),
-        pickupLat: TASH_PICKUP.lat,
-        pickupLng: TASH_PICKUP.lng,
+        pickupLat: pickupCoords.lat,
+        pickupLng: pickupCoords.lng,
         dropoffAddress: dropoff.trim(),
-        dropoffLat: TASH_DROPOFF.lat,
-        dropoffLng: TASH_DROPOFF.lng,
+        dropoffLat: dropoffCoords.lat,
+        dropoffLng: dropoffCoords.lng,
         serviceId,
         customerNote: note.trim() || undefined,
       };
@@ -135,26 +177,89 @@ export default function TaxiOrderScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
       <Text style={styles.h1}>Taxi</Text>
-      <Text style={styles.sub}>Manzillar (demo: Toshkent koordinatalari bilan narx hisoblanadi)</Text>
+      {locationLoading ? (
+        <View style={styles.statusGray}>
+          <Text style={styles.statusGrayText}>📍 Joylashuv aniqlanmoqda...</Text>
+        </View>
+      ) : permissionStatus === "denied" ? (
+        <View style={styles.statusAmber}>
+          <Text style={styles.statusAmberText}>
+            Joylashuv ruxsati berilmagan. Sozlamalardan yoqing yoki manzilni qo'lda kiriting.
+          </Text>
+        </View>
+      ) : coordsReady ? (
+        <View style={styles.statusGreen}>
+          <Text style={styles.statusGreenText}>✓ GPS joylashuv aniqlandi</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.mapContainer}>
+        <TaxiMap
+          pickupCoords={pickupCoords}
+          dropoffCoords={dropoffCoords}
+          driverCoords={null}
+        />
+      </View>
 
       <Text style={styles.lbl}>Qayerdan</Text>
-      <TextInput
-        style={styles.inp}
-        placeholder="Manzil"
-        placeholderTextColor={COLORS.gray}
-        value={pickup}
-        onChangeText={setPickup}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          style={[styles.inp, styles.inputFlex]}
+          placeholder="Manzil"
+          placeholderTextColor={COLORS.gray}
+          value={pickup}
+          onChangeText={setPickup}
+          editable={!locationLoading}
+        />
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => void refetch()}
+          disabled={locationLoading}
+          accessibilityLabel="Mening joylashuvim"
+        >
+          {locationLoading ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : (
+            <Ionicons name="locate" size={22} color={COLORS.primary} />
+          )}
+        </Pressable>
+      </View>
       <Text style={styles.lbl}>Qayerga</Text>
-      <TextInput
-        style={styles.inp}
-        placeholder="Manzil"
-        placeholderTextColor={COLORS.gray}
-        value={dropoff}
-        onChangeText={setDropoff}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          style={[styles.inp, styles.inputFlex]}
+          placeholder="Manzil"
+          placeholderTextColor={COLORS.gray}
+          value={dropoff}
+          onChangeText={setDropoff}
+          onBlur={async () => {
+            if (dropoff.trim()) {
+              const result = await forwardGeocode(dropoff.trim());
+              if (result) setDropoffCoords({ lat: result.lat, lng: result.lng });
+            }
+          }}
+        />
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => void handleGeocodeDropoff()}
+          accessibilityLabel="Manzilni qidirish"
+        >
+          <Ionicons name="search" size={22} color={COLORS.primary} />
+        </Pressable>
+        {dropoffGeocoded ? (
+          <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
+        ) : null}
+      </View>
 
       <Text style={styles.lbl}>Xizmat</Text>
       <FlatList
@@ -258,7 +363,8 @@ export default function TaxiOrderScreen() {
       {selected ? (
         <Text style={styles.hint}>Tanlangan: {serviceLabel(selected.serviceType)}</Text>
       ) : null}
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -267,8 +373,49 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   screen: { flex: 1, backgroundColor: COLORS.background },
   scroll: { padding: 16, paddingBottom: 40 },
+  mapContainer: {
+    height: 220,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
   h1: { fontSize: 26, fontWeight: "900", color: COLORS.primary },
-  sub: { fontSize: 13, color: COLORS.textSecondary, marginTop: 6, marginBottom: 12 },
+  statusGray: {
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  statusGrayText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: "600", lineHeight: 18 },
+  statusAmber: {
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  statusAmberText: { fontSize: 13, color: COLORS.dark, fontWeight: "600", lineHeight: 18 },
+  statusGreen: {
+    marginTop: 8,
+    marginBottom: 12,
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1,
+    borderColor: "#22C55E",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  statusGreenText: { fontSize: 13, color: "#166534", fontWeight: "600", lineHeight: 18 },
+  inputRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  inputFlex: { flex: 1 },
+  iconBtn: { padding: 8 },
   lbl: { fontSize: 12, fontWeight: "800", color: COLORS.textSecondary, marginBottom: 6, marginTop: 10 },
   inp: {
     backgroundColor: COLORS.white,

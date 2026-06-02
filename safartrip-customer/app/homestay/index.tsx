@@ -19,6 +19,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { ListSkeleton } from "@/components/ListSkeleton";
 import { formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 type Listing = {
   id: string;
@@ -34,9 +35,6 @@ type Listing = {
 type ListPayload = { data: Listing[]; pagination: { page: number; limit: number; total: number } };
 
 type ApiList = { success?: boolean; data: ListPayload };
-
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=70&auto=format&fit=crop";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -103,7 +101,7 @@ export default function HomestaySearchScreen() {
   }, [search]);
 
   function renderItem({ item }: { item: Listing }) {
-    const uri = item.images?.[0] || PLACEHOLDER;
+    const uri = getImageUrl(item.images?.[0], "homestay");
     const price = Number(item.pricePerNight);
     return (
       <Pressable style={styles.card} onPress={() => router.push(`/homestay/${item.id}`)}>

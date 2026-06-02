@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import {
@@ -244,7 +245,9 @@ export default function AdminToursPage() {
                         </div>
                       </td>
                       <td className="py-6">
-                        <div className="text-sm font-black text-slate-900 leading-tight mb-1">{tour.title}</div>
+                        <Link href={`/admin/tours/${tour.id}`} className="text-sm font-black text-slate-900 leading-tight mb-1 hover:text-slate-600 block">
+                          {tour.title}
+                        </Link>
                         <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest"><MapPin size={10} />{tour.destination}</div>
                       </td>
                       <td className="py-6"><span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-600 rounded-lg text-[10px] font-black uppercase tracking-wider">{tour.category}</span></td>

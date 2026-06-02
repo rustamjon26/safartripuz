@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import { api } from "@/lib/api";
 
-export function useDriverLocation(isOnline: boolean) {
+export function useDriverLocation(
+  isOnline: boolean,
+  onLocationUpdate?: (coords: { lat: number; lng: number }) => void,
+) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -21,11 +24,12 @@ export function useDriverLocation(isOnline: boolean) {
       });
       const { latitude: lat, longitude: lng } = pos.coords;
       setCoords({ lat, lng });
+      onLocationUpdate?.({ lat, lng });
       await sendLocation(lat, lng);
     } catch {
       // silent
     }
-  }, [sendLocation]);
+  }, [sendLocation, onLocationUpdate]);
 
   useEffect(() => {
     if (!isOnline) {

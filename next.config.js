@@ -2,7 +2,7 @@
 const nextConfig = {
   output: "standalone",
   serverExternalPackages: ["@react-pdf/renderer"],
-  typescript: { ignoreBuildErrors: true },
+  typescript: { ignoreBuildErrors: false },
   experimental: {
     workerThreads: false,
     cpus: 1,

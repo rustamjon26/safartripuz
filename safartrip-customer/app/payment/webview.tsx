@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,13 +9,13 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { api } from "@/lib/api";
-import { API_BASE_URL, COLORS } from "@/lib/constants";
+import { api, getEffectiveApiBaseUrl } from "@/lib/api";
+import { COLORS } from "@/lib/constants";
 import { formatPrice } from "@/lib/formatDate";
 
-function absoluteUrl(pathOrUrl: string) {
+function absoluteUrl(pathOrUrl: string, baseUrl: string) {
   if (pathOrUrl.startsWith("http")) return pathOrUrl;
-  const base = API_BASE_URL.replace(/\/$/, "");
+  const base = baseUrl.replace(/\/$/, "");
   return `${base}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`;
 }
 
@@ -30,6 +30,22 @@ export default function PaymentWebViewScreen() {
     }>();
 
   const [confirming, setConfirming] = useState(false);
+  const [mockPageUrl, setMockPageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!paymentUrl) {
+      setMockPageUrl(null);
+      return;
+    }
+    let mounted = true;
+    void (async () => {
+      const baseUrl = await getEffectiveApiBaseUrl();
+      if (mounted) setMockPageUrl(absoluteUrl(paymentUrl, baseUrl));
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [paymentUrl]);
 
   async function confirmMockPayment() {
     if (!paymentId) {
@@ -56,7 +72,6 @@ export default function PaymentWebViewScreen() {
   }
 
   const amountNum = Number(totalAmount ?? 0);
-  const mockPageUrl = paymentUrl ? absoluteUrl(paymentUrl) : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>

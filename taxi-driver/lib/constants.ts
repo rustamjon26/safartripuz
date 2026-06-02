@@ -18,6 +18,12 @@ export const DEFAULT_API_URL =
  * `lib/api.ts` and prefers the SecureStore override when present.
  */
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL;
+
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+
+/** RN fetch failures */
+export const NETWORK_ERROR_MESSAGE = "Internet aloqasi yo'q";
+
 export const PLATFORM_FEE_PERCENT = 15;
 export const COLORS = {
   primary: "#1F4E79",

@@ -19,6 +19,8 @@ export const DEFAULT_API_URL =
  */
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL;
 
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+
 export const COLORS = {
   primary: "#1F4E79",
   primaryLight: "#2E75B6",

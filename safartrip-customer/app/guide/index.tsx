@@ -20,6 +20,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { ListSkeleton } from "@/components/ListSkeleton";
 import { formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 type GuideRow = {
   id: string;
@@ -45,9 +46,6 @@ const CATEGORIES: { value: string; label: string }[] = [
 ];
 
 const DAY_NAMES = ["Yak", "Du", "Se", "Ch", "Pa", "Ju", "Sha"];
-
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=70&auto=format&fit=crop";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -107,7 +105,7 @@ export default function GuideSearchScreen() {
   const catLabel = CATEGORIES.find((c) => c.value === category)?.label ?? "Kategoriya";
 
   function renderItem({ item }: { item: GuideRow }) {
-    const uri = item.images?.[0] || PLACEHOLDER;
+    const uri = getImageUrl(item.images?.[0], "guide");
     const pph = Number(item.pricePerHour);
     return (
       <Pressable style={styles.card} onPress={() => router.push(`/guide/${item.id}`)}>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 type RoomType = {
   id: string;
@@ -42,9 +43,6 @@ type HotelDetail = {
   images: string[];
   roomTypes: RoomType[];
 };
-
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=70&auto=format&fit=crop";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -79,25 +77,34 @@ export default function HotelDetailScreen() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [picker, setPicker] = useState<"in" | "out" | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const mountedRef = useRef(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
-    setErr(null);
+    if (mountedRef.current) {
+      setLoading(true);
+      setErr(null);
+    }
     try {
       const res = (await api.get(`/api/hotels/${id}`)) as { data: HotelDetail };
+      if (!mountedRef.current) return;
       setHotel(res.data);
       if (res.data.roomTypes[0]) setSelectedRoomId(res.data.roomTypes[0].id);
     } catch (e) {
+      if (!mountedRef.current) return;
       setErr(e instanceof Error ? e.message : "Xato");
       setHotel(null);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
+    mountedRef.current = true;
     void load();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [load]);
 
   const selectedRoom = useMemo(
@@ -166,7 +173,9 @@ export default function HotelDetailScreen() {
     );
   }
 
-  const gallery = hotel.images.length ? hotel.images : [PLACEHOLDER];
+  const gallery = hotel.images.length
+    ? hotel.images.map((uri) => getImageUrl(uri, "hotel"))
+    : [getImageUrl(null, "hotel")];
 
   return (
     <SafeAreaView style={styles.screen} edges={["bottom"]}>

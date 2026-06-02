@@ -11,10 +11,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import TaxiMap from "@/components/TaxiMap";
 import { StatCard } from "@/components/StatCard";
 import { COLORS } from "@/lib/constants";
 import { useDriver } from "@/hooks/useDriver";
 import { useDriverLocation } from "@/hooks/useDriverLocation";
+import { useDriverSocket } from "@/hooks/useDriverSocket";
 import { useActiveOrder } from "@/hooks/useActiveOrder";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -29,8 +31,21 @@ export default function DashboardScreen() {
     toggleOnline,
     isToggling,
   } = useDriver();
-  useDriverLocation(isOnline);
-  const { activeOrder, isLoading: orderLoading, refetch: refetchOrder, error: activeOrderError } = useActiveOrder();
+  const driverId = profile?.id ?? null;
+  const { activeOrder, isLoading: orderLoading, refetch: refetchOrder, error: activeOrderError } =
+    useActiveOrder();
+  const { emitLocation } = useDriverSocket({
+    driverId,
+    isOnline,
+    onNewOrder: () => {
+      void refetchOrder();
+    },
+  });
+  const { coords: myCoords } = useDriverLocation(isOnline, (coords) => {
+    if (activeOrder?.id) {
+      emitLocation({ orderId: activeOrder.id, lat: coords.lat, lng: coords.lng });
+    }
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   const isLoading = driverLoading && !profile;
@@ -89,6 +104,21 @@ export default function DashboardScreen() {
           />
         </View>
       </View>
+
+      {isOnline && myCoords ? (
+        <View style={styles.miniMapCard}>
+          <Text style={styles.miniMapLabel}>Sizning joylashuvingiz</Text>
+          <View style={styles.miniMapContainer}>
+            <TaxiMap
+              pickupCoords={myCoords}
+              dropoffCoords={myCoords}
+              driverCoords={myCoords}
+              showRoute={false}
+              style={{ width: "100%", height: "100%" }}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {profile?.onboarding ? (
         <View style={styles.banner}>
@@ -208,6 +238,24 @@ const styles = StyleSheet.create({
   },
   switch: {
     transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
+  },
+  miniMapCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 0.5,
+    borderColor: "#E5E7EB",
+  },
+  miniMapLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  miniMapContainer: {
+    height: 160,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   banner: {
     backgroundColor: COLORS.warningLight,

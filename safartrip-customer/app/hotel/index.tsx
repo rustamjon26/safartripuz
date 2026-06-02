@@ -19,6 +19,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { ListSkeleton } from "@/components/ListSkeleton";
 import { formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 type HotelRow = {
   id: string;
@@ -34,9 +35,6 @@ type HotelRow = {
 type Pag = { page: number; limit: number; total: number; totalPages: number };
 
 type ListResponse = { success?: boolean; data: { data: HotelRow[]; pagination: Pag } };
-
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=70&auto=format&fit=crop";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -132,7 +130,7 @@ export default function HotelSearchScreen() {
   }, [search]);
 
   function renderItem({ item }: { item: HotelRow }) {
-    const uri = item.imageUrl || PLACEHOLDER;
+    const uri = getImageUrl(item.imageUrl, "hotel");
     return (
       <Pressable style={styles.card} onPress={() => router.push(`/hotel/${item.id}`)}>
         <Image source={{ uri }} style={styles.cardImg} />

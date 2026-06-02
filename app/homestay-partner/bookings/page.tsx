@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { statusLabel } from "../_lib/statusLabels";
 
 type Booking = {
   id: string;
@@ -56,10 +57,10 @@ export default function HomeStayPartnerBookingsPage() {
       });
       const data = await res.json();
       if (!res.ok || data.success === false) throw new Error(data.error || "Xatolik");
-      toast.success("Status updated");
+      toast.success("Holat yangilandi");
       void load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Server xatosi");
+      toast.error(err instanceof Error ? err.message : "Server xatosi, qayta urinib ko'ring");
     }
   }
 
@@ -68,8 +69,8 @@ export default function HomeStayPartnerBookingsPage() {
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-200/80 pb-3">
-        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Bookings</h1>
-        <p className="text-[13px] font-semibold text-slate-500 mt-1">Status bo'yicha boshqaruv</p>
+        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Mening bronlarim</h1>
+        <p className="text-[13px] font-semibold text-slate-500 mt-1">Holat bo&apos;yicha boshqaruv</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -83,7 +84,7 @@ export default function HomeStayPartnerBookingsPage() {
                 : "bg-white text-slate-500 border-slate-200"
             }`}
           >
-            {tab}
+            {statusLabel(tab)}
           </button>
         ))}
       </div>
@@ -99,7 +100,7 @@ export default function HomeStayPartnerBookingsPage() {
           <div className="p-6">
             <EmptyState
               title="Avval listing yarating"
-              message="Bookinglarni boshqarish uchun kamida bitta active listing bo'lishi kerak."
+              message="Bronlarni boshqarish uchun kamida bitta faol listing bo'lishi kerak."
               ctaHref="/homestay-partner/listings/new"
               ctaLabel="Listing yaratish"
             />
@@ -108,24 +109,24 @@ export default function HomeStayPartnerBookingsPage() {
           filtered.length === 0 ? (
             <div className="p-6">
               <EmptyState
-                title="Hozircha bronlar yo'q"
+                title="Bronlar yo'q"
                 message="Bronlar paydo bo'lishi bilan shu yerda ko'rasiz."
                 ctaHref="/homestay-partner/dashboard"
-                ctaLabel="Dashboardga qaytish"
+                ctaLabel="Boshqaruv paneliga qaytish"
               />
             </div>
           ) : (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">Guest</th>
+                <th className="py-3 px-5">Mehmon</th>
                 <th className="py-3 px-5">Listing</th>
-                <th className="py-3 px-5">Dates</th>
-                <th className="py-3 px-5">Nights</th>
-                <th className="py-3 px-5">Guests</th>
-                <th className="py-3 px-5">Total</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5 text-right">Actions</th>
+                <th className="py-3 px-5">Sanalar</th>
+                <th className="py-3 px-5">Tunlar</th>
+                <th className="py-3 px-5">Mehmonlar</th>
+                <th className="py-3 px-5">Jami</th>
+                <th className="py-3 px-5">Holat</th>
+                <th className="py-3 px-5 text-right">Amallar</th>
               </tr>
             </thead>
             <tbody className="text-[13px]">
@@ -140,27 +141,27 @@ export default function HomeStayPartnerBookingsPage() {
                     <td className="py-3 px-5">{b.guestCount}</td>
                     <td className="py-3 px-5 font-black">{Number(b.totalPrice).toLocaleString()}</td>
                     <td className="py-3 px-5">
-                      <span className="px-2 py-1 rounded border text-[10px] font-black uppercase bg-slate-100 text-slate-600 border-slate-200">{b.status}</span>
+                      <span className="px-2 py-1 rounded border text-[10px] font-black uppercase bg-slate-100 text-slate-600 border-slate-200">{statusLabel(b.status)}</span>
                     </td>
                     <td className="py-3 px-5 text-right">
                       <div className="inline-flex items-center gap-2">
                         {b.status === "PENDING" && (
                           <button onClick={() => void act(b.id, "confirm")} className="px-2.5 py-1 text-xs font-black rounded bg-green-600 text-white">
-                            Confirm
+                            Tasdiqlash
                           </button>
                         )}
                         {b.status === "CONFIRMED" && (
                           <button onClick={() => void act(b.id, "checkin")} className="px-2.5 py-1 text-xs font-black rounded bg-amber-500 text-white">
-                            Check-in
+                            Kirish
                           </button>
                         )}
                         {b.status === "CHECKED_IN" && (
                           <button onClick={() => void act(b.id, "checkout")} className="px-2.5 py-1 text-xs font-black rounded bg-slate-700 text-white">
-                            Check-out
+                            Chiqish
                           </button>
                         )}
                         <Link href={`/homestay-partner/bookings/${b.id}`} className="px-2.5 py-1 text-xs font-black rounded border border-slate-200 text-slate-600">
-                          Detail
+                          Tafsilot
                         </Link>
                       </div>
                     </td>

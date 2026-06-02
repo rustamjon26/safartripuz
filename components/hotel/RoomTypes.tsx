@@ -34,7 +34,7 @@ export type RoomTypeItem = {
 type RoomTypesProps = {
   hotelId: string;
   onBulkCreate?: (roomTypeId: string) => void;
-  onChange?: (items: RoomTypeItem[]) => void;
+  onChange?: () => void;
 };
 
 type FormState = {

@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
+import { statusLabel } from "../../_lib/statusLabels";
 
 type Booking = {
   id: string;
@@ -58,9 +61,9 @@ export default function HomeStayBookingDetailPage() {
 
   const nextAction = useMemo(() => {
     if (!booking) return null;
-    if (booking.status === "PENDING") return { key: "confirm" as const, label: "Confirm" };
-    if (booking.status === "CONFIRMED") return { key: "checkin" as const, label: "Check-in" };
-    if (booking.status === "CHECKED_IN") return { key: "checkout" as const, label: "Check-out" };
+    if (booking.status === "PENDING") return { key: "confirm" as const, label: "Tasdiqlash" };
+    if (booking.status === "CONFIRMED") return { key: "checkin" as const, label: "Kirish" };
+    if (booking.status === "CHECKED_IN") return { key: "checkout" as const, label: "Chiqish" };
     return null;
   }, [booking]);
 
@@ -75,59 +78,66 @@ export default function HomeStayBookingDetailPage() {
       });
       const data = await res.json();
       if (!res.ok || data.success === false) throw new Error(data.error || "Xatolik");
-      toast.success("Booking updated");
+      toast.success("Bron yangilandi");
       void load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Server xatosi");
+      toast.error(err instanceof Error ? err.message : "Server xatosi, qayta urinib ko'ring");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div className="p-12 text-center text-slate-400 font-bold">Loading...</div>;
-  if (!booking) return <div className="p-12 text-center text-red-500 font-bold">Booking not found</div>;
+  if (loading) return <div className="p-12 text-center text-slate-400 font-bold">Yuklanmoqda...</div>;
+  if (!booking) return <div className="p-12 text-center text-red-500 font-bold">Bron topilmadi</div>;
 
   return (
     <div className="space-y-6">
       <div className="border-b border-slate-200/80 pb-3">
-        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Booking Detail</h1>
+        <Link
+          href="/homestay-partner/bookings"
+          className="inline-flex items-center gap-2 text-xs font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest mb-3"
+        >
+          <ArrowLeft size={14} />
+          Orqaga
+        </Link>
+        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Bron tafsilotlari</h1>
         <p className="text-[13px] font-semibold text-slate-500 mt-1">ID: {booking.id}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          <Card title="Guest info">
+          <Card title="Mehmon ma'lumotlari">
             <p className="font-bold text-slate-800">{booking.guest.first_name} {booking.guest.last_name}</p>
-            <p className="text-sm text-slate-500">{booking.guest.email}</p>
-            <p className="text-sm text-slate-500">{booking.guest.phone}</p>
+            <p className="text-sm text-slate-500">{booking.guest.email || "Ko'rsatilmagan"}</p>
+            <p className="text-sm text-slate-500"><span className="font-bold">Telefon:</span> {booking.guest.phone || "Ko'rsatilmagan"}</p>
           </Card>
-          <Card title="Stay details">
+          <Card title="Yashash tafsilotlari">
             <p className="text-sm"><b>Listing:</b> {booking.listing.title} ({booking.listing.city})</p>
-            <p className="text-sm"><b>Check-in:</b> {new Date(booking.checkIn).toLocaleDateString()}</p>
-            <p className="text-sm"><b>Check-out:</b> {new Date(booking.checkOut).toLocaleDateString()}</p>
-            <p className="text-sm"><b>Nights:</b> {booking.nights}</p>
-            <p className="text-sm"><b>Guests:</b> {booking.guestCount}</p>
+            <p className="text-sm"><b>Kirish:</b> {new Date(booking.checkIn).toLocaleDateString()}</p>
+            <p className="text-sm"><b>Chiqish:</b> {new Date(booking.checkOut).toLocaleDateString()}</p>
+            <p className="text-sm"><b>Tunlar:</b> {booking.nights}</p>
+            <p className="text-sm"><b>Mehmonlar:</b> {booking.guestCount}</p>
           </Card>
-          <Card title="Pricing">
-            <p className="text-sm"><b>Total:</b> {Number(booking.totalPrice).toLocaleString()} UZS</p>
+          <Card title="Narx">
+            <p className="text-sm"><b>Summa:</b> {Number(booking.totalPrice).toLocaleString()} UZS</p>
             <pre className="mt-2 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-auto">{JSON.stringify(booking.priceSnapshot, null, 2)}</pre>
           </Card>
-          <Card title="Status history">
+          <Card title="Holat tarixi">
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between"><span>Created</span><span>{new Date(booking.createdAt).toLocaleString()}</span></div>
-              <div className="flex justify-between"><span>Current status</span><span className="font-black">{booking.status}</span></div>
+              <div className="flex justify-between"><span>Yaratilgan</span><span>{new Date(booking.createdAt).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span>Joriy holat</span><span className="font-black">{statusLabel(booking.status)}</span></div>
               <div className="pt-2 border-t border-slate-200 space-y-2">
                 {booking.logs.length === 0 ? (
-                  <p className="text-slate-500 font-semibold">No status logs yet</p>
+                  <p className="text-slate-500 font-semibold">Holat o&apos;zgarishlari hali yo&apos;q</p>
                 ) : (
                   booking.logs.map((log) => (
                     <div key={log.id} className="rounded-lg border border-slate-200 p-2">
                       <div className="flex justify-between gap-2">
-                        <span className="font-bold">{log.fromStatus} → {log.toStatus}</span>
+                        <span className="font-bold">{statusLabel(log.fromStatus)} → {statusLabel(log.toStatus)}</span>
                         <span className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
-                        by {log.actor ? `${log.actor.first_name} ${log.actor.last_name}` : "System"} ({log.actorRole})
+                        {log.actor ? `${log.actor.first_name} ${log.actor.last_name}` : "Tizim"} ({log.actorRole})
                       </p>
                       {log.note ? <p className="text-xs text-slate-600 mt-1">{log.note}</p> : null}
                     </div>
@@ -139,21 +149,21 @@ export default function HomeStayBookingDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <Card title="Action">
+          <Card title="Amal">
             {nextAction ? (
               <button onClick={() => void runAction()} disabled={saving} className="w-full px-4 py-2.5 rounded-xl bg-[var(--primary)] text-white text-sm font-black hover:bg-[var(--secondary)] disabled:opacity-60">
-                {saving ? "Saving..." : nextAction.label}
+                {saving ? "Saqlanmoqda..." : nextAction.label}
               </button>
             ) : (
-              <p className="text-sm text-slate-500 font-semibold">No actions available for current status</p>
+              <p className="text-sm text-slate-500 font-semibold">Joriy holat uchun amallar mavjud emas</p>
             )}
           </Card>
-          <Card title="Host note">
+          <Card title="Mezbon izohi">
             <textarea value={hostNote} onChange={(e) => setHostNote(e.target.value)} className="h-input min-h-[120px]" placeholder="Yozuv..." />
-            <p className="mt-2 text-xs text-slate-400 font-semibold">Note keyingi status action bilan saqlanadi.</p>
+            <p className="mt-2 text-xs text-slate-400 font-semibold">Izoh keyingi holat o&apos;zgarishi bilan saqlanadi.</p>
           </Card>
           {booking.guestNote && (
-            <Card title="Guest note">
+            <Card title="Mehmon izohi">
               <p className="text-sm text-slate-600">{booking.guestNote}</p>
             </Card>
           )}

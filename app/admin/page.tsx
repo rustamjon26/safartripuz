@@ -51,6 +51,12 @@ async function getStats() {
     guideDisputeCount,
     guidePendingListingCount,
     unverifiedDriverCount,
+    hotelBookingsToday,
+    hotelCheckoutsToday,
+    totalActiveRooms,
+    occupiedRooms,
+    hotelRevenueThisMonth,
+    pendingHotelApprovals,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.partner.count({ where: { status: "pending" } }),
@@ -90,7 +96,34 @@ async function getStats() {
         OR: [{ driverProfile: null }, { driverProfile: { isVerified: false } }],
       },
     }),
+    prisma.hotelBooking.count({
+      where: {
+        checkInDate: { gte: startOfDay, lte: endOfDay },
+        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+      },
+    }),
+    prisma.hotelBooking.count({
+      where: {
+        checkOutDate: { gte: startOfDay, lte: endOfDay },
+        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+      },
+    }),
+    prisma.physicalRoom.count({ where: { isActive: true } }),
+    prisma.physicalRoom.count({ where: { isActive: true, status: "OCCUPIED" } }),
+    prisma.hotelBooking.aggregate({
+      where: {
+        createdAt: { gte: monthStart, lt: monthEnd },
+        status: { not: "CANCELLED" },
+      },
+      _sum: { totalAmount: true },
+    }),
+    prisma.hotel.count({ where: { status: "draft" } }),
   ]);
+
+  const hotelOccupancyRate =
+    totalActiveRooms > 0
+      ? Math.round((occupiedRooms / totalActiveRooms) * 1000) / 10
+      : 0;
 
   return {
     totalUsers,
@@ -111,6 +144,13 @@ async function getStats() {
     guideDisputeCount,
     guidePendingListingCount,
     unverifiedDriverCount,
+    hotelBookingsToday,
+    hotelCheckoutsToday,
+    totalActiveRooms,
+    occupiedRooms,
+    hotelOccupancyRate,
+    hotelRevenueThisMonth: Number(hotelRevenueThisMonth._sum.totalAmount ?? 0),
+    pendingHotelApprovals,
   };
 }
 
@@ -171,6 +211,14 @@ export default async function AdminDashboard() {
       color: "teal",
       href: "/admin/hotels",
       change: "Ro'yxatdagi hotellar",
+    },
+    {
+      label: "Hotel Check-in (bugun)",
+      value: stats.hotelBookingsToday,
+      icon: Building2,
+      color: "teal",
+      href: "/admin/hotels",
+      change: `${stats.hotelCheckoutsToday} ta check-out`,
     },
     {
       label: "Uy Mehmonxona",
@@ -274,6 +322,15 @@ export default async function AdminDashboard() {
             <span>{"Tasdiq kutilmoqda (Taxi haydovchi)"}</span>
             <span className="adm-nav-badge">{stats.unverifiedDriverCount}</span>
           </Link>
+          {stats.pendingHotelApprovals > 0 && (
+            <Link
+              href="/admin/hotels?status=draft"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-800 hover:bg-white hover:border-slate-300 transition-colors"
+            >
+              <span>Tasdiqlash kutilmoqda (Hotel)</span>
+              <span className="adm-nav-badge">{stats.pendingHotelApprovals}</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -358,6 +415,47 @@ export default async function AdminDashboard() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Hotel PMS Summary */}
+      <div className="adm-card border-none shadow-xl shadow-slate-200/50 bg-white p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-xl bg-teal-50 text-teal-600">
+            <Building2 size={18} />
+          </div>
+          <h3 className="text-lg font-black text-slate-900 tracking-tight">Hotel PMS Xulosa</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Bugungi check-in
+            </p>
+            <p className="text-2xl font-black text-slate-900 mt-2">{stats.hotelBookingsToday}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Bugungi check-out
+            </p>
+            <p className="text-2xl font-black text-slate-900 mt-2">{stats.hotelCheckoutsToday}</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Umumiy bandlik
+            </p>
+            <p className="text-2xl font-black text-slate-900 mt-2">
+              {stats.occupiedRooms}/{stats.totalActiveRooms}{" "}
+              <span className="text-base text-teal-600">({stats.hotelOccupancyRate}%)</span>
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 px-5 py-4">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Oylik daromad
+            </p>
+            <p className="text-2xl font-black text-slate-900 mt-2">
+              {fmtMoney(stats.hotelRevenueThisMonth)}
+            </p>
           </div>
         </div>
       </div>

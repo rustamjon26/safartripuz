@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Edit3, Plus } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { statusLabel } from "../_lib/statusLabels";
 
 type Listing = {
   id: string;
@@ -56,12 +57,12 @@ export default function HomeStayListingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
         <div>
-          <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">My Listings</h1>
-          <p className="text-[13px] font-semibold text-slate-500 mt-1">Barcha joylaringiz ro'yxati</p>
+          <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Mening listinglarim</h1>
+          <p className="text-[13px] font-semibold text-slate-500 mt-1">Barcha joylaringiz ro&apos;yxati</p>
         </div>
         <Link href="/homestay-partner/listings/new" className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white text-[13px] font-black rounded-xl">
           <Plus size={16} />
-          Add listing
+          Yangi listing
         </Link>
       </div>
 
@@ -75,7 +76,7 @@ export default function HomeStayListingsPage() {
         ) : onboarding || items.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="Listing yo'q"
+              title="Listinglar topilmadi"
               message="Hali birorta ham listing yaratmagansiz. Boshlash uchun yangi listing qo'shing."
               ctaHref="/homestay-partner/listings/new"
               ctaLabel="Listing yaratish"
@@ -85,12 +86,12 @@ export default function HomeStayListingsPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">Title</th>
-                <th className="py-3 px-5">City</th>
-                <th className="py-3 px-5">Price/night</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5">Bookings</th>
-                <th className="py-3 px-5 text-right">Actions</th>
+                <th className="py-3 px-5">Sarlavha</th>
+                <th className="py-3 px-5">Shahar</th>
+                <th className="py-3 px-5">Narx / tun</th>
+                <th className="py-3 px-5">Holat</th>
+                <th className="py-3 px-5">Bronlar</th>
+                <th className="py-3 px-5 text-right">Amallar</th>
               </tr>
             </thead>
             <tbody className="text-[13px]">
@@ -101,16 +102,16 @@ export default function HomeStayListingsPage() {
                     <td className="py-3 px-5 font-black">{Number(item.pricePerNight).toLocaleString()}</td>
                     <td className="py-3 px-5">
                       <span className={`px-2 py-1 rounded border text-[10px] font-black uppercase ${statusClass[item.status] || statusClass.INACTIVE}`}>
-                        {item.status}
+                        {statusLabel(item.status)}
                       </span>
                     </td>
                     <td className="py-3 px-5">{item.bookingCount ?? 0}</td>
                     <td className="py-3 px-5 text-right">
                       <div className="inline-flex gap-1">
-                        <Link href={`/homestay-partner/listings/${item.id}/edit`} className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
+                        <Link href={`/homestay-partner/listings/${item.id}/edit`} title="Tahrirlash" className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
                           <Edit3 size={15} />
                         </Link>
-                        <Link href={`/homestay-partner/listings/${item.id}/calendar`} className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
+                        <Link href={`/homestay-partner/listings/${item.id}/calendar`} title="Kalendar" className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
                           <CalendarDays size={15} />
                         </Link>
                       </div>

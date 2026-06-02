@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import { COLORS } from "@/lib/constants";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { formatDate, formatPrice } from "@/lib/formatDate";
+import { getImageUrl } from "@/lib/imageUtils";
 
 const DOW = ["Yak", "Du", "Se", "Ch", "Pa", "Ju", "Sha"];
 
@@ -56,9 +57,6 @@ type ListingDetail = {
 
 type CheckData = { available: boolean; totalPrice: number; hours: number; conflicts?: { message?: string }[] };
 
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=70&auto=format&fit=crop";
-
 function startOfDay(d: Date) {
   const x = new Date(d);
   x.setHours(12, 0, 0, 0);
@@ -84,24 +82,33 @@ export default function GuideDetailScreen() {
   const [checkErr, setCheckErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const mountedRef = useRef(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
-    setErr(null);
+    if (mountedRef.current) {
+      setLoading(true);
+      setErr(null);
+    }
     try {
       const res = (await api.get(`/api/guide/${id}`)) as { data: ListingDetail };
+      if (!mountedRef.current) return;
       setListing(res.data);
     } catch (e) {
+      if (!mountedRef.current) return;
       setErr(e instanceof Error ? e.message : "Xato");
       setListing(null);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
+    mountedRef.current = true;
     void load();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [load]);
 
   const openDays = useMemo(() => {
@@ -181,7 +188,9 @@ export default function GuideDetailScreen() {
     );
   }
 
-  const imgs = listing.images?.length ? listing.images : [PLACEHOLDER];
+  const imgs = listing.images?.length
+    ? listing.images.map((uri) => getImageUrl(uri, "guide"))
+    : [getImageUrl(null, "guide")];
   const langs = listing.guide?.languages?.length ? listing.guide.languages : listing.languages;
 
   return (

@@ -2,13 +2,16 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import {
+  Alert,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
+  ToastAndroid,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +20,7 @@ import { COLORS } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useOrders } from "@/hooks/useOrders";
 import { useDriver } from "@/hooks/useDriver";
+import { useDriverSocket } from "@/hooks/useDriverSocket";
 import { api } from "@/lib/api";
 
 const ACTION_TO_STATUS: Record<string, string> = {
@@ -41,12 +45,31 @@ export default function OrdersScreen() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { profile: driverProfile } = useDriver();
+  const { profile } = useDriver();
+  const driverId = profile?.id ?? null;
+  const isOnline = profile?.driverProfile?.isOnline ?? false;
   const activeHook = useOrders({
     status: "PENDING,ACCEPTED,ARRIVED,IN_PROGRESS",
   });
   const historyHook = useOrders({ status: "COMPLETED,CANCELLED" });
   const current = tab === "active" ? activeHook : historyHook;
+
+  useDriverSocket({
+    driverId,
+    isOnline,
+    onNewOrder: () => {
+      void activeHook.refetch();
+
+      if (Platform.OS === "android") {
+        ToastAndroid.show("🚕 Yangi buyurtma keldi!", ToastAndroid.SHORT);
+      } else {
+        Alert.alert("Yangi buyurtma", "Yangi taxi buyurtma mavjud!", [
+          { text: "Ko'rish", onPress: () => void activeHook.refetch() },
+          { text: "OK" },
+        ]);
+      }
+    },
+  });
 
   const isRefreshing = current.isLoading && current.orders.length > 0;
 
@@ -73,7 +96,7 @@ export default function OrdersScreen() {
       const status = ACTION_TO_STATUS[action];
       const body: Record<string, unknown> = { status, ...payload };
       if (action === "accept") {
-        const vehicles = (driverProfile?.vehicles ?? []) as Array<{ id: string; isActive?: boolean }>;
+        const vehicles = (profile?.vehicles ?? []) as Array<{ id: string; isActive?: boolean }>;
         const activeVehicle = vehicles.find((v) => v.isActive);
         if (!activeVehicle) {
           setActionError("Faol transport topilmadi. Avval transport qo'shing.");

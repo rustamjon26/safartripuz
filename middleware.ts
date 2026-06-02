@@ -32,21 +32,47 @@ export async function middleware(req: NextRequest) {
     prefix: string;
     allow: Role[];
     redirectTo: string;
+    wrongRoleRedirect?: string;
   }> = [
-    { prefix: "/admin", allow: ["admin", "super_admin"], redirectTo: "/login" },
+    {
+      prefix: "/admin",
+      allow: ["admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
     {
       prefix: "/hotel",
       allow: ["hotel_manager", "admin", "super_admin"],
       redirectTo: "/login",
     },
-    { prefix: "/taxi", allow: ["taxi"], redirectTo: "/login" },
-    { prefix: "/guide", allow: ["guide"], redirectTo: "/login" },
+    {
+      prefix: "/taxi-partner",
+      allow: ["taxi", "taxi_partner", "admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
+    {
+      prefix: "/guide-partner",
+      allow: ["guide", "guide_partner", "admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
+    {
+      prefix: "/homestay-partner",
+      allow: ["home_stay_partner", "admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
     {
       prefix: "/restaurant",
       allow: ["restaurant_manager"],
       redirectTo: "/login",
     },
-    { prefix: "/user", allow: ["user", "admin", "super_admin"], redirectTo: "/login" },
+    {
+      prefix: "/user",
+      allow: ["user", "admin", "super_admin"],
+      redirectTo: "/login",
+    },
   ];
 
   const area = protectedAreas.find((a) => isPathMatch(pathname, a.prefix));
@@ -71,8 +97,8 @@ export async function middleware(req: NextRequest) {
   }
 
   if (!area.allow.includes(role)) {
-    if (area.prefix === "/admin") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (area.wrongRoleRedirect) {
+      return NextResponse.redirect(new URL(area.wrongRoleRedirect, req.url));
     }
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
@@ -87,8 +113,9 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/hotel/:path*",
-    "/taxi/:path*",
-    "/guide/:path*",
+    "/taxi-partner/:path*",
+    "/guide-partner/:path*",
+    "/homestay-partner/:path*",
     "/restaurant/:path*",
     "/user",
     "/user/:path*",

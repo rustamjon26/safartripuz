@@ -3,9 +3,10 @@ import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, View
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import TaxiMap from "@/components/TaxiMap";
+import { useOrderSocket } from "@/hooks/useOrderSocket";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
-import { reverseGeocode } from "@/lib/geocoding";
 import { formatPrice } from "@/lib/formatDate";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ReviewForm } from "@/components/ReviewForm";
@@ -18,6 +19,10 @@ type Order = {
   status: string;
   pickupAddress: string;
   dropoffAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  dropoffLat: number;
+  dropoffLng: number;
   estimatedPrice: unknown;
   finalPrice?: unknown | null;
   driver?: {
@@ -39,7 +44,6 @@ type Order = {
 };
 
 const ACTIVE = new Set(["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"]);
-const DRIVER_LOCATION_STATUSES = new Set(["ACCEPTED", "ARRIVED", "IN_PROGRESS"]);
 
 export default function TaxiOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,7 +51,7 @@ export default function TaxiOrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
-  const [driverLocationText, setDriverLocationText] = useState<string | null>(null);
+  const [driverCoords, setDriverCoords] = useState<{ lat: number; lng: number } | null>(null);
   const mountedRef = useRef(true);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -81,11 +85,30 @@ export default function TaxiOrderDetailScreen() {
     }
   }, [id]);
 
+  useOrderSocket({
+    orderId: typeof id === "string" ? id : null,
+    onDriverLocation: (loc) => {
+      setDriverCoords({ lat: loc.lat, lng: loc.lng });
+    },
+    onStatusChange: () => {
+      void load();
+    },
+    onOrderAccepted: () => {
+      void load();
+    },
+    onOrderCompleted: () => {
+      void load();
+    },
+    onOrderCancelled: () => {
+      void load();
+    },
+  });
+
   const startPollInterval = useCallback(() => {
     clearPollInterval();
     pollIntervalRef.current = setInterval(() => {
       void load();
-    }, 10_000);
+    }, 30_000);
   }, [clearPollInterval, load]);
 
   useEffect(() => {
@@ -119,30 +142,14 @@ export default function TaxiOrderDetailScreen() {
   }, [order?.status, load, startPollInterval, clearPollInterval]);
 
   useEffect(() => {
-    const lat = order?.driver?.driverProfile?.lastLat;
-    const lng = order?.driver?.driverProfile?.lastLng;
-    if (
-      !order?.status ||
-      !DRIVER_LOCATION_STATUSES.has(order.status) ||
-      lat == null ||
-      lng == null
-    ) {
-      setDriverLocationText(null);
-      return;
+    if (!order) return;
+    const profile = order.driver?.driverProfile;
+    if (profile?.lastLat != null && profile?.lastLng != null) {
+      setDriverCoords({ lat: profile.lastLat, lng: profile.lastLng });
+    } else {
+      setDriverCoords(null);
     }
-
-    let cancelled = false;
-    void reverseGeocode(lat, lng).then((address) => {
-      if (!cancelled) setDriverLocationText(address);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    order?.status,
-    order?.driver?.driverProfile?.lastLat,
-    order?.driver?.driverProfile?.lastLng,
-  ]);
+  }, [order]);
 
   const stepIdx = order ? FLOW.indexOf(order.status as (typeof FLOW)[number]) : -1;
 
@@ -204,9 +211,23 @@ export default function TaxiOrderDetailScreen() {
         }
       : null);
 
+  const orderPickup = order
+    ? { lat: order.pickupLat, lng: order.pickupLng }
+    : { lat: 41.3111, lng: 69.2797 };
+  const orderDropoff = order
+    ? { lat: order.dropoffLat, lng: order.dropoffLng }
+    : { lat: 41.2995, lng: 69.2401 };
+
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.mapContainer}>
+        <TaxiMap
+          pickupCoords={orderPickup}
+          dropoffCoords={orderDropoff}
+          driverCoords={driverCoords}
+        />
+      </View>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.h1}>Buyurtma</Text>
       <Text style={styles.id}>#{order.id.slice(0, 8)}</Text>
 
@@ -256,12 +277,6 @@ export default function TaxiOrderDetailScreen() {
               {v.color ? ` · ${v.color}` : ""}
             </Text>
           ) : null}
-          {driverLocationText ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
-              <Text style={{ fontSize: 13, color: "#6B7280" }}>📍 Haydovchi:</Text>
-              <Text style={{ fontSize: 13, color: "#111827" }}>{driverLocationText}</Text>
-            </View>
-          ) : null}
         </View>
       ) : null}
 
@@ -297,13 +312,19 @@ export default function TaxiOrderDetailScreen() {
           onSubmit={(rating, comment) => void sendReview(rating, comment)}
         />
       ) : null}
-    </ScrollView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
+  mapContainer: {
+    height: 280,
+    borderRadius: 0,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
   screen: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.background, padding: 24 },

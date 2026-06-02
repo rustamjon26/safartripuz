@@ -96,14 +96,12 @@ export default function BulkCreateRooms({
 
         if (!roomTypesProp?.length && id) {
           const rtRes = await fetch(`/api/hotels/${id}/room-types`);
-          if (rtRes.ok) {
+          if (!rtRes.ok) {
             const rtData = await rtRes.json();
-            setRoomTypes(rtData.items ?? rtData.roomTypes ?? []);
-          } else {
-            const fallback = await fetch("/api/hotel/room-types");
-            const fallbackData = await fallback.json();
-            if (fallback.ok) setRoomTypes(fallbackData.items ?? []);
+            throw new Error(rtData.error || "Xona turlarini yuklab bo'lmadi");
           }
+          const rtData = await rtRes.json();
+          setRoomTypes(rtData.items ?? rtData.roomTypes ?? []);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Ma'lumotlarni yuklashda xatolik");

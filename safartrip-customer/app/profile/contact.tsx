@@ -40,19 +40,19 @@ export default function ProfileContactScreen() {
           emoji="📞"
           label="Telefon"
           value={PHONE_DISPLAY}
-          onPress={() => void Linking.openURL(`tel:${PHONE_TEL}`)}
+          onPress={() => void Linking.openURL(`tel:${PHONE_TEL}`).catch(() => {})}
         />
         <Row
           emoji="📧"
           label="Email"
           value={EMAIL}
-          onPress={() => void Linking.openURL(`mailto:${EMAIL}`)}
+          onPress={() => void Linking.openURL(`mailto:${EMAIL}`).catch(() => {})}
         />
         <Row
           emoji="💬"
           label="Telegram"
           value="@safartrip_support"
-          onPress={() => void Linking.openURL(TELEGRAM)}
+          onPress={() => void Linking.openURL(TELEGRAM).catch(() => {})}
         />
       </View>
 

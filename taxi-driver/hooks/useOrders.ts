@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 
 type UseOrdersParams = {
@@ -17,19 +17,34 @@ export type DriverOrder = {
 
 const PAGE_LIMIT = 20;
 
+/** Normalize comma-separated status query (trim each segment). */
+export function normalizeStatusQuery(status: string): string {
+  return status
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(",");
+}
+
 export function useOrders({ status }: UseOrdersParams) {
   const [orders, setOrders] = useState<DriverOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasMoreRef = useRef(hasMore);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
 
   const fetchPage = useCallback(async (pageToFetch: number, replace = false) => {
-    if (!replace && !hasMore && pageToFetch !== 1) return;
+    if (!replace && !hasMoreRef.current && pageToFetch !== 1) return;
     setError(null);
     try {
+      const statusParam = normalizeStatusQuery(status);
       const query = `/api/taxi/driver/orders?status=${encodeURIComponent(
-        status,
+        statusParam,
       )}&page=${pageToFetch}&limit=${PAGE_LIMIT}`;
       const response = await api.get(query);
       const list = (response?.data?.data ?? response?.data ?? []) as DriverOrder[];
@@ -44,7 +59,7 @@ export function useOrders({ status }: UseOrdersParams) {
     } finally {
       setIsLoading(false);
     }
-  }, [hasMore, status]);
+  }, [status]);
 
   const refetch = useCallback(async () => {
     setIsLoading(true);

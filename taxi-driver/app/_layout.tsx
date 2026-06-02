@@ -64,6 +64,18 @@ export default function RootLayout() {
         return;
       }
 
+      const data = (await response.json().catch(() => ({}))) as {
+        user?: { role?: string };
+      };
+      const role = data.user?.role;
+      if (role !== "taxi" && role !== "taxi_partner") {
+        await removeToken();
+        await removeUser();
+        router.replace("/(auth)/login");
+        setState({ phase: "ok" });
+        return;
+      }
+
       router.replace("/(tabs)/dashboard");
       setState({ phase: "ok" });
     } catch (err) {

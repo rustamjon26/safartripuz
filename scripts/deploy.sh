@@ -2,7 +2,7 @@
 set -e
 echo "=== SafarTrip Deploy ==="
 
-cd /var/www/safartrip
+cd /var/www/safar
 
 echo "1. Git pull..."
 git pull origin main
