@@ -27,7 +27,14 @@ export async function GET(
             last_name: true,
             phone: true,
             driverProfile: {
-              select: { rating: true, totalTrips: true, isOnline: true },
+              select: {
+                rating: true,
+                totalTrips: true,
+                isOnline: true,
+                lastLat: true,
+                lastLng: true,
+                lastLocationAt: true,
+              },
             },
             taxiVehicles: {
               where: { isActive: true },

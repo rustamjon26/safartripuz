@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
+import { reverseGeocode } from "@/lib/geocoding";
 import { formatPrice } from "@/lib/formatDate";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ReviewForm } from "@/components/ReviewForm";
@@ -23,7 +24,13 @@ type Order = {
     first_name: string;
     last_name: string;
     phone: string | null;
-    driverProfile?: { rating: number | null; totalTrips: number } | null;
+    driverProfile?: {
+      rating: number | null;
+      totalTrips: number;
+      lastLat?: number | null;
+      lastLng?: number | null;
+      lastLocationAt?: string | null;
+    } | null;
     taxiVehicles?: { make: string; model: string; plateNumber: string }[];
   } | null;
   vehicle?: { make: string; model: string; plateNumber: string; color: string } | null;
@@ -32,6 +39,7 @@ type Order = {
 };
 
 const ACTIVE = new Set(["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"]);
+const DRIVER_LOCATION_STATUSES = new Set(["ACCEPTED", "ARRIVED", "IN_PROGRESS"]);
 
 export default function TaxiOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,13 +47,22 @@ export default function TaxiOrderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const [driverLocationText, setDriverLocationText] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  const clearPollInterval = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
   }, []);
 
   const load = useCallback(async () => {
@@ -64,15 +81,68 @@ export default function TaxiOrderDetailScreen() {
     }
   }, [id]);
 
+  const startPollInterval = useCallback(() => {
+    clearPollInterval();
+    pollIntervalRef.current = setInterval(() => {
+      void load();
+    }, 10_000);
+  }, [clearPollInterval, load]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
-    if (!order?.status || !ACTIVE.has(order.status)) return;
-    const t = setInterval(() => void load(), 10_000);
-    return () => clearInterval(t);
-  }, [order?.status, load]);
+    const shouldPoll = Boolean(order?.status && ACTIVE.has(order.status));
+    if (!shouldPoll) {
+      clearPollInterval();
+      return;
+    }
+
+    if (AppState.currentState === "active") {
+      startPollInterval();
+    }
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void load();
+        startPollInterval();
+      } else {
+        clearPollInterval();
+      }
+    });
+
+    return () => {
+      sub.remove();
+      clearPollInterval();
+    };
+  }, [order?.status, load, startPollInterval, clearPollInterval]);
+
+  useEffect(() => {
+    const lat = order?.driver?.driverProfile?.lastLat;
+    const lng = order?.driver?.driverProfile?.lastLng;
+    if (
+      !order?.status ||
+      !DRIVER_LOCATION_STATUSES.has(order.status) ||
+      lat == null ||
+      lng == null
+    ) {
+      setDriverLocationText(null);
+      return;
+    }
+
+    let cancelled = false;
+    void reverseGeocode(lat, lng).then((address) => {
+      if (!cancelled) setDriverLocationText(address);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    order?.status,
+    order?.driver?.driverProfile?.lastLat,
+    order?.driver?.driverProfile?.lastLng,
+  ]);
 
   const stepIdx = order ? FLOW.indexOf(order.status as (typeof FLOW)[number]) : -1;
 
@@ -168,7 +238,7 @@ export default function TaxiOrderDetailScreen() {
           {order.driver.phone ? (
             <Pressable
               style={styles.phoneRow}
-              onPress={() => void Linking.openURL(`tel:${order.driver!.phone}`)}
+              onPress={() => void Linking.openURL(`tel:${order.driver!.phone}`).catch(() => {})}
             >
               <Ionicons name="call" size={18} color={COLORS.primary} />
               <Text style={styles.phone}>{order.driver.phone}</Text>
@@ -185,6 +255,12 @@ export default function TaxiOrderDetailScreen() {
               {v.make} {v.model} · {v.plateNumber}
               {v.color ? ` · ${v.color}` : ""}
             </Text>
+          ) : null}
+          {driverLocationText ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 }}>
+              <Text style={{ fontSize: 13, color: "#6B7280" }}>📍 Haydovchi:</Text>
+              <Text style={{ fontSize: 13, color: "#111827" }}>{driverLocationText}</Text>
+            </View>
           ) : null}
         </View>
       ) : null}

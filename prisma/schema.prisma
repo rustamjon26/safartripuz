@@ -335,6 +335,9 @@ model DriverProfile {
   isVerified    Boolean  @default(false)
   currentLat    Float?
   currentLng    Float?
+  lastLat        Float?
+  lastLng        Float?
+  lastLocationAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

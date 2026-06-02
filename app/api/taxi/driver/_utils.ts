@@ -9,6 +9,11 @@ export async function requireTaxiDriver(): Promise<TaxiDriverActor> {
   return actor as TaxiDriverActor;
 }
 
+/** Alias for driver location and profile routes. */
+export async function getDriverActor(): Promise<TaxiDriverActor> {
+  return requireTaxiDriver();
+}
+
 export function ok(data: unknown, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
 }

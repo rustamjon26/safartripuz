@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { StatCard } from "@/components/StatCard";
 import { COLORS } from "@/lib/constants";
 import { useDriver } from "@/hooks/useDriver";
+import { useDriverLocation } from "@/hooks/useDriverLocation";
 import { useActiveOrder } from "@/hooks/useActiveOrder";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -28,6 +29,7 @@ export default function DashboardScreen() {
     toggleOnline,
     isToggling,
   } = useDriver();
+  useDriverLocation(isOnline);
   const { activeOrder, isLoading: orderLoading, refetch: refetchOrder, error: activeOrderError } = useActiveOrder();
   const [refreshing, setRefreshing] = useState(false);
 
