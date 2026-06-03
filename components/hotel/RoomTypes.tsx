@@ -59,6 +59,17 @@ const EMPTY_FORM: FormState = {
   isActive: true,
 };
 
+const BASE_PRICE_MIN = 1000;
+const BASE_PRICE_MAX = 100_000_000;
+const BASE_PRICE_MIN_ERROR = "Narx 1,000 so'mdan kam bo'lmasligi kerak";
+const BASE_PRICE_MAX_ERROR = "Narx 100,000,000 so'mdan oshmasligi kerak";
+
+function getBasePriceError(price: number): string | null {
+  if (price < BASE_PRICE_MIN) return BASE_PRICE_MIN_ERROR;
+  if (price > BASE_PRICE_MAX) return BASE_PRICE_MAX_ERROR;
+  return null;
+}
+
 function amenityLabel(id: string) {
   return ROOM_AMENITY_OPTIONS.find((a) => a.id === id)?.label ?? id;
 }
@@ -80,6 +91,8 @@ export default function RoomTypes({ hotelId, onBulkCreate, onChange }: RoomTypes
     () => items.filter((r) => r.name.toLowerCase().includes(search.toLowerCase())),
     [items, search],
   );
+
+  const basePriceError = useMemo(() => getBasePriceError(form.basePrice), [form.basePrice]);
 
   const load = useCallback(async () => {
     if (!hotelId) return;
@@ -141,6 +154,11 @@ export default function RoomTypes({ hotelId, onBulkCreate, onChange }: RoomTypes
     if (!hotelId) return;
     if (!form.name.trim()) {
       toast.error("Nom majburiy");
+      return;
+    }
+    const priceError = getBasePriceError(form.basePrice);
+    if (priceError) {
+      toast.error(priceError);
       return;
     }
 
@@ -368,11 +386,24 @@ export default function RoomTypes({ hotelId, onBulkCreate, onChange }: RoomTypes
                     </label>
                     <input
                       type="number"
-                      min={0}
+                      min={BASE_PRICE_MIN}
+                      max={BASE_PRICE_MAX}
                       value={form.basePrice || ""}
                       onChange={(e) => setForm({ ...form, basePrice: Number(e.target.value) || 0 })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-black text-[15px] outline-none focus:border-[var(--accent)]"
+                      placeholder="Masalan: 350000"
+                      aria-invalid={!!basePriceError}
+                      className={`w-full px-4 py-2.5 rounded-xl border font-black text-[15px] outline-none focus:border-[var(--accent)] ${
+                        basePriceError ? "border-red-400 focus:border-red-500" : "border-slate-200"
+                      }`}
                     />
+                    <p className="mt-1.5 text-[11px] text-slate-400 font-medium">
+                      So&apos;mda kiriting (masalan: 350 000 so&apos;m uchun 350000)
+                    </p>
+                    {basePriceError && (
+                      <p className="mt-1 text-[11px] font-semibold text-red-600" role="alert">
+                        {basePriceError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[12px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 block">
@@ -463,8 +494,8 @@ export default function RoomTypes({ hotelId, onBulkCreate, onChange }: RoomTypes
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={submitting}
-                  className="px-6 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-xl hover:bg-[var(--secondary)] flex items-center gap-2 disabled:opacity-60"
+                  disabled={submitting || !!basePriceError}
+                  className="px-6 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-xl hover:bg-[var(--secondary)] flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                   Saqlash
