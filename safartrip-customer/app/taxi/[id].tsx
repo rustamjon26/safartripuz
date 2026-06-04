@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TaxiMap from "@/components/TaxiMap";
+import { useDirections } from "@/hooks/useDirections";
 import { useOrderSocket } from "@/hooks/useOrderSocket";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
@@ -151,6 +152,44 @@ export default function TaxiOrderDetailScreen() {
     }
   }, [order]);
 
+  const orderPickup = useMemo(
+    () => (order ? { lat: order.pickupLat, lng: order.pickupLng } : null),
+    [order?.pickupLat, order?.pickupLng],
+  );
+
+  const orderDropoff = useMemo(
+    () => (order ? { lat: order.dropoffLat, lng: order.dropoffLng } : null),
+    [order?.dropoffLat, order?.dropoffLng],
+  );
+
+  const routeOrigin = useMemo(() => {
+    if (!order) return null;
+    if (["PENDING", "ACCEPTED", "ARRIVED"].includes(order.status)) {
+      return driverCoords;
+    }
+    if (order.status === "IN_PROGRESS") {
+      return orderPickup;
+    }
+    return null;
+  }, [order?.status, driverCoords, orderPickup]);
+
+  const routeDestination = useMemo(() => {
+    if (!order) return null;
+    if (["PENDING", "ACCEPTED", "ARRIVED"].includes(order.status)) {
+      return orderPickup;
+    }
+    if (order.status === "IN_PROGRESS") {
+      return orderDropoff;
+    }
+    return null;
+  }, [order?.status, orderPickup, orderDropoff]);
+
+  const { result: directionsResult } = useDirections({
+    origin: routeOrigin,
+    destination: routeDestination,
+    enabled: !!routeOrigin && !!routeDestination,
+  });
+
   const stepIdx = order ? FLOW.indexOf(order.status as (typeof FLOW)[number]) : -1;
 
   async function cancelOrder() {
@@ -211,20 +250,19 @@ export default function TaxiOrderDetailScreen() {
         }
       : null);
 
-  const orderPickup = order
-    ? { lat: order.pickupLat, lng: order.pickupLng }
-    : { lat: 41.3111, lng: 69.2797 };
-  const orderDropoff = order
-    ? { lat: order.dropoffLat, lng: order.dropoffLng }
-    : { lat: 41.2995, lng: 69.2401 };
+  const mapPickup = orderPickup ?? { lat: order.pickupLat, lng: order.pickupLng };
+  const mapDropoff = orderDropoff ?? { lat: order.dropoffLat, lng: order.dropoffLng };
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
       <View style={styles.mapContainer}>
         <TaxiMap
-          pickupCoords={orderPickup}
-          dropoffCoords={orderDropoff}
+          pickupCoords={mapPickup}
+          dropoffCoords={mapDropoff}
           driverCoords={driverCoords}
+          routePolyline={directionsResult?.polyline}
+          routeDistance={directionsResult?.distance}
+          routeDuration={directionsResult?.duration}
         />
       </View>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>

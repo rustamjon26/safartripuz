@@ -19,6 +19,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { PLATFORM_FEE_PERCENT, COLORS } from "@/lib/constants";
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useDirections } from "@/hooks/useDirections";
 import { useDriver } from "@/hooks/useDriver";
 import { useDriverLocation } from "@/hooks/useDriverLocation";
 
@@ -191,6 +192,44 @@ export default function OrderDetailScreen() {
   }, [order?.finalPrice]);
   const net = useMemo(() => Number(order?.finalPrice ?? 0) - fee, [fee, order?.finalPrice]);
 
+  const orderPickup = useMemo(
+    () => (order ? { lat: order.pickupLat, lng: order.pickupLng } : null),
+    [order?.pickupLat, order?.pickupLng],
+  );
+
+  const orderDropoff = useMemo(
+    () => (order ? { lat: order.dropoffLat, lng: order.dropoffLng } : null),
+    [order?.dropoffLat, order?.dropoffLng],
+  );
+
+  const routeOrigin = useMemo(() => {
+    if (!order) return null;
+    if (["PENDING", "ACCEPTED", "ARRIVED"].includes(order.status)) {
+      return myCoords;
+    }
+    if (order.status === "IN_PROGRESS") {
+      return orderPickup;
+    }
+    return null;
+  }, [order?.status, myCoords, orderPickup]);
+
+  const routeDestination = useMemo(() => {
+    if (!order) return null;
+    if (["PENDING", "ACCEPTED", "ARRIVED"].includes(order.status)) {
+      return orderPickup;
+    }
+    if (order.status === "IN_PROGRESS") {
+      return orderDropoff;
+    }
+    return null;
+  }, [order?.status, orderPickup, orderDropoff]);
+
+  const { result: directionsResult } = useDirections({
+    origin: routeOrigin,
+    destination: routeDestination,
+    enabled: !!routeOrigin && !!routeDestination,
+  });
+
   async function patchAction(
     action: "accept" | "arrive" | "start" | "complete" | "cancel",
     payload?: { finalPrice?: number; distanceKm?: number },
@@ -270,12 +309,8 @@ export default function OrderDetailScreen() {
   const action = nextAction(order.status);
   const showCustomerCard = FLOW.indexOf(order.status as (typeof FLOW)[number]) >= 1;
   const logs = order.logs ?? [];
-  const orderPickup = order
-    ? { lat: order.pickupLat, lng: order.pickupLng }
-    : { lat: 41.3111, lng: 69.2797 };
-  const orderDropoff = order
-    ? { lat: order.dropoffLat, lng: order.dropoffLng }
-    : { lat: 41.2995, lng: 69.2401 };
+  const mapPickup = orderPickup ?? { lat: order.pickupLat, lng: order.pickupLng };
+  const mapDropoff = orderDropoff ?? { lat: order.dropoffLat, lng: order.dropoffLng };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -342,9 +377,12 @@ export default function OrderDetailScreen() {
 
             <View style={{ height: 250, borderRadius: 16, overflow: "hidden", marginBottom: 16 }}>
               <TaxiMap
-                pickupCoords={orderPickup}
-                dropoffCoords={orderDropoff}
+                pickupCoords={mapPickup}
+                dropoffCoords={mapDropoff}
                 driverCoords={myCoords}
+                routePolyline={directionsResult?.polyline}
+                routeDistance={directionsResult?.distance}
+                routeDuration={directionsResult?.duration}
               />
             </View>
 

@@ -1,0 +1,70 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
+
+.dashboard-root {
+  font-family: "DM Sans", var(--font-nunito), sans-serif;
+}
+
+.dashboard-root h1,
+.dashboard-root h2,
+.dashboard-root h3 {
+  font-family: "Sora", var(--font-playfair), sans-serif;
+}
+
+.dashboard-root ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.dashboard-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashboard-root ::-webkit-scrollbar-thumb {
+  background: #1e2d45;
+  border-radius: 99px;
+}
+
+.dashboard-root ::-webkit-scrollbar-thumb:hover {
+  background: #2a3a55;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.glass-card {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(30, 45, 69, 0.8);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #f59e0b, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.btn-amber {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-amber:hover {
+  box-shadow: 0 12px 40px rgba(245, 158, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+.service-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-2px);
+}

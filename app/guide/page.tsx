@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { Search, SlidersHorizontal, Star } from "lucide-react";
+import { Search, SlidersHorizontal, Star, UserCircle } from "lucide-react";
 import {
   formatPricePerUnit,
   formatUzInteger,
@@ -29,6 +27,9 @@ type GuideItem = {
 
 const CATEGORY_OPTIONS = ["CITY_TOUR", "NATURE", "HISTORY", "ADVENTURE", "FOOD", "CUSTOM"];
 const LANGUAGE_OPTIONS = ["uz", "ru", "en", "tr", "de", "fr", "ar"];
+
+const inputCls =
+  "bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
 
 export default function GuideSearchPage() {
   const [loading, setLoading] = useState(false);
@@ -94,231 +95,280 @@ export default function GuideSearchPage() {
   const activeLanguages = useMemo(() => query.languages, [query.languages]);
 
   return (
-    <div id="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
       <Navbar />
 
-      <main style={{ flex: 1 }} className="bg-slate-50">
-        <section className="bg-[#0D2137] pt-24 pb-10">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#5EEAD4]">
-              Ekskursiya xizmatlari
-            </p>
-            <h1 className="mt-2 text-3xl sm:text-4xl font-black text-white tracking-tight">Gidlar</h1>
-            <p className="mt-3 max-w-2xl text-sm sm:text-base font-semibold text-slate-300">
-              O&apos;zbekiston bo&apos;ylab tajribali gidlar bilan shahar, tarix va tabiat sayohatlarini
-              rejalashtiring.
-            </p>
+      <section className="relative bg-gradient-to-br from-[#0a0f1e] via-[#0d1525] to-[#0a0f1e] pt-24 pb-12 overflow-hidden">
+        <div className="absolute top-10 right-10 w-72 h-72 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-20 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="mt-8 bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-5">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                <input
-                  value={query.city}
-                  onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
-                  placeholder="Shahar"
-                  className="h-input"
-                />
-                <select
-                  value={query.category}
-                  onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
-                  className="h-input"
-                >
-                  <option value="">Kategoriya</option>
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {guideCategoryLabel(c)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={query.language}
-                  onChange={(e) => setQuery((p) => ({ ...p, language: e.target.value }))}
-                  className="h-input"
-                >
-                  <option value="">Til</option>
-                  {LANGUAGE_OPTIONS.map((l) => (
-                    <option key={l} value={l}>
-                      {languageLabel(l)}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  value={query.date}
-                  onChange={(e) => setQuery((p) => ({ ...p, date: e.target.value }))}
-                  className="h-input"
-                  aria-label="Sana"
-                />
+        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-teal-400 text-xs font-black uppercase tracking-[0.2em] mb-2">
+            🧭 Ekskursiya Xizmatlari
+          </p>
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
+            Tajribali <span className="text-amber-400">Gidlar</span>
+          </h1>
+          <p className="text-slate-400 text-base max-w-xl mb-8">
+            O&apos;zbekiston tarixi, madaniyati va tabiatini mahalliy ekspertlar bilan kashf eting.
+          </p>
+
+          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-3 flex flex-wrap gap-2 max-w-4xl">
+            <input
+              value={query.city}
+              onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
+              placeholder="📍 Shahar"
+              className="flex-1 min-w-[120px] bg-transparent text-white placeholder:text-slate-500 px-3 py-2 text-sm outline-none"
+            />
+            <select
+              value={query.category}
+              onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
+              className={inputCls}
+            >
+              <option value="">Kategoriya</option>
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c} value={c}>
+                  {guideCategoryLabel(c)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={query.language}
+              onChange={(e) => setQuery((p) => ({ ...p, language: e.target.value }))}
+              className={inputCls}
+            >
+              <option value="">Til</option>
+              {LANGUAGE_OPTIONS.map((l) => (
+                <option key={l} value={l}>
+                  {languageLabel(l)}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={query.date}
+              onChange={(e) => setQuery((p) => ({ ...p, date: e.target.value }))}
+              className={inputCls}
+              aria-label="Sana"
+            />
+            <button
+              type="button"
+              onClick={() => void runSearch()}
+              className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all"
+            >
+              <Search size={16} /> Qidirish
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <aside className="lg:w-[260px] shrink-0">
+            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 sticky top-24 space-y-6">
+              <h3 className="font-black text-white text-sm flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((p) => !p)}
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#1e2d45] text-sm font-bold text-slate-400 bg-[#0a0f1e]"
+              >
+                {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
+              </button>
+
+              <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-6`}>
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                    Narx oralig&apos;i
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2_000_000}
+                    step={50_000}
+                    value={query.maxPrice}
+                    onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))}
+                    className="w-full accent-amber-500"
+                  />
+                  <div className="flex justify-between text-xs text-amber-400 font-bold mt-2">
+                    <span>0</span>
+                    <span>{formatUzInteger(query.maxPrice)} so&apos;m</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">
+                    Kategoriya
+                  </label>
+                  <select
+                    value={query.category}
+                    onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
+                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-amber-500/50"
+                  >
+                    <option value="">Barchasi</option>
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {guideCategoryLabel(c)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                    Tillar
+                  </label>
+                  <div className="space-y-2">
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <label
+                        key={lang}
+                        className="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer group"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={activeLanguages.includes(lang)}
+                          onChange={(e) =>
+                            setQuery((p) => ({
+                              ...p,
+                              languages: e.target.checked
+                                ? [...p.languages, lang]
+                                : p.languages.filter((x) => x !== lang),
+                            }))
+                          }
+                          className="accent-amber-500"
+                        />
+                        <span className="group-hover:text-white transition-colors">{languageLabel(lang)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => void runSearch()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0E7490] text-white text-sm font-black hover:bg-[#0B5C73] transition-colors"
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-white font-black py-3 rounded-xl text-sm transition-all"
                 >
-                  <Search size={16} />
-                  Qidirish
+                  Filtrlarni qo&apos;llash
                 </button>
               </div>
             </div>
-          </div>
-        </section>
+          </aside>
 
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-          <div className="flex flex-col lg:flex-row gap-6">
-            <aside className="lg:w-[280px]">
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-5">
+          <section className="flex-1 min-w-0">
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden animate-pulse"
+                  >
+                    <div className="h-52 bg-[#1a2234]" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-[#1a2234] rounded w-3/4" />
+                      <div className="h-3 bg-[#1a2234] rounded w-1/2" />
+                      <div className="flex justify-between mt-4">
+                        <div className="h-6 bg-[#1a2234] rounded w-1/3" />
+                        <div className="h-8 bg-[#1a2234] rounded-xl w-20" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="font-black text-white text-lg mb-2">Natija topilmadi</h3>
+                <p className="text-slate-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
                 <button
                   type="button"
-                  onClick={() => setFiltersOpen((p) => !p)}
-                  className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700"
+                  onClick={() => void runSearch({ city: "", category: "", languages: [] })}
+                  className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm"
                 >
-                  <SlidersHorizontal size={16} />
-                  Filtrlar
+                  Filterni tozalash
                 </button>
-
-                <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-5`}>
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">
-                      Narx oralig&apos;i
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={2_000_000}
-                      step={50_000}
-                      value={query.maxPrice}
-                      onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))}
-                      className="w-full accent-[#0E7490]"
-                    />
-                    <div className="text-xs font-bold text-slate-500 mt-2">
-                      0 – {formatUzInteger(query.maxPrice)} so&apos;m
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">
-                      Kategoriya
-                    </label>
-                    <select
-                      value={query.category}
-                      onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
-                      className="h-input"
-                    >
-                      <option value="">Barchasi</option>
-                      {CATEGORY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>
-                          {guideCategoryLabel(c)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">
-                      Tillar
-                    </label>
-                    <div className="space-y-1.5">
-                      {LANGUAGE_OPTIONS.map((lang) => (
-                        <label key={lang} className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                          <input
-                            type="checkbox"
-                            checked={activeLanguages.includes(lang)}
-                            onChange={(e) =>
-                              setQuery((p) => ({
-                                ...p,
-                                languages: e.target.checked
-                                  ? [...p.languages, lang]
-                                  : p.languages.filter((x) => x !== lang),
-                              }))
-                            }
-                            className="accent-[#0D2137]"
-                          />
-                          {languageLabel(lang)}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => void runSearch()}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[var(--primary)] text-white text-sm font-black hover:bg-[var(--secondary)] transition-colors"
-                  >
-                    Filtrlarni qo&apos;llash
-                  </button>
-                </div>
               </div>
-            </aside>
-
-            <section className="flex-1">
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-3xl border border-slate-100 p-4 space-y-3">
-                      <Skeleton className="h-40 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  ))}
-                </div>
-              ) : items.length === 0 ? (
-                <EmptyState
-                  title="Natija topilmadi"
-                  message="Qidiruv bo'yicha mos gid topilmadi."
-                  ctaHref="/guide"
-                  ctaLabel="Filterni tozalash"
-                />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                  {items.map((item) => (
-                    <Link
-                      key={item.id}
-                      href={`/guide/${item.id}`}
-                      className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-lg transition"
-                    >
-                      <div className="h-48 bg-slate-100">
-                        {item.images?.[0] ? (
-                          <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
-                        ) : null}
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-black text-slate-900 leading-snug">{item.title}</h3>
-                          <span className="shrink-0 text-[10px] font-black px-2 py-1 rounded-full bg-[#F0FDFA] text-[#0E7490] border border-[#99F6E4]">
-                            {guideCategoryLabel(item.category)}
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {items.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/guide/${item.id}`}
+                    className="group bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    <div className="relative h-52 bg-[#0a0f1e] overflow-hidden">
+                      {item.images?.[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.images[0]}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#0d1a2e] to-[#111827]">
+                          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500/20 to-blue-500/20 border-2 border-teal-500/30 flex items-center justify-center mb-2">
+                            <UserCircle size={40} className="text-teal-400" />
+                          </div>
+                          <span className="text-slate-500 text-xs">
+                            {item.host ? `${item.host.first_name} ${item.host.last_name}` : "Gid"}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-slate-500 mt-1">
-                          {item.host
-                            ? `${item.host.first_name} ${item.host.last_name}`
-                            : "Gid"}
-                        </p>
-                        {(item.languages?.length ?? 0) > 0 ? (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {item.languages.slice(0, 4).map((l) => (
-                              <span
-                                key={l}
-                                className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
-                              >
-                                {languageLabel(l)}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="text-lg font-black text-slate-900">
-                            {formatPricePerUnit(Number(item.pricePerHour), "soat")}
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-bold text-amber-600">
-                            <Star size={14} fill="currentColor" />
-                            {(item.avgRating ?? item.rating ?? 0).toFixed(1)} ({item.reviewCount ?? 0})
-                          </div>
-                        </div>
+                      )}
+
+                      <div className="absolute top-3 left-3 bg-teal-500/80 backdrop-blur-sm text-white text-[10px] font-black px-2.5 py-1 rounded-lg">
+                        {guideCategoryLabel(item.category)}
                       </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+
+                      {(item.avgRating ?? item.rating) != null && (
+                        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1">
+                          <Star size={11} className="text-amber-400 fill-amber-400" />
+                          <span className="text-white text-xs font-black">
+                            {(item.avgRating ?? item.rating ?? 0).toFixed(1)}
+                          </span>
+                          <span className="text-slate-400 text-xs">({item.reviewCount ?? 0})</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4">
+                      {item.host && (
+                        <p className="text-xs text-teal-400 font-bold mb-1">
+                          👤 {item.host.first_name} {item.host.last_name}
+                        </p>
+                      )}
+                      <h3 className="font-black text-white text-sm leading-tight mb-2">{item.title}</h3>
+
+                      {(item.languages?.length ?? 0) > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {item.languages.slice(0, 4).map((l) => (
+                            <span
+                              key={l}
+                              className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#1a2234] text-slate-400 border border-[#1e2d45]"
+                            >
+                              {languageLabel(l)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xl font-black text-amber-400">
+                            {formatPricePerUnit(Number(item.pricePerHour), "soat")}
+                          </span>
+                        </div>
+                        <span className="text-amber-400 text-xs font-black bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+                          Bron →
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       </main>
 

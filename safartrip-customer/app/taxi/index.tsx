@@ -16,6 +16,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import TaxiMap from "@/components/TaxiMap";
+import { useDirections } from "@/hooks/useDirections";
 import { useLocation } from "@/hooks/useLocation";
 import { api } from "@/lib/api";
 import { COLORS } from "@/lib/constants";
@@ -71,6 +72,12 @@ export default function TaxiOrderScreen() {
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { coords, permissionStatus, loading: locationLoading, refetch } = useLocation();
+
+  const { result: directionsResult } = useDirections({
+    origin: coordsReady ? pickupCoords : null,
+    destination: dropoffCoords,
+    enabled: coordsReady,
+  });
 
   useEffect(() => {
     if (coords) {
@@ -208,6 +215,9 @@ export default function TaxiOrderScreen() {
           pickupCoords={pickupCoords}
           dropoffCoords={dropoffCoords}
           driverCoords={null}
+          routePolyline={directionsResult?.polyline}
+          routeDistance={directionsResult?.distance}
+          routeDuration={directionsResult?.duration}
         />
       </View>
 
@@ -299,6 +309,12 @@ export default function TaxiOrderScreen() {
           <Text style={styles.estMeta}>
             {estimate.estimatedDistanceKm.toFixed(1)} km · ~{estimate.estimatedMinutes} daqiqa
           </Text>
+          {directionsResult?.duration ? (
+            <Text style={styles.routeInfo}>
+              🛣️ Taxminiy vaqt: {directionsResult.duration.text}
+              {directionsResult.distance ? ` · ${directionsResult.distance.text}` : ""}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 
@@ -458,6 +474,12 @@ const styles = StyleSheet.create({
   },
   estPrice: { fontSize: 22, fontWeight: "900", color: COLORS.primary },
   estMeta: { marginTop: 4, color: COLORS.textSecondary, fontWeight: "600" },
+  routeInfo: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 4,
+  },
   toggle: { flexDirection: "row", gap: 10, marginTop: 6 },
   togBtn: {
     flex: 1,

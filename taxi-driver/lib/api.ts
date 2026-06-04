@@ -30,6 +30,14 @@ export async function getEffectiveApiBaseUrl(): Promise<string> {
 /** Alias matching the spec. */
 export const getBaseUrl = getEffectiveApiBaseUrl;
 
+/** Thrown after 401 cleanup + redirect; callers should not surface as UI error */
+export class AuthRedirectError extends Error {
+  constructor() {
+    super("AUTH_REDIRECT");
+    this.name = "AuthRedirectError";
+  }
+}
+
 function isLikelyNetworkFailure(e: unknown): boolean {
   if (e instanceof TypeError) return true;
   if (e instanceof Error) {
@@ -84,7 +92,7 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
     await removeToken();
     await removeUser();
     router.replace("/(auth)/login");
-    throw new Error("Unauthorized");
+    throw new AuthRedirectError();
   }
 
   if (data?.success === false && typeof data?.error === "string") {

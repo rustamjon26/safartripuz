@@ -35,25 +35,45 @@ export default function GuideReviewPage() {
 
   return (
     <DashboardShell title="Guide Review" subtitle="Guide tajribangizni baholang">
-      <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+      <div className="max-w-2xl mx-auto bg-[#111827] rounded-3xl border border-[#1e2d45] p-6">
         <form onSubmit={submitReview} className="space-y-5">
           <div>
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Rating</label>
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+              Rating
+            </label>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((s) => (
-                <button key={s} type="button" onClick={() => setRating(s)} className={`p-1.5 rounded ${s <= rating ? "text-amber-500" : "text-slate-300"}`}>
-                  <Star size={24} fill="currentColor" />
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setRating(s)}
+                  className={`p-1 rounded-lg transition-all hover:scale-110 ${
+                    s <= rating ? "text-amber-400" : "text-slate-700 hover:text-amber-400/50"
+                  }`}
+                >
+                  <Star size={32} fill={s <= rating ? "currentColor" : "none"} />
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Comment</label>
-            <textarea value={comment} onChange={(e) => setComment(e.target.value)} className="h-input min-h-[140px]" placeholder="Tajriba haqida yozing..." />
+            <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">
+              Comment
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="w-full min-h-[140px] bg-[#0a0f1e] border border-[#1e2d45] rounded-2xl px-4 py-3 text-white placeholder:text-slate-600 resize-none outline-none focus:border-amber-500/50 text-sm"
+              placeholder="Tajriba haqida yozing..."
+            />
           </div>
 
-          <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800 disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-amber-500 hover:bg-amber-400 text-white font-black px-6 py-3 rounded-xl text-sm disabled:opacity-40 transition-all"
+          >
             {saving ? "Submitting..." : "Submit review"}
           </button>
         </form>

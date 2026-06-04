@@ -25,10 +25,10 @@ type Plan = {
 };
 
 const STATUS_CONFIG = {
-  CONFIRMED:       { label: "Tasdiqlangan",        icon: CheckCircle2, bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
-  PENDING_PAYMENT: { label: "To'lov kutilmoqda",   icon: Clock,        bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500" },
-  CANCELLED:       { label: "Bekor qilingan",       icon: XCircle,      bg: "bg-red-50",     text: "text-red-700",     border: "border-red-200",     dot: "bg-red-400" },
-  DRAFT:           { label: "Qoralama",             icon: Info,         bg: "bg-slate-50",   text: "text-slate-600",   border: "border-slate-200",   dot: "bg-slate-400" },
+  CONFIRMED:       { label: "Tasdiqlangan",        icon: CheckCircle2, bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/30", accent: "border-l-emerald-500" },
+  PENDING_PAYMENT: { label: "To'lov kutilmoqda",   icon: Clock,        bg: "bg-amber-500/10",   text: "text-amber-400",   border: "border-amber-500/30",   accent: "border-l-amber-500" },
+  CANCELLED:       { label: "Bekor qilingan",       icon: XCircle,      bg: "bg-red-500/10",     text: "text-red-400",     border: "border-red-500/30",     accent: "border-l-red-500" },
+  DRAFT:           { label: "Qoralama",             icon: Info,         bg: "bg-slate-500/10",   text: "text-slate-400",   border: "border-slate-500/30",   accent: "border-l-slate-500" },
 };
 
 export default function BookingsPage() {
@@ -70,73 +70,82 @@ export default function BookingsPage() {
   }
 
   const statCards = [
-    { label: "Jami sayohatlar",   value: stats.total,                              icon: ListChecks, color: "text-blue-600",   bg: "bg-blue-50" },
-    { label: "Tasdiqlangan",      value: stats.confirmed,                          icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "To'lov kutmoqda",   value: stats.pending,                            icon: Clock,      color: "text-amber-600",   bg: "bg-amber-50" },
-    { label: "Jami sarf-xarajat", value: `${stats.totalSpent.toLocaleString()} so'm`, icon: Wallet, color: "text-violet-600",  bg: "bg-violet-50" },
+    { label: "Jami sayohatlar",   value: stats.total,                              icon: ListChecks, color: "text-blue-400",   bg: "bg-blue-500/15" },
+    { label: "Tasdiqlangan",      value: stats.confirmed,                          icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+    { label: "To'lov kutmoqda",   value: stats.pending,                            icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/15" },
+    { label: "Jami sarf-xarajat", value: `${stats.totalSpent.toLocaleString()} so'm`, icon: Wallet, color: "text-violet-400",  bg: "bg-violet-500/15" },
   ];
 
   return (
     <DashboardShell title="Mening Sayohatlarim" subtitle="Barcha buyurtmalar va to'lovlar tarixi">
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`inline-flex p-2 rounded-xl ${s.bg} mb-3`}>
-              <s.icon size={20} className={s.color} />
+        {statCards.map((s) => (
+          <div
+            key={s.label}
+            className="relative overflow-hidden bg-[#111827] rounded-2xl border border-[#1e2d45] p-5 hover:border-amber-500/20 transition-all group"
+          >
+            <div className="absolute -bottom-2 -right-2 opacity-5 group-hover:opacity-10 transition-opacity text-slate-400">
+              <s.icon size={80} />
             </div>
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{s.label}</div>
-            <div className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{s.value}</div>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.bg}`}>
+              <s.icon size={18} className={s.color} />
+            </div>
+            <p className="text-xs text-slate-500 uppercase tracking-widest font-bold mb-1">{s.label}</p>
+            <p className="text-2xl font-black text-white">{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Action Button */}
       <div className="flex justify-between items-center mb-5">
-        <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-          <Package size={20} className="text-slate-400" /> Buyurtmalar ro'yxati
+        <h2 className="text-lg font-black text-white flex items-center gap-2">
+          <Package size={20} className="text-amber-400" /> Buyurtmalar ro&apos;yxati
           {!loading && items.length > 0 && (
-            <span className="bg-slate-100 text-slate-600 text-xs font-black px-2.5 py-1 rounded-full">{items.length}</span>
+            <span className="bg-amber-500/15 text-amber-400 text-xs font-black px-2.5 py-1 rounded-full border border-amber-500/20">{items.length}</span>
           )}
         </h2>
-        <Link href="/trip-builder" className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-5 rounded-xl transition-all text-sm shadow-lg shadow-slate-900/20">
+        <Link
+          href="/trip-builder"
+          className="inline-flex items-center gap-2 btn-amber text-white font-bold py-2.5 px-5 rounded-xl transition-all text-sm"
+        >
           <PlusCircle size={16} /> Yangi Safar
         </Link>
       </div>
 
-      {/* List */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="bg-[#111827] rounded-3xl border border-[#1e2d45] overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
             <p className="text-slate-500 font-medium">Yuklanmoqda...</p>
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-5">
-              <MapPin size={36} className="text-slate-300" />
+            <div className="w-20 h-20 bg-[#1a2234] rounded-3xl flex items-center justify-center mb-5 text-4xl border border-[#1e2d45]">
+              🗺️
             </div>
-            <h3 className="text-xl font-black text-slate-700 mb-2">Hali sayohatlar yo'q</h3>
+            <h3 className="text-xl font-black text-white mb-2">Hali sayohatlar yo&apos;q</h3>
             <p className="text-slate-500 max-w-xs text-sm">Birinchi sayohatingizni rejalashtiring — mehmonxona, transport va gidni bir joyda band qiling.</p>
-            <Link href="/trip-builder" className="mt-6 inline-flex items-center gap-2 bg-slate-900 text-white font-bold py-3 px-6 rounded-2xl hover:bg-slate-800 transition-colors text-sm">
+            <Link href="/trip-builder" className="mt-6 inline-flex items-center gap-2 btn-amber text-white font-bold py-3 px-6 rounded-2xl text-sm">
               <PlusCircle size={16} /> Sayohatni Boshlash
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
-            {items.map(p => {
+          <div className="divide-y divide-[#1e2d45]">
+            {items.map((p) => {
               const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.DRAFT;
               const StatusIcon = sc.icon;
               return (
-                <div key={p.id} className="p-5 sm:p-6 hover:bg-slate-50/50 transition-colors">
+                <div
+                  key={p.id}
+                  className={`p-5 sm:p-6 hover:bg-[#1a2234]/50 transition-colors border-l-4 ${sc.accent}`}
+                >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500/30 to-blue-600/30 text-amber-400 rounded-2xl flex items-center justify-center shrink-0 border border-[#1e2d45]">
                           <MapPin size={18} />
                         </div>
                         <div>
-                          <h3 className="font-black text-slate-900 text-base leading-tight">{p.destination}</h3>
+                          <h3 className="font-black text-white text-base leading-tight">{p.destination}</h3>
                           <p className="text-slate-500 text-xs font-semibold flex items-center gap-1 mt-0.5">
                             <Calendar size={10} />
                             {new Date(p.startDate).toLocaleDateString("uz-UZ")} — {new Date(p.endDate).toLocaleDateString("uz-UZ")}
@@ -146,10 +155,14 @@ export default function BookingsPage() {
                       </div>
                       {p.items.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
-                          {p.items.map(item => (
-                            <span key={item.id} className="inline-flex items-center gap-1.5 text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                          {p.items.map((item) => (
+                            <span
+                              key={item.id}
+                              className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#0a0f1e] text-slate-300 px-2.5 py-1 rounded-full border border-[#1e2d45]"
+                            >
                               {item.type === "HOTEL" ? <Home size={10} /> : item.type === "TAXI" ? <Car size={10} /> : <UserIcon size={10} />}
-                              {item.title}{item.quantity > 1 && <span className="text-slate-400">×{item.quantity}</span>}
+                              {item.title}
+                              {item.quantity > 1 && <span className="text-slate-500">×{item.quantity}</span>}
                             </span>
                           ))}
                         </div>
@@ -158,24 +171,28 @@ export default function BookingsPage() {
 
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between gap-3 shrink-0">
                       <span className={`inline-flex items-center gap-1.5 text-xs font-black px-3 py-1.5 rounded-full border ${sc.bg} ${sc.text} ${sc.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                        <StatusIcon size={12} />
                         {sc.label}
                       </span>
                       <div className="text-right">
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Summa</div>
-                        <div className="text-xl font-black text-slate-900">
-                          {Number(p.totalAmount).toLocaleString()}<span className="text-xs font-bold text-slate-500 ml-1">so'm</span>
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Summa</div>
+                        <div className="text-xl font-black text-amber-400">
+                          {Number(p.totalAmount).toLocaleString()}
+                          <span className="text-xs font-bold text-slate-500 ml-1">so&apos;m</span>
                         </div>
                       </div>
                       {p.status === "PENDING_PAYMENT" && (
-                        <button onClick={() => pay(p.id)}
-                          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 px-4 rounded-xl transition-colors text-sm">
-                          <CreditCard size={14} /> To'lash
+                        <button
+                          type="button"
+                          onClick={() => pay(p.id)}
+                          className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black py-2.5 px-4 rounded-xl transition-all text-sm shadow-lg shadow-amber-500/20"
+                        >
+                          <CreditCard size={14} /> To&apos;lash
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                  <div className="mt-3 text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                     ID: {p.id.slice(0, 12)}... • {new Date(p.createdAt).toLocaleDateString("uz-UZ")}
                   </div>
                 </div>

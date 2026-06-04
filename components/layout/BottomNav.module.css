@@ -3,16 +3,17 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.85);
+  height: 72px;
+  background: rgba(10, 15, 30, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-top: 1px solid #1e2d45;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 @media (min-width: 1024px) {
@@ -23,11 +24,11 @@
 
 .container {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-around;
   width: 100%;
-  max-width: 500px;
-  padding: 0 16px;
+  max-width: 480px;
+  padding: 0 8px 6px;
 }
 
 .navLink {
@@ -35,18 +36,32 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  color: #64748b; /* Slate-500 */
+  gap: 2px;
+  color: #6b7fa3;
   text-decoration: none;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   transition: all 0.3s ease;
   position: relative;
+  flex: 1;
+  padding: 6px 4px;
+  min-width: 0;
 }
 
 .navLink.active {
-  color: #0f172a; /* Slate-900 */
-  transform: translateY(-2px);
+  color: #f59e0b;
+}
+
+.navLink.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f59e0b;
 }
 
 .icon {
@@ -56,31 +71,36 @@
 }
 
 .label {
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-/* Central button for "New Tour" / Constructor */
 .central {
-  background: #0f172a; /* Slate-900 */
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #ffffff !important;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   position: relative;
-  top: -24px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3);
-  border: 4px solid #ffffff;
+  top: -18px;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+  border: 3px solid #0a0f1e;
+  flex: 0 0 auto;
 }
 
 .central:hover {
   transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.5);
 }
 
 .central:active {
   transform: translateY(0) scale(0.95);
 }
 
-.central .icon {
-  transform: none;
+.central.active {
+  color: #ffffff !important;
+}
+
+.central.active::after {
+  display: none;
 }

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { MapPin, Calendar, ArrowRight, XCircle, Star, CheckCircle2 } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -22,14 +22,14 @@ type Booking = {
   review?: { id: string } | null;
 };
 
-const statusStyle: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-  CHECKED_IN: "bg-violet-50 text-violet-700 border-violet-200",
-  CHECKED_OUT: "bg-slate-100 text-slate-600 border-slate-200",
-  COMPLETED: "bg-green-50 text-green-700 border-green-200",
-  CANCELLED: "bg-red-50 text-red-700 border-red-200",
-  DISPUTE: "bg-red-50 text-red-700 border-red-200",
+const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
+  PENDING:     { label: "Kutilmoqda",    classes: "bg-amber-500/15 border-amber-500/30 text-amber-400",     dot: "bg-amber-400" },
+  CONFIRMED:   { label: "Tasdiqlangan",  classes: "bg-blue-500/15 border-blue-500/30 text-blue-400",        dot: "bg-blue-400" },
+  CHECKED_IN:  { label: "Yashayapti",    classes: "bg-cyan-500/15 border-cyan-500/30 text-cyan-400",        dot: "bg-cyan-400" },
+  CHECKED_OUT: { label: "Chiqdi",        classes: "bg-slate-500/15 border-slate-500/30 text-slate-400",     dot: "bg-slate-400" },
+  COMPLETED:   { label: "Yakunlandi",    classes: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400", dot: "bg-emerald-400" },
+  CANCELLED:   { label: "Bekor qilindi", classes: "bg-red-500/15 border-red-500/30 text-red-400",           dot: "bg-red-400" },
+  DISPUTE:     { label: "Munozara",      classes: "bg-orange-500/15 border-orange-500/30 text-orange-400",  dot: "bg-orange-400" },
 };
 
 export default function MyHomeStayBookingsPage() {
@@ -75,63 +75,131 @@ export default function MyHomeStayBookingsPage() {
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl border border-slate-100 p-5 space-y-3">
-                <Skeleton className="h-5 w-1/3" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-10 w-full" />
+              <div key={i} className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 space-y-3">
+                <Skeleton className="h-44 w-full bg-[#1a2234]" />
+                <Skeleton className="h-4 w-3/4 bg-[#1a2234]" />
+                <Skeleton className="h-4 w-1/2 bg-[#1a2234]" />
               </div>
             ))}
           </div>
         ) : items.length === 0 ? (
-          <EmptyState
-            title="Bronlar hozircha yo'q"
-            message="HomeStay band qilish uchun katalogni tekshiring."
-            ctaHref="/homestay"
-            ctaLabel="HomeStay ko'rish"
-          />
+          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-12 text-center">
+            <div className="text-5xl mb-3">🛖</div>
+            <h3 className="text-white font-black text-lg mb-2">Bronlar yo&apos;q</h3>
+            <p className="text-slate-500 text-sm mb-5">Hali HomeStay bron qilmagansiz.</p>
+            <Link
+              href="/homestay"
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-all"
+            >
+              HomeStay ko&apos;rish →
+            </Link>
+          </div>
         ) : (
-          items.map((item) => (
-            <div key={item.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="flex flex-col md:flex-row">
-                <div className="md:w-64 h-48 bg-slate-100">
+          items.map((item) => {
+            const cfg = STATUS_CONFIG[item.status] ?? STATUS_CONFIG.PENDING;
+            const nights = Math.max(
+              1,
+              Math.ceil(
+                (new Date(item.checkOut).getTime() - new Date(item.checkIn).getTime()) / 86400000,
+              ),
+            );
+            const checkInStr = new Date(item.checkIn).toLocaleDateString("uz-UZ", {
+              day: "2-digit",
+              month: "short",
+            });
+            const checkOutStr = new Date(item.checkOut).toLocaleDateString("uz-UZ", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+
+            return (
+              <div
+                key={item.id}
+                className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/20 transition-all duration-200 flex flex-col md:flex-row"
+              >
+                <div className="md:w-56 h-44 md:h-auto bg-[#1a2234] shrink-0 relative overflow-hidden">
                   {item.listing.images?.[0] ? (
-                    <img src={item.listing.images[0]} alt={item.listing.title} className="w-full h-full object-cover" />
-                  ) : null}
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.listing.images[0]}
+                      alt={item.listing.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center">
+                      <span className="text-4xl mb-1">🛖</span>
+                      <span className="text-slate-600 text-xs font-bold">Rasm yo&apos;q</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 bg-[#0a0f1e]/80 backdrop-blur-sm border border-[#1e2d45] rounded-lg px-2 py-1">
+                    <span className="text-xs font-black text-white">{nights} tun</span>
+                  </div>
                 </div>
-                <div className="flex-1 p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900">{item.listing.title}</h3>
-                      <p className="text-sm font-semibold text-slate-500">{item.listing.city}</p>
-                      <p className="text-sm text-slate-500 mt-2">
-                        {new Date(item.checkIn).toLocaleDateString()} - {new Date(item.checkOut).toLocaleDateString()}
+
+                <div className="flex-1 p-5 flex flex-col">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-black text-white text-base line-clamp-2 leading-snug mb-1">
+                        {item.listing.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
+                        <MapPin size={11} className="text-amber-400" />
+                        {item.listing.city}
                       </p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded border text-[10px] font-black uppercase ${statusStyle[item.status] || statusStyle.PENDING}`}>
-                      {item.status}
+                    <span
+                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-black ${cfg.classes}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label}
                     </span>
                   </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2 justify-between">
-                    <div className="text-lg font-black text-slate-900">
-                      {Number(item.totalPrice).toLocaleString()} UZS
+
+                  <div className="flex items-center gap-2 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 mb-4 w-fit">
+                    <Calendar size={13} className="text-amber-400" />
+                    <span className="text-xs font-bold text-slate-300">{checkInStr}</span>
+                    <ArrowRight size={11} className="text-slate-600" />
+                    <span className="text-xs font-bold text-slate-300">{checkOutStr}</span>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#1e2d45]">
+                    <div>
+                      <span className="text-xl font-black text-amber-400">
+                        {Number(item.totalPrice).toLocaleString()}
+                      </span>
+                      <span className="text-xs text-slate-500 ml-1">so&apos;m</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex gap-2">
                       {(item.status === "PENDING" || item.status === "CONFIRMED") && (
-                        <button onClick={() => void cancelBooking(item.id)} className="px-3 py-1.5 rounded-lg text-xs font-black bg-red-50 border border-red-200 text-red-700">
-                          Cancel
+                        <button
+                          type="button"
+                          onClick={() => void cancelBooking(item.id)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-black hover:bg-red-500/20 transition-all"
+                        >
+                          <XCircle size={13} /> Bekor qilish
                         </button>
                       )}
                       {item.status === "COMPLETED" && !item.review && (
-                        <Link href={`/user/bookings/homestay/${item.id}/review`} className="px-3 py-1.5 rounded-lg text-xs font-black bg-blue-50 border border-blue-200 text-blue-700">
-                          Leave Review
+                        <Link
+                          href={`/user/bookings/homestay/${item.id}/review`}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black hover:bg-amber-500/20 transition-all"
+                        >
+                          <Star size={13} /> Baho berish
                         </Link>
+                      )}
+                      {item.status === "COMPLETED" && item.review && (
+                        <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
+                          <CheckCircle2 size={13} /> Baholandi
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </DashboardShell>

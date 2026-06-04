@@ -23,12 +23,12 @@ export default function NotificationPopover({ notifications, onMarkRead, onClose
   const unreadCount = notifications.filter(n => !n.readAt).length;
 
   return (
-    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-100 rounded-3xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[500px]">
+    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#111827] border border-[#1e2d45] rounded-3xl shadow-2xl shadow-black/50 z-50 overflow-hidden flex flex-col max-h-[500px]">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0">
+      <div className="px-6 py-4 border-b border-[#1e2d45] flex items-center justify-between bg-[#111827] sticky top-0">
         <div>
-          <h3 className="font-black text-slate-900 leading-none">Bildirishnomalar</h3>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+          <h3 className="font-black text-white leading-none">Bildirishnomalar</h3>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
             {unreadCount > 0 ? `${unreadCount} ta o'qilmagan` : "Hamma xabarlar o'qilgan"}
           </p>
         </div>

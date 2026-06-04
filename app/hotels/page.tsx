@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { MapPin, Star, Loader2 } from "lucide-react";
+import { MapPin, Star, Loader2, Search, ChevronRight } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
 import { loginWithNext } from "@/lib/authLinks";
 
@@ -19,6 +19,92 @@ type HotelRow = {
   reviewCount: number;
   imageUrl: string | null;
 };
+
+const inputCls =
+  "bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+    </div>
+  );
+}
+
+function HotelCard({
+  hotel: h,
+  city,
+  checkIn,
+  checkOut,
+}: {
+  hotel: HotelRow;
+  city: string;
+  checkIn: string;
+  checkOut: string;
+}) {
+  const nights =
+    checkIn && checkOut
+      ? Math.max(0, Math.ceil((+new Date(checkOut) - +new Date(checkIn)) / 86400000))
+      : 1;
+
+  return (
+    <div className="group bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-500/5 flex flex-col">
+      <div className="relative h-52 bg-[#0a0f1e] overflow-hidden">
+        {h.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={h.imageUrl}
+            alt={h.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            <span className="text-5xl">🏨</span>
+            <span className="text-slate-600 text-xs font-bold">{h.city}</span>
+          </div>
+        )}
+
+        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-amber-400 text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
+          {"★".repeat(Math.min(h.stars || 3, 5))}
+        </div>
+
+        {h.rating != null && (
+          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
+            <Star size={11} className="text-amber-400 fill-amber-400" />
+            {h.rating.toFixed(1)}
+            <span className="text-slate-400">({h.reviewCount || 0})</span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 flex-1 flex flex-col">
+        <h3 className="font-black text-white text-sm leading-tight mb-1 line-clamp-2">{h.name}</h3>
+        <p className="text-xs text-slate-500 flex items-center gap-1 mb-4">
+          <MapPin size={11} /> {h.city || "—"}
+        </p>
+
+        <div className="mt-auto flex items-center justify-between">
+          <div>
+            <span className="text-xl font-black text-amber-400">{formatUzInteger(h.nightlyPrice)}</span>
+            <span className="text-xs text-slate-500 ml-1">so&apos;m / tun</span>
+            {nights > 1 && (
+              <p className="text-[10px] text-slate-600 mt-0.5">
+                {nights} tun = {formatUzInteger(h.nightlyPrice * nights)} so&apos;m
+              </p>
+            )}
+          </div>
+          <Link
+            href={loginWithNext(`/trip-builder?dest=${encodeURIComponent(h.city || city || "zomin")}`)}
+            className="bg-amber-500 hover:bg-amber-400 text-white text-xs font-black px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0"
+          >
+            Tanlash <ChevronRight size={14} />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function HotelsSearchInner() {
   const searchParams = useSearchParams();
@@ -74,99 +160,114 @@ function HotelsSearchInner() {
   }, [qs]);
 
   return (
-    <div id="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
       <Navbar />
-      <main style={{ flex: 1 }} className="bg-slate-50">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 space-y-6">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900">Mehmonxonalar</h1>
-            <p className="text-sm text-slate-600 mt-1">
-              {city ? (
-                <>
-                  <span className="font-bold">{city}</span>
-                  {checkIn && checkOut ? (
-                    <>
-                      {" "}
-                      · {checkIn} — {checkOut}
-                    </>
-                  ) : null}
-                  {guests ? (
-                    <>
-                      {" "}
-                      · {guests} mehmon
-                    </>
-                  ) : null}
-                </>
-              ) : (
-                "Shahar, sanalar va mehmonlar soni bo'yicha qidiring."
-              )}
-            </p>
-          </div>
 
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            </div>
-          ) : error ? (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
-              {error}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
-              <p className="font-bold text-slate-800 mb-2">Natija topilmadi</p>
-              <p className="text-sm mb-4">Boshqa sanalar yoki shaharni sinab ko&apos;ring.</p>
-              <Link href={loginWithNext("/trip-builder")} className="inline-flex font-black text-teal-700 underline">
-                Safar tuzishga o&apos;tish
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {items.map((h) => (
-                <div
-                  key={h.id}
-                  className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm flex flex-col"
-                >
-                  <div className="h-44 bg-slate-200 relative">
-                    {h.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={h.imageUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col gap-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="font-black text-slate-900 leading-tight">{h.name}</h2>
-                      <div className="flex items-center gap-0.5 text-amber-600 text-sm font-black shrink-0">
-                        <Star size={14} fill="currentColor" />
-                        {h.rating != null ? h.rating.toFixed(1) : "—"}
-                      </div>
-                    </div>
-                    <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                      <MapPin size={12} />
-                      {h.city || "—"} · {h.stars}★
-                    </p>
-                    <p className="text-lg font-black text-slate-900 mt-auto">
-                      {formatUzInteger(h.nightlyPrice)} so&apos;m / tun
-                    </p>
-                    <Link
-                      href={loginWithNext(
-                        `/trip-builder?dest=${encodeURIComponent(h.city || city || "zomin")}`,
-                      )}
-                      className="mt-2 inline-flex justify-center rounded-xl bg-slate-900 text-white text-sm font-black py-2.5 hover:bg-slate-800"
-                    >
-                      Safarga qo&apos;shish
-                    </Link>
+      <section className="relative bg-[#0a0f1e] pt-20 pb-16 overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">
+            🏨 Premium Mehmonxonalar
+          </p>
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
+            Eng yaxshi <span className="text-amber-400">mehmonxonalar</span>
+          </h1>
+          <p className="text-slate-400 text-base max-w-xl mb-8">
+            O&apos;zbekiston bo&apos;ylab 4-5 yulduzli mehmonxonalar. Qulay narxlar, onlayn bron.
+          </p>
+
+          <form action="/hotels" method="get" className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl">
+            <input
+              name="city"
+              defaultValue={city}
+              placeholder="🏙️ Shahar (Samarqand, Buxoro...)"
+              className="flex-1 min-w-[150px] bg-transparent text-white placeholder:text-slate-500 text-sm font-medium outline-none px-3 py-2"
+            />
+            <input type="date" name="checkIn" defaultValue={checkIn} className={inputCls} aria-label="Kirish" />
+            <input type="date" name="checkOut" defaultValue={checkOut} className={inputCls} aria-label="Chiqish" />
+            <input
+              type="number"
+              name="guests"
+              min={1}
+              defaultValue={guests}
+              placeholder="Mehmonlar"
+              className="w-28 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none"
+            />
+            <button
+              type="submit"
+              className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all"
+            >
+              <Search size={16} /> Qidirish
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full">
+        {!loading && items.length > 0 && (
+          <p className="text-slate-500 text-sm mb-6">
+            <span className="text-white font-bold">{items.length}</span> ta mehmonxona topildi
+            {city ? (
+              <>
+                {" "}
+                · <span className="text-amber-400">{city}</span>
+              </>
+            ) : null}
+          </p>
+        )}
+
+        {loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden animate-pulse"
+              >
+                <div className="h-52 bg-[#1a2234]" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-[#1a2234] rounded w-3/4" />
+                  <div className="h-3 bg-[#1a2234] rounded w-1/3" />
+                  <div className="flex justify-between mt-4">
+                    <div className="h-6 bg-[#1a2234] rounded w-1/3" />
+                    <div className="h-8 bg-[#1a2234] rounded-xl w-20" />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4 text-red-400 font-semibold text-sm">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {!loading && !error && items.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="font-black text-white text-lg mb-2">Natija topilmadi</h3>
+            <p className="text-slate-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
+            <Link
+              href={loginWithNext("/trip-builder")}
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-all"
+            >
+              Safar Tuzish →
+            </Link>
+          </div>
+        )}
+
+        {!loading && items.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {items.map((h) => (
+              <HotelCard key={h.id} hotel={h} city={city} checkIn={checkIn} checkOut={checkOut} />
+            ))}
+          </div>
+        )}
       </main>
+
       <Footer />
     </div>
   );
@@ -174,13 +275,7 @@ function HotelsSearchInner() {
 
 export default function HotelsSearchPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingScreen />}>
       <HotelsSearchInner />
     </Suspense>
   );
