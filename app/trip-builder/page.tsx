@@ -56,12 +56,12 @@ const TABS = [
 type TabId = typeof TABS[number]["id"];
 
 const DEST_VISUAL: Record<string, { emoji: string; gradient: string }> = {
-  samarqand: { emoji: "🕌", gradient: "from-amber-700/90 via-amber-900/40 to-[#0a0f1e]" },
-  buxoro:    { emoji: "🏰", gradient: "from-orange-800/90 via-amber-900/40 to-[#0a0f1e]" },
-  xiva:      { emoji: "🏛️", gradient: "from-teal-800/90 via-slate-900/40 to-[#0a0f1e]" },
-  zomin:     { emoji: "🌲", gradient: "from-emerald-800/90 via-green-900/40 to-[#0a0f1e]" },
-  toshkent:  { emoji: "🌆", gradient: "from-blue-800/90 via-indigo-900/40 to-[#0a0f1e]" },
-  jizzax:    { emoji: "🏔️", gradient: "from-slate-600/90 via-slate-800/40 to-[#0a0f1e]" },
+  samarqand: { emoji: "🕌", gradient: "from-amber-700/90 via-amber-900/40 to-slate-900" },
+  buxoro:    { emoji: "🏰", gradient: "from-orange-800/90 via-amber-900/40 to-slate-900" },
+  xiva:      { emoji: "🏛️", gradient: "from-teal-800/90 via-slate-900/40 to-slate-900" },
+  zomin:     { emoji: "🌲", gradient: "from-emerald-800/90 via-green-900/40 to-slate-900" },
+  toshkent:  { emoji: "🌆", gradient: "from-blue-800/90 via-indigo-900/40 to-slate-900" },
+  jizzax:    { emoji: "🏔️", gradient: "from-slate-600/90 via-slate-800/40 to-slate-900" },
 };
 
 const AI_EXAMPLES = ["Samarqandga 2 kun", "Zominda tur", "Buxoroga oilaviy", "Xivaga 3 kun"];
@@ -75,7 +75,7 @@ function getDestVisual(title: string) {
   for (const [k, v] of Object.entries(DEST_VISUAL)) {
     if (key.includes(k)) return v;
   }
-  return { emoji: "📍", gradient: "from-slate-700/90 to-[#0a0f1e]" };
+  return { emoji: "📍", gradient: "from-slate-700/90 to-slate-900" };
 }
 
 export default function TripBuilderPage() {
@@ -266,7 +266,7 @@ export default function TripBuilderPage() {
         className={`relative p-5 rounded-2xl border cursor-pointer transition-all duration-200 hover:-translate-y-1 group ${
           isSelected
             ? "bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10"
-            : "bg-[#0a0f1e] border-[#1e2d45] hover:border-[#2a3a55] hover:bg-[#1a2234]"
+            : "bg-slate-700/30 border-slate-600/50 hover:border-slate-500 hover:bg-slate-700/50"
         }`}
       >
         {isSelected && (
@@ -280,7 +280,7 @@ export default function TripBuilderPage() {
         {sub && (
           <p className="text-xs text-slate-500 mb-4 uppercase tracking-wide font-bold">{sub}</p>
         )}
-        <div className="flex items-end justify-between pt-3 border-t border-[#1e2d45]">
+        <div className="flex items-end justify-between pt-3 border-t border-slate-700/50">
           <div className={`font-black text-base ${isSelected ? "text-amber-400" : "text-white"}`}>
             {priceLine}
           </div>
@@ -289,7 +289,7 @@ export default function TripBuilderPage() {
             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
               isSelected
                 ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                : "bg-[#1a2234] text-slate-500 hover:bg-[#2a3a55] hover:text-white"
+                : "bg-slate-700/50 text-slate-500 hover:bg-slate-600 hover:text-white"
             }`}
           >
             {isSelected ? <X size={14} /> : <Plus size={14} />}
@@ -303,10 +303,10 @@ export default function TripBuilderPage() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[1, 2, 3, 4].map((k) => (
-          <div key={k} className="p-5 rounded-2xl border border-[#1e2d45] bg-[#111827] animate-pulse">
-            <div className="h-4 bg-[#1a2234] rounded w-3/4 mb-2" />
-            <div className="h-3 bg-[#1a2234] rounded w-1/4 mb-6" />
-            <div className="h-5 bg-[#1a2234] rounded w-20" />
+          <div key={k} className="p-5 rounded-2xl border border-slate-700/50 bg-slate-800 animate-pulse">
+            <div className="h-4 bg-slate-700/50 rounded w-3/4 mb-2" />
+            <div className="h-3 bg-slate-700/50 rounded w-1/4 mb-6" />
+            <div className="h-5 bg-slate-700/50 rounded w-20" />
           </div>
         ))}
       </div>
@@ -322,7 +322,7 @@ export default function TripBuilderPage() {
     if (loadingInv) return <CatalogSkeleton />;
     if (!items || items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center border border-dashed border-[#1e2d45] rounded-3xl py-16 bg-[#111827]/50">
+        <div className="flex flex-col items-center justify-center border border-dashed border-slate-700/50 rounded-3xl py-16 bg-slate-800/50">
           <Info className="w-10 h-10 text-slate-600 mb-3" />
           <h3 className="font-black text-white">Tizimda takliflar yo&apos;q</h3>
           <p className="text-slate-500 text-sm text-center mt-1 max-w-xs">{destination} hududida hozircha &quot;{label}&quot; mavjud emas.</p>
@@ -359,12 +359,12 @@ export default function TripBuilderPage() {
   }) {
     return (
       <div className="relative pl-10 py-3 group">
-        <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-[#1e2d45] -z-10 group-last:bottom-auto group-last:h-full" />
+        <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-slate-700/50 -z-10 group-last:bottom-auto group-last:h-full" />
         <div
-          className={`absolute left-0 top-[18px] w-8 h-8 rounded-full flex items-center justify-center border-4 border-[#111827] transition-all shadow-sm ${
+          className={`absolute left-0 top-[18px] w-8 h-8 rounded-full flex items-center justify-center border-4 border-slate-800 transition-all shadow-sm ${
             isAdded
               ? "bg-amber-500 text-white"
-              : "bg-[#1a2234] text-slate-500 group-hover:bg-amber-500/20 group-hover:text-amber-400 cursor-pointer"
+              : "bg-slate-700/50 text-slate-500 group-hover:bg-amber-500/20 group-hover:text-amber-400 cursor-pointer"
           }`}
           onClick={!isAdded ? onNavigate : undefined}
           onKeyDown={undefined}
@@ -377,8 +377,8 @@ export default function TripBuilderPage() {
         <div
           className={`rounded-2xl transition-all duration-300 ${
             isAdded
-              ? "bg-[#111827] border border-[#1e2d45] shadow-sm p-4 animate-in slide-in-from-right-4"
-              : "border-2 border-dashed border-[#1e2d45] bg-[#0a0f1e]/50 p-3 hover:bg-[#0a0f1e] hover:border-amber-500/30 cursor-pointer text-slate-500 hover:text-amber-400"
+              ? "bg-slate-800 border border-slate-700/50 shadow-sm p-4 animate-in slide-in-from-right-4"
+              : "border-2 border-dashed border-slate-700/50 bg-slate-900/50 p-3 hover:bg-slate-900 hover:border-amber-500/30 cursor-pointer text-slate-500 hover:text-amber-400"
           }`}
           onClick={!isAdded ? onNavigate : undefined}
           onKeyDown={undefined}
@@ -388,7 +388,7 @@ export default function TripBuilderPage() {
           {isAdded ? (
             <div>
               <div className="flex justify-between items-start mb-1">
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-[#0a0f1e] px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-900 px-2 py-0.5 rounded-md">
                   {time}
                 </span>
                 {onRemove && (
@@ -439,7 +439,7 @@ export default function TripBuilderPage() {
       title="Safar Yig'uvchi"
       subtitle="AI ob-havo va Timeline yordamida safaringizni chizing"
     >
-      <div className="flex bg-[#111827] border border-[#1e2d45] p-1.5 rounded-2xl mb-6 gap-1 overflow-x-auto hide-scrollbar w-full">
+      <div className="flex bg-slate-800 border border-slate-700/50 p-1.5 rounded-2xl mb-6 gap-1 overflow-x-auto hide-scrollbar w-full">
         {TABS.map((tab) => {
           const isDisabled = tab.id !== "basics" && tab.id !== "ai" && !destination;
           const isAI = tab.id === "ai";
@@ -458,7 +458,7 @@ export default function TripBuilderPage() {
                     ? "text-slate-700 cursor-not-allowed"
                     : isAI
                       ? "text-violet-400 hover:bg-violet-500/10"
-                      : "text-slate-400 hover:bg-[#1a2234] hover:text-white"
+                      : "text-slate-400 hover:bg-slate-700/50 hover:text-white"
               }`}
             >
               <tab.icon size={16} />
@@ -486,14 +486,14 @@ export default function TripBuilderPage() {
                       isActive
                         ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
                         : isDone
-                          ? "text-slate-400 hover:bg-[#111827]"
+                          ? "text-slate-400 hover:bg-slate-800"
                           : isDisabled
                             ? "text-slate-600 cursor-not-allowed"
-                            : "text-slate-500 hover:bg-[#111827] hover:text-white"
+                            : "text-slate-500 hover:bg-slate-800 hover:text-white"
                     }`}
                   >
                     <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${
-                      isActive ? "bg-amber-500 text-white" : isDone ? "bg-emerald-500/20 text-emerald-400" : "bg-[#1a2234] text-slate-500"
+                      isActive ? "bg-amber-500 text-white" : isDone ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700/50 text-slate-500"
                     }`}>
                       {isDone && !isActive ? <Check size={12} /> : i + 1}
                     </span>
@@ -521,7 +521,7 @@ export default function TripBuilderPage() {
       {/* Mobile floating price bar */}
       {hasServices && (
         <div className="fixed bottom-20 left-4 right-4 z-50 xl:hidden">
-          <div className="bg-[#111827] border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between shadow-2xl shadow-black/50 backdrop-blur-xl">
+          <div className="bg-slate-800 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between shadow-2xl shadow-black/50 backdrop-blur-xl">
             <div>
               <p className="text-xs text-slate-500 uppercase font-bold">Jami</p>
               <p className="text-lg font-black text-amber-400">
@@ -544,10 +544,10 @@ export default function TripBuilderPage() {
 
   function renderMainPanel() {
     return (
-      <div className="bg-[#111827] rounded-[2rem] border border-[#1e2d45] p-4 sm:p-8 min-h-[400px] transition-all relative overflow-hidden w-full">
+      <div className="bg-slate-800 rounded-[2rem] border border-slate-700/50 p-4 sm:p-8 min-h-[400px] transition-all relative overflow-hidden w-full">
         {destination && activeTab !== "ai" && weather && (
           <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex gap-4 items-start animate-in slide-in-from-top-4">
-            <div className="w-11 h-11 bg-[#0a0f1e] border border-blue-500/30 rounded-xl flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 bg-slate-900 border border-blue-500/30 rounded-xl flex items-center justify-center shrink-0">
               <weather.icon size={22} className="text-blue-400" />
             </div>
             <div>
@@ -562,8 +562,8 @@ export default function TripBuilderPage() {
         {activeTab === "ai" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 rounded-t-[2rem]" />
-            <div className="absolute -top-16 -right-16 w-56 h-56 bg-violet-600/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
-            <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: "1s" }} />
+            <div className="absolute -top-16 -right-16 w-56 h-56 bg-violet-500/25 rounded-full blur-3xl animate-pulse pointer-events-none" />
+            <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-400/20 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: "1s" }} />
             <div className="relative z-10 flex items-center gap-3 mb-6 pt-2">
               <div className="w-12 h-12 rounded-2xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center">
                 <Sparkles size={22} className="text-violet-400" />
@@ -578,7 +578,7 @@ export default function TripBuilderPage() {
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
                 placeholder="Masalan: Men oilam (4 kishi) bilan Zominga 3 kunlik arzonroq safar qilmoqchiman."
-                className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-5 text-white placeholder:text-slate-600 resize-none outline-none focus:border-violet-500/50 focus:bg-white/8 transition-all text-sm"
+                className="w-full h-32 bg-slate-700/30 border border-slate-600/50 rounded-2xl p-5 text-white placeholder:text-slate-500 resize-none outline-none focus:border-violet-500/60 focus:bg-slate-700/50 transition-all text-sm"
               />
               <button
                 type="submit"
@@ -618,7 +618,7 @@ export default function TripBuilderPage() {
             {loadingDest ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="aspect-[2/3] bg-[#1a2234] rounded-2xl animate-pulse" />
+                  <div key={i} className="aspect-[2/3] bg-slate-700/50 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -632,7 +632,7 @@ export default function TripBuilderPage() {
                       type="button"
                       onClick={() => setDestination(d.title)}
                       className={`relative aspect-[2/3] rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
-                        selected ? "border-amber-500 ring-2 ring-amber-500/30 scale-[1.02]" : "border-[#1e2d45] hover:border-[#2a3a55]"
+                        selected ? "border-amber-500 ring-2 ring-amber-500/30 scale-[1.02]" : "border-slate-700/50 hover:border-slate-500"
                       }`}
                     >
                       <div className={`absolute inset-0 bg-gradient-to-t ${vis.gradient}`} />
@@ -659,7 +659,7 @@ export default function TripBuilderPage() {
                 { label: "Boshlanish", type: "date" as const, min: tomorrow, value: startDate, set: setStartDate },
                 { label: "Tugash", type: "date" as const, min: startDate || tomorrow, value: endDate, set: setEndDate },
               ].map((f) => (
-                <div key={f.label} className="bg-[#0a0f1e] border border-[#1e2d45] rounded-2xl p-4 hover:border-[#2a3a55] transition-colors">
+                <div key={f.label} className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 hover:border-slate-500 transition-colors">
                   <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1">{f.label}</label>
                   <input
                     type={f.type}
@@ -670,7 +670,7 @@ export default function TripBuilderPage() {
                   />
                 </div>
               ))}
-              <div className="bg-[#0a0f1e] border border-[#1e2d45] rounded-2xl p-4">
+              <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4">
                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-1 flex items-center gap-1">
                   <Users size={10} /> Kishilar
                 </label>
@@ -718,15 +718,15 @@ export default function TripBuilderPage() {
   function renderTripSidebar() {
     return (
       <div
-        className={`bg-[#111827] rounded-[2rem] border transition-all duration-300 w-full sticky top-24 ${
-          cartBash ? "scale-[1.02] border-amber-500/40 shadow-lg shadow-amber-500/10" : "border-[#1e2d45] scale-100"
+        className={`bg-slate-800 rounded-[2rem] border transition-all duration-300 w-full sticky top-24 ${
+          cartBash ? "scale-[1.02] border-amber-500/40 shadow-lg shadow-amber-500/10" : "border-slate-700/50 scale-100"
         }`}
       >
         <div
           className={`px-6 py-5 rounded-t-[2rem] transition-colors ${
             aiMessage
               ? "bg-gradient-to-r from-violet-600 to-indigo-600"
-              : "bg-gradient-to-r from-[#1a2234] to-[#111827] border-b border-[#1e2d45]"
+              : "bg-gradient-to-r from-slate-700/50 to-slate-800 border-b border-slate-700/50"
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -752,7 +752,7 @@ export default function TripBuilderPage() {
             onRemove={() => setSelectedTaxi(null)}
           >
             {selectedTaxi && (
-              <div className="flex justify-between items-center bg-[#0a0f1e] p-2.5 rounded-xl border border-[#1e2d45]">
+              <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700/50">
                 <span className="text-xs font-semibold text-slate-400">{selectedTaxi.title}</span>
                 <span className="font-black text-white text-sm">
                   {selectedTaxi.price != null ? formatPrice(selectedTaxi.price) : "—"}
@@ -771,7 +771,7 @@ export default function TripBuilderPage() {
           >
             {selectedHotel && (
               <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center bg-[#0a0f1e] p-2.5 rounded-xl border border-[#1e2d45]">
+                <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700/50">
                   <span className="text-xs font-semibold text-slate-400 leading-tight pr-2">{selectedHotel.title}</span>
                   <span className="font-black text-white text-sm shrink-0">
                     {selectedHotel.nightlyPrice != null
@@ -786,7 +786,7 @@ export default function TripBuilderPage() {
                     min={1}
                     value={roomCount}
                     onChange={(e) => setRoomCount(Number(e.target.value))}
-                    className="w-12 h-6 bg-[#111827] border border-[#1e2d45] rounded text-center text-xs font-bold text-white outline-none focus:border-amber-500/40"
+                    className="w-12 h-6 bg-slate-800 border border-slate-700/50 rounded text-center text-xs font-bold text-white outline-none focus:border-amber-500/40"
                   />
                 </div>
               </div>
@@ -802,7 +802,7 @@ export default function TripBuilderPage() {
             onRemove={() => setSelectedGuide(null)}
           >
             {selectedGuide && (
-              <div className="flex justify-between items-center bg-[#0a0f1e] p-2.5 rounded-xl border border-[#1e2d45]">
+              <div className="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-700/50">
                 <span className="text-xs font-semibold text-slate-400 leading-tight pr-2">
                   {selectedGuide.title} ({languageLabel(selectedGuide.language || "")})
                 </span>
@@ -828,7 +828,7 @@ export default function TripBuilderPage() {
           </button>
 
           {priceEditOpen && (
-            <div className="bg-[#0a0f1e] rounded-xl p-3 mb-3 border border-[#1e2d45] space-y-2 text-xs">
+            <div className="bg-slate-900 rounded-xl p-3 mb-3 border border-slate-700/50 space-y-2 text-xs">
               {selectedHotel?.nightlyPrice != null && (
                 <div className="flex justify-between text-slate-400">
                   <span>🏨 {formatUzInteger(selectedHotel.nightlyPrice)} × {days} kun × {roomCount} xona</span>
@@ -848,7 +848,7 @@ export default function TripBuilderPage() {
                 </div>
               )}
               {aiSuggestedTotal != null && aiSuggestedTotal !== grandTotal && (
-                <div className="flex justify-between pt-2 border-t border-[#1e2d45] text-slate-500">
+                <div className="flex justify-between pt-2 border-t border-slate-700/50 text-slate-500">
                   <span>AI taklifi</span>
                   <span className="line-through">{formatUzInteger(aiSuggestedTotal)}</span>
                 </div>
@@ -856,7 +856,7 @@ export default function TripBuilderPage() {
             </div>
           )}
 
-          <div className="bg-[#0a0f1e] border border-[#1e2d45] rounded-2xl p-4 mb-3">
+          <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-4 mb-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-slate-500 uppercase tracking-widest font-black">Jami byudjet</span>
             </div>
@@ -864,7 +864,7 @@ export default function TripBuilderPage() {
               <span className="text-3xl font-black text-amber-400">{formatUzInteger(grandTotal)}</span>
               <span className="text-sm text-slate-500 ml-1">so&apos;m</span>
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-[#1e2d45]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-slate-700/50">
               {hotelTotal > 0 && <span className="text-xs text-slate-600">🏨 {formatUzInteger(hotelTotal)}</span>}
               {taxiTotal > 0 && <span className="text-xs text-slate-600">🚖 {formatUzInteger(taxiTotal)}</span>}
               {guideTotal > 0 && <span className="text-xs text-slate-600">🧭 {formatUzInteger(guideTotal)}</span>}

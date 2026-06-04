@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS = ["CITY_TOUR", "NATURE", "HISTORY", "ADVENTURE", "FOOD",
 const LANGUAGE_OPTIONS = ["uz", "ru", "en", "tr", "de", "fr", "ar"];
 
 const inputCls =
-  "bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+  "bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
 
 export default function GuideSearchPage() {
   const [loading, setLoading] = useState(false);
@@ -95,12 +95,12 @@ export default function GuideSearchPage() {
   const activeLanguages = useMemo(() => query.languages, [query.languages]);
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
+    <div className="min-h-screen bg-slate-900 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-gradient-to-br from-[#0a0f1e] via-[#0d1525] to-[#0a0f1e] pt-24 pb-12 overflow-hidden">
-        <div className="absolute top-10 right-10 w-72 h-72 bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 left-20 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-24 pb-12 overflow-hidden">
+        <div className="absolute top-10 right-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-20 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-teal-400 text-xs font-black uppercase tracking-[0.2em] mb-2">
@@ -113,7 +113,7 @@ export default function GuideSearchPage() {
             O&apos;zbekiston tarixi, madaniyati va tabiatini mahalliy ekspertlar bilan kashf eting.
           </p>
 
-          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-3 flex flex-wrap gap-2 max-w-4xl">
+          <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-3 flex flex-wrap gap-2 max-w-4xl backdrop-blur-sm">
             <input
               value={query.city}
               onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
@@ -165,7 +165,7 @@ export default function GuideSearchPage() {
       <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-[260px] shrink-0">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 sticky top-24 space-y-6">
+            <div className="bg-slate-800/90 border border-slate-700/50 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm shadow-slate-900/20">
               <h3 className="font-black text-white text-sm flex items-center gap-2">
                 <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
               </h3>
@@ -173,7 +173,7 @@ export default function GuideSearchPage() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen((p) => !p)}
-                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#1e2d45] text-sm font-bold text-slate-400 bg-[#0a0f1e]"
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700/50 text-sm font-bold text-slate-400 bg-slate-900"
               >
                 {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
               </button>
@@ -205,7 +205,7 @@ export default function GuideSearchPage() {
                   <select
                     value={query.category}
                     onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
-                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-amber-500/50"
+                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-amber-500/50"
                   >
                     <option value="">Barchasi</option>
                     {CATEGORY_OPTIONS.map((c) => (
@@ -262,15 +262,15 @@ export default function GuideSearchPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden animate-pulse"
+                    className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-pulse"
                   >
-                    <div className="h-52 bg-[#1a2234]" />
+                    <div className="h-52 bg-slate-700/50" />
                     <div className="p-4 space-y-3">
-                      <div className="h-4 bg-[#1a2234] rounded w-3/4" />
-                      <div className="h-3 bg-[#1a2234] rounded w-1/2" />
+                      <div className="h-4 bg-slate-700/50 rounded w-3/4" />
+                      <div className="h-3 bg-slate-700/50 rounded w-1/2" />
                       <div className="flex justify-between mt-4">
-                        <div className="h-6 bg-[#1a2234] rounded w-1/3" />
-                        <div className="h-8 bg-[#1a2234] rounded-xl w-20" />
+                        <div className="h-6 bg-slate-700/50 rounded w-1/3" />
+                        <div className="h-8 bg-slate-700/50 rounded-xl w-20" />
                       </div>
                     </div>
                   </div>
@@ -295,9 +295,9 @@ export default function GuideSearchPage() {
                   <Link
                     key={item.id}
                     href={`/guide/${item.id}`}
-                    className="group bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    className="group bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/50"
                   >
-                    <div className="relative h-52 bg-[#0a0f1e] overflow-hidden">
+                    <div className="relative h-52 bg-slate-900 overflow-hidden">
                       {item.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -307,7 +307,7 @@ export default function GuideSearchPage() {
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#0d1a2e] to-[#111827]">
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-800">
                           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500/20 to-blue-500/20 border-2 border-teal-500/30 flex items-center justify-center mb-2">
                             <UserCircle size={40} className="text-teal-400" />
                           </div>
@@ -345,7 +345,7 @@ export default function GuideSearchPage() {
                           {item.languages.slice(0, 4).map((l) => (
                             <span
                               key={l}
-                              className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#1a2234] text-slate-400 border border-[#1e2d45]"
+                              className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-700/50"
                             >
                               {languageLabel(l)}
                             </span>

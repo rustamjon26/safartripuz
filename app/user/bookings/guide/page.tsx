@@ -99,7 +99,7 @@ export default function MyGuideBookingsPage() {
           <button
             type="button"
             onClick={() => { setPage(1); void load(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111827] border border-[#1e2d45] text-slate-400 hover:text-white text-xs font-black transition-all hover:border-[#2a3a55]"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white text-xs font-black transition-all hover:border-slate-500"
           >
             <RefreshCw size={13} /> Yangilash
           </button>
@@ -108,20 +108,20 @@ export default function MyGuideBookingsPage() {
         {loading && (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 animate-pulse">
+              <div key={i} className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 animate-pulse">
                 <div className="flex justify-between mb-4">
-                  <div className="h-4 bg-[#1a2234] rounded-lg w-1/3" />
-                  <div className="h-6 bg-[#1a2234] rounded-full w-24" />
+                  <div className="h-4 bg-slate-700/50 rounded-lg w-1/3" />
+                  <div className="h-6 bg-slate-700/50 rounded-full w-24" />
                 </div>
-                <div className="h-3 bg-[#1a2234] rounded-lg w-1/2 mb-2" />
-                <div className="h-3 bg-[#1a2234] rounded-lg w-1/4" />
+                <div className="h-3 bg-slate-700/50 rounded-lg w-1/2 mb-2" />
+                <div className="h-3 bg-slate-700/50 rounded-lg w-1/4" />
               </div>
             ))}
           </div>
         )}
 
         {!loading && items.length === 0 && (
-          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-12 text-center">
+          <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-3">🧭</div>
             <h3 className="text-white font-black text-lg mb-2">Gid bronlari yo&apos;q</h3>
             <p className="text-slate-500 text-sm mb-5">Hali hech qanday gid bron qilmagansiz.</p>
@@ -146,7 +146,7 @@ export default function MyGuideBookingsPage() {
             return (
               <div
                 key={item.id}
-                className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/20 transition-all duration-200"
+                className="bg-slate-800/80 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/25 hover:bg-slate-800 transition-all duration-200"
               >
                 <div className={`h-0.5 w-full ${cfg.dot}`} />
 
@@ -184,7 +184,7 @@ export default function MyGuideBookingsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-[#1e2d45]">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
                     <div>
                       <span className="text-xl font-black text-amber-400">
                         {Number(item.totalPrice).toLocaleString()}
@@ -226,7 +226,7 @@ export default function MyGuideBookingsPage() {
             <button
               type="button"
               onClick={() => setPage((p) => p + 1)}
-              className="px-6 py-2.5 rounded-xl bg-[#111827] border border-[#1e2d45] text-slate-400 hover:text-white hover:border-[#2a3a55] text-sm font-black transition-all"
+              className="px-6 py-2.5 rounded-xl bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white hover:border-slate-500 text-sm font-black transition-all"
             >
               Ko&apos;proq yuklash
             </button>

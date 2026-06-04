@@ -20,7 +20,7 @@ type Listing = {
 };
 
 const inputCls =
-  "w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+  "w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: "📶",
@@ -106,10 +106,10 @@ export default function HomeStaySearchPage() {
   const activeAmenities = useMemo(() => query.amenities, [query.amenities]);
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
+    <div className="min-h-screen bg-slate-900 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-gradient-to-br from-[#0a0f1e] to-[#0d1a2e] pt-20 pb-12 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-slate-900 to-slate-800 pt-20 pb-12 overflow-hidden">
         <div
           className="absolute inset-0 opacity-30 pointer-events-none"
           style={{
@@ -126,7 +126,7 @@ export default function HomeStaySearchPage() {
             O&apos;zbek oilalari uyida autentik tajriba. Wifi, oshxona va ko&apos;p qulayliklar.
           </p>
 
-          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl">
+          <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl backdrop-blur-sm">
             <input
               value={query.city}
               onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
@@ -137,13 +137,13 @@ export default function HomeStaySearchPage() {
               type="date"
               value={query.checkIn}
               onChange={(e) => setQuery((p) => ({ ...p, checkIn: e.target.value }))}
-              className="bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
+              className="bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
             />
             <input
               type="date"
               value={query.checkOut}
               onChange={(e) => setQuery((p) => ({ ...p, checkOut: e.target.value }))}
-              className="bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
+              className="bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
             />
             <input
               type="number"
@@ -151,7 +151,7 @@ export default function HomeStaySearchPage() {
               value={query.guests}
               onChange={(e) => setQuery((p) => ({ ...p, guests: Number(e.target.value) }))}
               placeholder="Mehmonlar"
-              className="w-28 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none"
+              className="w-28 bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none"
             />
             <button
               type="button"
@@ -167,7 +167,7 @@ export default function HomeStaySearchPage() {
       <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-[260px] shrink-0">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 sticky top-24 space-y-6">
+            <div className="bg-slate-800/90 border border-slate-700/50 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm shadow-slate-900/20">
               <h3 className="font-black text-white text-sm flex items-center gap-2">
                 <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
               </h3>
@@ -175,7 +175,7 @@ export default function HomeStaySearchPage() {
               <button
                 type="button"
                 onClick={() => setFiltersOpen((p) => !p)}
-                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#1e2d45] text-sm font-bold text-slate-400 bg-[#0a0f1e]"
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700/50 text-sm font-bold text-slate-400 bg-slate-900"
               >
                 {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
               </button>
@@ -240,7 +240,7 @@ export default function HomeStaySearchPage() {
                     min={1}
                     value={query.minRooms}
                     onChange={(e) => setQuery((p) => ({ ...p, minRooms: Number(e.target.value) }))}
-                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-2.5 text-white font-bold text-sm outline-none focus:border-amber-500/50"
+                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white font-bold text-sm outline-none focus:border-amber-500/50"
                   />
                 </div>
 
@@ -261,15 +261,15 @@ export default function HomeStaySearchPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden animate-pulse"
+                    className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-pulse"
                   >
-                    <div className="h-52 bg-[#1a2234]" />
+                    <div className="h-52 bg-slate-700/50" />
                     <div className="p-4 space-y-3">
-                      <div className="h-4 bg-[#1a2234] rounded w-3/4" />
-                      <div className="h-3 bg-[#1a2234] rounded w-1/2" />
+                      <div className="h-4 bg-slate-700/50 rounded w-3/4" />
+                      <div className="h-3 bg-slate-700/50 rounded w-1/2" />
                       <div className="flex justify-between mt-4">
-                        <div className="h-6 bg-[#1a2234] rounded w-1/3" />
-                        <div className="h-8 bg-[#1a2234] rounded-xl w-20" />
+                        <div className="h-6 bg-slate-700/50 rounded w-1/3" />
+                        <div className="h-8 bg-slate-700/50 rounded-xl w-20" />
                       </div>
                     </div>
                   </div>
@@ -294,9 +294,9 @@ export default function HomeStaySearchPage() {
                   <Link
                     key={item.id}
                     href={`/homestay/${item.id}`}
-                    className="group bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-500/5"
+                    className="group bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/50"
                   >
-                    <div className="relative h-52 bg-[#0a0f1e] overflow-hidden">
+                    <div className="relative h-52 bg-slate-900 overflow-hidden">
                       {item.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img

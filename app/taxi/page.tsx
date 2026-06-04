@@ -165,7 +165,7 @@ export default function TaxiBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e]">
+    <div className="min-h-screen bg-slate-900">
       <Navbar />
 
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -177,7 +177,7 @@ export default function TaxiBookingPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           <div className="space-y-4">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-6">
+            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="font-black text-white mb-4 flex items-center gap-2">
                 <MapPin size={18} className="text-amber-400" /> Manzillar
               </h2>
@@ -188,11 +188,11 @@ export default function TaxiBookingPage() {
                     value={pickupAddress}
                     onChange={(e) => setPickupAddress(e.target.value)}
                     placeholder="Qayerdan ketmoqchisiz?"
-                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
                   />
                 </div>
                 <div className="flex items-center gap-3 px-2">
-                  <div className="w-px h-6 bg-[#1e2d45] ml-1" />
+                  <div className="w-px h-6 bg-slate-700/50 ml-1" />
                   <span className="text-xs text-slate-600">↕</span>
                 </div>
                 <div className="relative">
@@ -201,13 +201,13 @@ export default function TaxiBookingPage() {
                     value={dropoffAddress}
                     onChange={(e) => setDropoffAddress(e.target.value)}
                     placeholder="Qayerga borasiz?"
-                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-6">
+            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="font-black text-white mb-4 flex items-center gap-2">
                 <Clock size={18} className="text-amber-400" /> Vaqt
               </h2>
@@ -218,7 +218,7 @@ export default function TaxiBookingPage() {
                   className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
                     scheduleType === "NOW"
                       ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                      : "bg-[#0a0f1e] border border-[#1e2d45] text-slate-400 hover:text-white"
+                      : "bg-slate-900 border border-slate-700/50 text-slate-400 hover:text-white"
                   }`}
                 >
                   ⚡ Hozir
@@ -229,7 +229,7 @@ export default function TaxiBookingPage() {
                   className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
                     scheduleType === "SCHEDULED"
                       ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                      : "bg-[#0a0f1e] border border-[#1e2d45] text-slate-400 hover:text-white"
+                      : "bg-slate-900 border border-slate-700/50 text-slate-400 hover:text-white"
                   }`}
                 >
                   📅 Rejalashtirilgan
@@ -240,25 +240,25 @@ export default function TaxiBookingPage() {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
-                  className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]"
+                  className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]"
                 />
               )}
               <textarea
                 value={customerNote}
                 onChange={(e) => setCustomerNote(e.target.value)}
                 placeholder="💬 Qo'shimcha izoh (ixtiyoriy)"
-                className="w-full mt-3 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-4 py-3 text-white placeholder:text-slate-500 text-sm outline-none min-h-[80px] resize-none focus:border-amber-500/50"
+                className="w-full mt-3 bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 text-sm outline-none min-h-[80px] resize-none focus:border-amber-500/50"
               />
             </div>
 
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-6">
+            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
               <h2 className="font-black text-white mb-4 flex items-center gap-2">
                 <Car size={18} className="text-amber-400" /> Xizmat turi
               </h2>
               {loadingServices ? (
                 <div className="grid grid-cols-2 gap-3">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-[#0a0f1e] rounded-xl p-4 animate-pulse h-24" />
+                    <div key={i} className="bg-slate-900 rounded-xl p-4 animate-pulse h-24" />
                   ))}
                 </div>
               ) : services.length === 0 ? (
@@ -276,7 +276,7 @@ export default function TaxiBookingPage() {
                       className={`text-left rounded-xl p-4 transition-all border ${
                         selectedServiceId === s.id
                           ? "bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10"
-                          : "bg-[#0a0f1e] border-[#1e2d45] hover:border-[#2a3a55]"
+                          : "bg-slate-900 border-slate-700/50 hover:border-slate-500"
                       }`}
                     >
                       <div className="text-2xl mb-2">{serviceEmoji(s.serviceType)}</div>
@@ -309,8 +309,8 @@ export default function TaxiBookingPage() {
           </div>
 
           <div className="lg:sticky lg:top-24 h-fit">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-[#1a2234] to-[#111827] px-6 py-5 border-b border-[#1e2d45]">
+            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-700/50 to-slate-800 px-6 py-5 border-b border-slate-700/50">
                 <h3 className="font-black text-white flex items-center gap-2">
                   <Receipt size={16} className="text-amber-400" /> Buyurtma xulosasi
                 </h3>
@@ -318,7 +318,7 @@ export default function TaxiBookingPage() {
 
               <div className="p-5 space-y-4">
                 {selectedService && (
-                  <div className="bg-[#0a0f1e] rounded-xl p-4 border border-[#1e2d45]">
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-700/50">
                     <p className="text-xs text-slate-500 uppercase font-black mb-1">Xizmat</p>
                     <p className="font-black text-white">{selectedService.title}</p>
                     <p className="text-xs text-slate-400">{taxiServiceTypeLabel(selectedService.serviceType)}</p>
@@ -345,7 +345,7 @@ export default function TaxiBookingPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-[#0a0f1e] border border-dashed border-[#1e2d45] rounded-xl p-4 text-center">
+                  <div className="bg-slate-900 border border-dashed border-slate-700/50 rounded-xl p-4 text-center">
                     <p className="text-slate-500 text-sm">Narxni hisoblang</p>
                   </div>
                 )}
@@ -354,7 +354,7 @@ export default function TaxiBookingPage() {
                   type="button"
                   onClick={() => void calculateEstimate()}
                   disabled={estimating || !selectedService}
-                  className="w-full bg-[#1a2234] hover:bg-[#1e2d45] border border-[#1e2d45] text-white font-black py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  className="w-full bg-slate-700/50 hover:bg-slate-700/50 border border-slate-700/50 text-white font-black py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                 >
                   {estimating ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
                   {estimating ? "Hisoblanmoqda..." : "Narxni hisoblash"}

@@ -75,15 +75,15 @@ export default function MyHomeStayBookingsPage() {
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 space-y-3">
-                <Skeleton className="h-44 w-full bg-[#1a2234]" />
-                <Skeleton className="h-4 w-3/4 bg-[#1a2234]" />
-                <Skeleton className="h-4 w-1/2 bg-[#1a2234]" />
+              <div key={i} className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 space-y-3">
+                <Skeleton className="h-44 w-full bg-slate-700/50" />
+                <Skeleton className="h-4 w-3/4 bg-slate-700/50" />
+                <Skeleton className="h-4 w-1/2 bg-slate-700/50" />
               </div>
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-12 text-center">
+          <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-3">🛖</div>
             <h3 className="text-white font-black text-lg mb-2">Bronlar yo&apos;q</h3>
             <p className="text-slate-500 text-sm mb-5">Hali HomeStay bron qilmagansiz.</p>
@@ -116,9 +116,9 @@ export default function MyHomeStayBookingsPage() {
             return (
               <div
                 key={item.id}
-                className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/20 transition-all duration-200 flex flex-col md:flex-row"
+                className="bg-slate-800/80 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/25 hover:bg-slate-800 transition-all duration-200 flex flex-col md:flex-row"
               >
-                <div className="md:w-56 h-44 md:h-auto bg-[#1a2234] shrink-0 relative overflow-hidden">
+                <div className="md:w-56 h-44 md:h-auto bg-slate-700/50 shrink-0 relative overflow-hidden">
                   {item.listing.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -133,7 +133,7 @@ export default function MyHomeStayBookingsPage() {
                       <span className="text-slate-600 text-xs font-bold">Rasm yo&apos;q</span>
                     </div>
                   )}
-                  <div className="absolute bottom-2 left-2 bg-[#0a0f1e]/80 backdrop-blur-sm border border-[#1e2d45] rounded-lg px-2 py-1">
+                  <div className="absolute bottom-2 left-2 bg-slate-900/90 backdrop-blur-sm border border-slate-700/50 rounded-lg px-2 py-1">
                     <span className="text-xs font-black text-white">{nights} tun</span>
                   </div>
                 </div>
@@ -157,14 +157,14 @@ export default function MyHomeStayBookingsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 mb-4 w-fit">
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 mb-4 w-fit">
                     <Calendar size={13} className="text-amber-400" />
                     <span className="text-xs font-bold text-slate-300">{checkInStr}</span>
                     <ArrowRight size={11} className="text-slate-600" />
                     <span className="text-xs font-bold text-slate-300">{checkOutStr}</span>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between pt-3 border-t border-[#1e2d45]">
+                  <div className="mt-auto flex items-center justify-between pt-3 border-t border-slate-700/50">
                     <div>
                       <span className="text-xl font-black text-amber-400">
                         {Number(item.totalPrice).toLocaleString()}

@@ -21,11 +21,11 @@ type HotelRow = {
 };
 
 const inputCls =
-  "bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+  "bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
       <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
     </div>
   );
@@ -48,8 +48,8 @@ function HotelCard({
       : 1;
 
   return (
-    <div className="group bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-500/5 flex flex-col">
-      <div className="relative h-52 bg-[#0a0f1e] overflow-hidden">
+    <div className="group bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/50 flex flex-col">
+      <div className="relative h-52 bg-slate-900 overflow-hidden">
         {h.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -160,12 +160,12 @@ function HotelsSearchInner() {
   }, [qs]);
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
+    <div className="min-h-screen bg-slate-900 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-[#0a0f1e] pt-20 pb-16 overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative bg-slate-900 pt-20 pb-16 overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">
@@ -178,7 +178,7 @@ function HotelsSearchInner() {
             O&apos;zbekiston bo&apos;ylab 4-5 yulduzli mehmonxonalar. Qulay narxlar, onlayn bron.
           </p>
 
-          <form action="/hotels" method="get" className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl">
+          <form action="/hotels" method="get" className="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl backdrop-blur-sm">
             <input
               name="city"
               defaultValue={city}
@@ -193,7 +193,7 @@ function HotelsSearchInner() {
               min={1}
               defaultValue={guests}
               placeholder="Mehmonlar"
-              className="w-28 bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-white text-sm outline-none"
+              className="w-28 bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none"
             />
             <button
               type="submit"
@@ -223,15 +223,15 @@ function HotelsSearchInner() {
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-[#111827] border border-[#1e2d45] rounded-2xl overflow-hidden animate-pulse"
+                className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-pulse"
               >
-                <div className="h-52 bg-[#1a2234]" />
+                <div className="h-52 bg-slate-700/50" />
                 <div className="p-4 space-y-3">
-                  <div className="h-4 bg-[#1a2234] rounded w-3/4" />
-                  <div className="h-3 bg-[#1a2234] rounded w-1/3" />
+                  <div className="h-4 bg-slate-700/50 rounded w-3/4" />
+                  <div className="h-3 bg-slate-700/50 rounded w-1/3" />
                   <div className="flex justify-between mt-4">
-                    <div className="h-6 bg-[#1a2234] rounded w-1/3" />
-                    <div className="h-8 bg-[#1a2234] rounded-xl w-20" />
+                    <div className="h-6 bg-slate-700/50 rounded w-1/3" />
+                    <div className="h-8 bg-slate-700/50 rounded-xl w-20" />
                   </div>
                 </div>
               </div>

@@ -72,7 +72,7 @@ export default function MyTaxiOrdersPage() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black border transition-all ${
                 tab === t.value
                   ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-                  : "bg-[#111827] border-[#1e2d45] text-slate-400 hover:border-[#2a3a55] hover:text-white"
+                  : "bg-slate-800 border-slate-700/50 text-slate-400 hover:border-slate-500 hover:text-white"
               }`}
             >
               <span>{t.icon}</span> {t.label}
@@ -88,15 +88,15 @@ export default function MyTaxiOrdersPage() {
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-5 space-y-3">
-                <Skeleton className="h-5 w-1/3 bg-[#1a2234]" />
-                <Skeleton className="h-4 w-2/3 bg-[#1a2234]" />
-                <Skeleton className="h-10 w-full bg-[#1a2234]" />
+              <div key={i} className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 space-y-3">
+                <Skeleton className="h-5 w-1/3 bg-slate-700/50" />
+                <Skeleton className="h-4 w-2/3 bg-slate-700/50" />
+                <Skeleton className="h-10 w-full bg-slate-700/50" />
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-12 text-center">
+          <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-3">🚖</div>
             <h3 className="text-white font-black text-lg mb-2">Taxi buyurtmalar yo&apos;q</h3>
             <p className="text-slate-500 text-sm mb-5">Hali taxi buyurtma qilmagansiz.</p>
@@ -125,10 +125,10 @@ export default function MyTaxiOrdersPage() {
                 <Link
                   key={order.id}
                   href={`/taxi/orders/${order.id}`}
-                  className={`block bg-[#111827] border rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 ${
+                  className={`block bg-slate-800/80 border rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 ${
                     isActive
                       ? "border-amber-500/30 hover:border-amber-500/50"
-                      : "border-[#1e2d45] hover:border-[#2a3a55]"
+                      : "border-slate-700/50 hover:border-amber-500/40 hover:shadow-lg hover:shadow-slate-900/50"
                   }`}
                 >
                   {isActive && (
@@ -145,7 +145,7 @@ export default function MyTaxiOrdersPage() {
                             <p className="text-sm font-bold text-white truncate">{order.pickupAddress}</p>
                           </div>
                           <div className="flex items-center gap-2 pl-0.5">
-                            <div className="w-px h-3 bg-[#1e2d45] ml-0.5" />
+                            <div className="w-px h-3 bg-slate-700/50 ml-0.5" />
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
@@ -162,7 +162,7 @@ export default function MyTaxiOrdersPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-[#1e2d45]">
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
                       <div>
                         <span className="text-lg font-black text-amber-400">{price.toLocaleString()}</span>
                         <span className="text-xs text-slate-500 ml-1">so&apos;m</span>

@@ -1,5 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
 
+:root {
+  --color-base: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-2: #273549;
+  --color-border: #334155;
+}
+
 .dashboard-root {
   font-family: "DM Sans", var(--font-nunito), sans-serif;
 }
@@ -20,12 +27,12 @@
 }
 
 .dashboard-root ::-webkit-scrollbar-thumb {
-  background: #1e2d45;
+  background: #334155;
   border-radius: 99px;
 }
 
 .dashboard-root ::-webkit-scrollbar-thumb:hover {
-  background: #2a3a55;
+  background: #475569;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -38,9 +45,9 @@
 }
 
 .glass-card {
-  background: rgba(17, 24, 39, 0.8);
+  background: rgba(30, 41, 59, 0.85);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 45, 69, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.6);
 }
 
 .gradient-text {

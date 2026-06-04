@@ -163,7 +163,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] dashboard-root">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 dashboard-root">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
           <p className="text-slate-400 font-medium text-sm">Yuklanmoqda...</p>
@@ -173,10 +173,10 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   }
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-[#0a0f1e]">
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-900/95">
       <Link
         href="/"
-        className="flex items-center gap-3 px-6 py-5 border-b border-[#1e2d45]"
+        className="flex items-center gap-3 px-5 py-5 border-b border-slate-700/50 bg-slate-800/50"
       >
         <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
           <Palmtree size={18} className="text-amber-400" />
@@ -193,10 +193,10 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-300 border-l-4 ${
+              className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-300 border-l-2 ${
                 isActive
-                  ? "border-amber-500 bg-[#1a2234] text-white"
-                  : "border-transparent text-slate-400 hover:border-amber-500/50 hover:bg-[#111827] hover:text-white"
+                  ? "border-amber-500 bg-slate-700/60 text-white"
+                  : "border-transparent text-slate-400 hover:border-amber-500/50 hover:bg-slate-800 hover:text-white"
               }`}
             >
               <item.icon
@@ -226,10 +226,10 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <Link
                   key={svc.href}
                   href={svc.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 ${
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-2 ${
                     isActive
-                      ? "border-amber-500 bg-[#1a2234] text-white"
-                      : "border-transparent text-slate-500 hover:border-amber-500/40 hover:bg-[#111827] hover:text-slate-300"
+                      ? "border-amber-500 bg-slate-700/60 text-white"
+                      : "border-transparent text-slate-500 hover:border-amber-500/40 hover:bg-slate-800 hover:text-slate-300"
                   }`}
                 >
                   <svc.icon size={16} className={isActive ? "text-amber-400" : ""} />
@@ -241,8 +241,8 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-[#1e2d45]">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#111827] border border-[#1e2d45] mb-2">
+      <div className="px-3 py-4 border-t border-slate-700/50">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700/50 mb-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-blue-600 text-white flex items-center justify-center text-sm font-black shrink-0 shadow-lg shadow-amber-500/20">
             {initials}
           </div>
@@ -268,8 +268,8 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   );
 
   return (
-    <div className="dashboard-root min-h-screen bg-[#0a0f1e] flex">
-      <aside className="hidden lg:flex w-64 shrink-0 border-r border-[#1e2d45] flex-col fixed top-0 left-0 h-full z-30">
+    <div className="dashboard-root min-h-screen bg-slate-900 flex">
+      <aside className="hidden lg:flex w-64 shrink-0 border-r border-slate-700/50 bg-gradient-to-b from-slate-900 to-slate-900/95 flex-col fixed top-0 left-0 h-full z-30 shadow-sm shadow-slate-900/20">
         <SidebarContent />
       </aside>
 
@@ -282,11 +282,11 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             aria-label="Yopish"
           />
           <aside className="absolute left-0 top-0 h-full w-72 shadow-2xl flex flex-col">
-            <div className="flex justify-end p-3 bg-[#0a0f1e] border-b border-[#1e2d45]">
+            <div className="flex justify-end p-3 bg-slate-900 border-b border-slate-700/50">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-[#1a2234] hover:text-white"
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-700/50 hover:text-white"
               >
                 <X size={20} />
               </button>
@@ -297,17 +297,17 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
       )}
 
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full max-w-[100vw] overflow-x-hidden">
-        <header className="sticky top-0 z-20 bg-[#0a0f1e]/80 backdrop-blur-xl border-b border-[#1e2d45]">
+        <header className="sticky top-0 z-20 bg-slate-900/90 backdrop-blur-xl border-b border-slate-700/50">
           <div className="px-4 sm:px-6 py-4 flex items-center gap-4">
             <button
               type="button"
-              className="lg:hidden p-2.5 rounded-xl bg-[#111827] border border-[#1e2d45] text-slate-300 hover:border-amber-500/30 hover:text-amber-400 transition-all"
+              className="lg:hidden p-2.5 rounded-xl bg-slate-800 border border-slate-700/50 text-slate-300 hover:border-amber-500/30 hover:text-amber-400 transition-all"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu size={20} />
             </button>
 
-            <div className="w-9 h-9 rounded-xl bg-[#1a2234] border border-[#1e2d45] flex items-center justify-center shrink-0 hidden sm:flex">
+            <div className="w-9 h-9 rounded-xl bg-slate-700/50 border border-slate-700/50 flex items-center justify-center shrink-0 hidden sm:flex">
               <PageIcon size={18} className="text-amber-400" />
             </div>
 
@@ -329,12 +329,12 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 className={`p-2.5 rounded-xl transition-all relative border ${
                   showNotif
                     ? "bg-amber-500/20 border-amber-500/40 text-amber-400"
-                    : "bg-[#111827] border-[#1e2d45] text-slate-400 hover:text-white hover:border-[#2a3a55]"
+                    : "bg-slate-800 border-slate-700/50 text-slate-400 hover:text-white hover:border-slate-500"
                 }`}
               >
                 <Bell size={18} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f1e]">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-slate-900">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
@@ -363,7 +363,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-[#111827] border border-[#1e2d45] text-slate-400 hover:border-amber-500/30 hover:text-amber-400 hover:bg-amber-500/10 transition-all whitespace-nowrap"
+                  className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700/50 text-slate-400 hover:border-amber-500/30 hover:text-amber-400 hover:bg-amber-500/10 transition-all whitespace-nowrap"
                 >
                   {link.emoji} {link.label}
                 </Link>

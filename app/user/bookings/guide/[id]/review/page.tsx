@@ -35,7 +35,7 @@ export default function GuideReviewPage() {
 
   return (
     <DashboardShell title="Guide Review" subtitle="Guide tajribangizni baholang">
-      <div className="max-w-2xl mx-auto bg-[#111827] rounded-3xl border border-[#1e2d45] p-6">
+      <div className="max-w-2xl mx-auto bg-slate-800 rounded-3xl border border-slate-700/50 p-6 shadow-sm shadow-slate-900/20">
         <form onSubmit={submitReview} className="space-y-5">
           <div>
             <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
@@ -64,7 +64,7 @@ export default function GuideReviewPage() {
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full min-h-[140px] bg-[#0a0f1e] border border-[#1e2d45] rounded-2xl px-4 py-3 text-white placeholder:text-slate-600 resize-none outline-none focus:border-amber-500/50 text-sm"
+              className="w-full min-h-[140px] bg-slate-700/40 border border-slate-600/50 rounded-2xl px-4 py-3 text-white placeholder:text-slate-500 resize-none outline-none focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/10 text-sm"
               placeholder="Tajriba haqida yozing..."
             />
           </div>

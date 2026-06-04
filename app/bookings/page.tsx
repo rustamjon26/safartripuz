@@ -82,7 +82,7 @@ export default function BookingsPage() {
         {statCards.map((s) => (
           <div
             key={s.label}
-            className="relative overflow-hidden bg-[#111827] rounded-2xl border border-[#1e2d45] p-5 hover:border-amber-500/20 transition-all group"
+            className="relative overflow-hidden bg-slate-800/80 rounded-2xl border border-slate-700/50 p-5 shadow-sm shadow-slate-900/20 hover:border-amber-500/30 hover:bg-slate-800 transition-all group"
           >
             <div className="absolute -bottom-2 -right-2 opacity-5 group-hover:opacity-10 transition-opacity text-slate-400">
               <s.icon size={80} />
@@ -111,7 +111,7 @@ export default function BookingsPage() {
         </Link>
       </div>
 
-      <div className="bg-[#111827] rounded-3xl border border-[#1e2d45] overflow-hidden">
+      <div className="bg-slate-800 rounded-3xl border border-slate-700/50 overflow-hidden">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
@@ -119,7 +119,7 @@ export default function BookingsPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <div className="w-20 h-20 bg-[#1a2234] rounded-3xl flex items-center justify-center mb-5 text-4xl border border-[#1e2d45]">
+            <div className="w-20 h-20 bg-slate-700/50 rounded-3xl flex items-center justify-center mb-5 text-4xl border border-slate-700/50">
               🗺️
             </div>
             <h3 className="text-xl font-black text-white mb-2">Hali sayohatlar yo&apos;q</h3>
@@ -129,19 +129,19 @@ export default function BookingsPage() {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-[#1e2d45]">
+          <div className="divide-y divide-slate-700/50">
             {items.map((p) => {
               const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.DRAFT;
               const StatusIcon = sc.icon;
               return (
                 <div
                   key={p.id}
-                  className={`p-5 sm:p-6 hover:bg-[#1a2234]/50 transition-colors border-l-4 ${sc.accent}`}
+                  className={`p-5 sm:p-6 hover:bg-slate-700/50/50 transition-colors border-l-4 ${sc.accent}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500/30 to-blue-600/30 text-amber-400 rounded-2xl flex items-center justify-center shrink-0 border border-[#1e2d45]">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500/30 to-blue-600/30 text-amber-400 rounded-2xl flex items-center justify-center shrink-0 border border-slate-700/50">
                           <MapPin size={18} />
                         </div>
                         <div>
@@ -158,7 +158,7 @@ export default function BookingsPage() {
                           {p.items.map((item) => (
                             <span
                               key={item.id}
-                              className="inline-flex items-center gap-1.5 text-xs font-bold bg-[#0a0f1e] text-slate-300 px-2.5 py-1 rounded-full border border-[#1e2d45]"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold bg-slate-900 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700/50"
                             >
                               {item.type === "HOTEL" ? <Home size={10} /> : item.type === "TAXI" ? <Car size={10} /> : <UserIcon size={10} />}
                               {item.title}
