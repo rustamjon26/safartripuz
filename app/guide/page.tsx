@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS = ["CITY_TOUR", "NATURE", "HISTORY", "ADVENTURE", "FOOD",
 const LANGUAGE_OPTIONS = ["uz", "ru", "en", "tr", "de", "fr", "ar"];
 
 const inputCls =
-  "bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+  "bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]";
 
 export default function GuideSearchPage() {
   const [loading, setLoading] = useState(false);
@@ -95,10 +95,10 @@ export default function GuideSearchPage() {
   const activeLanguages = useMemo(() => query.languages, [query.languages]);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-24 pb-12 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-24 pb-12 overflow-hidden">
         <div className="absolute top-10 right-10 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 left-20 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -109,16 +109,16 @@ export default function GuideSearchPage() {
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
             Tajribali <span className="text-amber-400">Gidlar</span>
           </h1>
-          <p className="text-slate-400 text-base max-w-xl mb-8">
+          <p className="text-gray-300 text-base max-w-xl mb-8">
             O&apos;zbekiston tarixi, madaniyati va tabiatini mahalliy ekspertlar bilan kashf eting.
           </p>
 
-          <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-3 flex flex-wrap gap-2 max-w-4xl backdrop-blur-sm">
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-wrap gap-2 max-w-4xl backdrop-blur-sm">
             <input
               value={query.city}
               onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
               placeholder="📍 Shahar"
-              className="flex-1 min-w-[120px] bg-transparent text-white placeholder:text-slate-500 px-3 py-2 text-sm outline-none"
+              className="flex-1 min-w-[120px] bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm outline-none focus:ring-2 focus:ring-amber-400/50"
             />
             <select
               value={query.category}
@@ -165,22 +165,22 @@ export default function GuideSearchPage() {
       <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-[260px] shrink-0">
-            <div className="bg-slate-800/90 border border-slate-700/50 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm shadow-slate-900/20">
-              <h3 className="font-black text-white text-sm flex items-center gap-2">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 sticky top-24 shadow-sm">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2">
                 <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
               </h3>
 
               <button
                 type="button"
                 onClick={() => setFiltersOpen((p) => !p)}
-                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700/50 text-sm font-bold text-slate-400 bg-slate-900"
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 bg-gray-50"
               >
                 {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
               </button>
 
               <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-6`}>
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
                     Narx oralig&apos;i
                   </label>
                   <input
@@ -192,20 +192,20 @@ export default function GuideSearchPage() {
                     onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))}
                     className="w-full accent-amber-500"
                   />
-                  <div className="flex justify-between text-xs text-amber-400 font-bold mt-2">
+                  <div className="flex justify-between text-xs text-amber-600 font-bold mt-2">
                     <span>0</span>
                     <span>{formatUzInteger(query.maxPrice)} so&apos;m</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">
                     Kategoriya
                   </label>
                   <select
                     value={query.category}
                     onChange={(e) => setQuery((p) => ({ ...p, category: e.target.value }))}
-                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-amber-500/50"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
                   >
                     <option value="">Barchasi</option>
                     {CATEGORY_OPTIONS.map((c) => (
@@ -217,14 +217,14 @@ export default function GuideSearchPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
                     Tillar
                   </label>
                   <div className="space-y-2">
                     {LANGUAGE_OPTIONS.map((lang) => (
                       <label
                         key={lang}
-                        className="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer group"
+                        className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer group"
                       >
                         <input
                           type="checkbox"
@@ -239,7 +239,7 @@ export default function GuideSearchPage() {
                           }
                           className="accent-amber-500"
                         />
-                        <span className="group-hover:text-white transition-colors">{languageLabel(lang)}</span>
+                        <span className="group-hover:text-gray-900 transition-colors">{languageLabel(lang)}</span>
                       </label>
                     ))}
                   </div>
@@ -262,15 +262,15 @@ export default function GuideSearchPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-pulse"
+                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse"
                   >
-                    <div className="h-52 bg-slate-700/50" />
+                    <div className="h-52 bg-gray-100" />
                     <div className="p-4 space-y-3">
-                      <div className="h-4 bg-slate-700/50 rounded w-3/4" />
-                      <div className="h-3 bg-slate-700/50 rounded w-1/2" />
+                      <div className="h-4 bg-gray-100 rounded w-3/4" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
                       <div className="flex justify-between mt-4">
-                        <div className="h-6 bg-slate-700/50 rounded w-1/3" />
-                        <div className="h-8 bg-slate-700/50 rounded-xl w-20" />
+                        <div className="h-6 bg-gray-100 rounded w-1/3" />
+                        <div className="h-8 bg-gray-100 rounded-xl w-20" />
                       </div>
                     </div>
                   </div>
@@ -279,8 +279,8 @@ export default function GuideSearchPage() {
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="text-6xl mb-4">🔍</div>
-                <h3 className="font-black text-white text-lg mb-2">Natija topilmadi</h3>
-                <p className="text-slate-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
+                <h3 className="font-black text-gray-900 text-lg mb-2">Natija topilmadi</h3>
+                <p className="text-gray-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
                 <button
                   type="button"
                   onClick={() => void runSearch({ city: "", category: "", languages: [] })}
@@ -295,9 +295,9 @@ export default function GuideSearchPage() {
                   <Link
                     key={item.id}
                     href={`/guide/${item.id}`}
-                    className="group bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/50"
+                    className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-amber-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                   >
-                    <div className="relative h-52 bg-slate-900 overflow-hidden">
+                    <div className="relative h-52 bg-gray-50 overflow-hidden">
                       {item.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -311,7 +311,7 @@ export default function GuideSearchPage() {
                           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500/20 to-blue-500/20 border-2 border-teal-500/30 flex items-center justify-center mb-2">
                             <UserCircle size={40} className="text-teal-400" />
                           </div>
-                          <span className="text-slate-500 text-xs">
+                          <span className="text-gray-500 text-xs">
                             {item.host ? `${item.host.first_name} ${item.host.last_name}` : "Gid"}
                           </span>
                         </div>
@@ -327,7 +327,7 @@ export default function GuideSearchPage() {
                           <span className="text-white text-xs font-black">
                             {(item.avgRating ?? item.rating ?? 0).toFixed(1)}
                           </span>
-                          <span className="text-slate-400 text-xs">({item.reviewCount ?? 0})</span>
+                          <span className="text-gray-500 text-xs">({item.reviewCount ?? 0})</span>
                         </div>
                       )}
                     </div>
@@ -338,14 +338,14 @@ export default function GuideSearchPage() {
                           👤 {item.host.first_name} {item.host.last_name}
                         </p>
                       )}
-                      <h3 className="font-black text-white text-sm leading-tight mb-2">{item.title}</h3>
+                      <h3 className="font-black text-gray-900 text-sm leading-tight mb-2">{item.title}</h3>
 
                       {(item.languages?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
                           {item.languages.slice(0, 4).map((l) => (
                             <span
                               key={l}
-                              className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-700/50"
+                              className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-50 text-gray-500 border border-gray-200"
                             >
                               {languageLabel(l)}
                             </span>
@@ -355,7 +355,7 @@ export default function GuideSearchPage() {
 
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xl font-black text-amber-400">
+                          <span className="text-xl font-black text-amber-600">
                             {formatPricePerUnit(Number(item.pricePerHour), "soat")}
                           </span>
                         </div>

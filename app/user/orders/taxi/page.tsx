@@ -17,13 +17,13 @@ type TaxiOrder = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
-  PENDING:     { label: "Kutilmoqda",    classes: "bg-amber-500/15 border-amber-500/30 text-amber-400",     dot: "bg-amber-400" },
-  ACCEPTED:    { label: "Qabul qilindi", classes: "bg-blue-500/15 border-blue-500/30 text-blue-400",        dot: "bg-blue-400" },
-  ARRIVED:     { label: "Yetib keldi",   classes: "bg-cyan-500/15 border-cyan-500/30 text-cyan-400",        dot: "bg-cyan-400" },
-  IN_PROGRESS: { label: "Jarayonda",     classes: "bg-violet-500/15 border-violet-500/30 text-violet-400",  dot: "bg-violet-400" },
-  COMPLETED:   { label: "Yakunlandi",    classes: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400", dot: "bg-emerald-400" },
-  CANCELLED:   { label: "Bekor qilindi", classes: "bg-red-500/15 border-red-500/30 text-red-400",           dot: "bg-red-400" },
-  DISPUTE:     { label: "Munozara",      classes: "bg-orange-500/15 border-orange-500/30 text-orange-400",  dot: "bg-orange-400" },
+  PENDING:     { label: "Kutilmoqda",    classes: "bg-amber-50 border-amber-200 text-amber-700",     dot: "bg-amber-500" },
+  ACCEPTED:    { label: "Qabul qilindi", classes: "bg-blue-50 border-blue-200 text-blue-700",        dot: "bg-blue-500" },
+  ARRIVED:     { label: "Yetib keldi",   classes: "bg-cyan-50 border-cyan-200 text-cyan-700",        dot: "bg-cyan-500" },
+  IN_PROGRESS: { label: "Jarayonda",     classes: "bg-violet-50 border-violet-200 text-violet-700",  dot: "bg-violet-500" },
+  COMPLETED:   { label: "Yakunlandi",    classes: "bg-emerald-50 border-emerald-200 text-emerald-700", dot: "bg-emerald-500" },
+  CANCELLED:   { label: "Bekor qilindi", classes: "bg-red-50 border-red-200 text-red-700",           dot: "bg-red-500" },
+  DISPUTE:     { label: "Munozara",      classes: "bg-orange-50 border-orange-200 text-orange-700",  dot: "bg-orange-500" },
 };
 
 const tabs = [
@@ -71,13 +71,13 @@ export default function MyTaxiOrdersPage() {
               onClick={() => setTab(t.value)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black border transition-all ${
                 tab === t.value
-                  ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
-                  : "bg-slate-800 border-slate-700/50 text-slate-400 hover:border-slate-500 hover:text-white"
+                  ? "bg-amber-50 border-amber-200 text-amber-700"
+                  : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
               }`}
             >
               <span>{t.icon}</span> {t.label}
               {tab === t.value && (
-                <span className="ml-1 bg-amber-500/30 text-amber-400 rounded-full px-1.5 py-0.5 text-[10px] font-black">
+                <span className="ml-1 bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-black">
                   {filtered.length}
                 </span>
               )}
@@ -88,18 +88,18 @@ export default function MyTaxiOrdersPage() {
         {loading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 space-y-3">
-                <Skeleton className="h-5 w-1/3 bg-slate-700/50" />
-                <Skeleton className="h-4 w-2/3 bg-slate-700/50" />
-                <Skeleton className="h-10 w-full bg-slate-700/50" />
+              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+                <Skeleton className="h-5 w-1/3 bg-gray-50" />
+                <Skeleton className="h-4 w-2/3 bg-gray-50" />
+                <Skeleton className="h-10 w-full bg-gray-50" />
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-12 text-center">
+          <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-3">🚖</div>
-            <h3 className="text-white font-black text-lg mb-2">Taxi buyurtmalar yo&apos;q</h3>
-            <p className="text-slate-500 text-sm mb-5">Hali taxi buyurtma qilmagansiz.</p>
+            <h3 className="text-gray-900 font-black text-lg mb-2">Taxi buyurtmalar yo&apos;q</h3>
+            <p className="text-gray-500 text-sm mb-5">Hali taxi buyurtma qilmagansiz.</p>
             <Link
               href="/taxi"
               className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-all"
@@ -125,10 +125,10 @@ export default function MyTaxiOrdersPage() {
                 <Link
                   key={order.id}
                   href={`/taxi/orders/${order.id}`}
-                  className={`block bg-slate-800/80 border rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 ${
+                  className={`block bg-white border rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
                     isActive
-                      ? "border-amber-500/30 hover:border-amber-500/50"
-                      : "border-slate-700/50 hover:border-amber-500/40 hover:shadow-lg hover:shadow-slate-900/50"
+                      ? "border-amber-200 hover:border-amber-300"
+                      : "border-gray-200 hover:border-amber-200"
                   }`}
                 >
                   {isActive && (
@@ -138,18 +138,18 @@ export default function MyTaxiOrdersPage() {
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-500 mb-2">{dateStr}</p>
+                        <p className="text-xs text-gray-500 mb-2">{dateStr}</p>
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                            <p className="text-sm font-bold text-white truncate">{order.pickupAddress}</p>
+                            <p className="text-sm font-bold text-gray-900 truncate">{order.pickupAddress}</p>
                           </div>
                           <div className="flex items-center gap-2 pl-0.5">
-                            <div className="w-px h-3 bg-slate-700/50 ml-0.5" />
+                            <div className="w-px h-3 bg-gray-200 ml-0.5" />
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-                            <p className="text-sm font-bold text-slate-300 truncate">{order.dropoffAddress}</p>
+                            <p className="text-sm font-bold text-gray-700 truncate">{order.dropoffAddress}</p>
                           </div>
                         </div>
                       </div>
@@ -162,15 +162,15 @@ export default function MyTaxiOrdersPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                       <div>
-                        <span className="text-lg font-black text-amber-400">{price.toLocaleString()}</span>
-                        <span className="text-xs text-slate-500 ml-1">so&apos;m</span>
+                        <span className="text-lg font-black text-amber-600">{price.toLocaleString()}</span>
+                        <span className="text-xs text-gray-500 ml-1">so&apos;m</span>
                         {order.finalPrice == null && (
-                          <span className="text-xs text-slate-600 ml-1">(taxminiy)</span>
+                          <span className="text-xs text-gray-400 ml-1">(taxminiy)</span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-600 flex items-center gap-1 hover:text-slate-400 transition-colors">
+                      <span className="text-xs text-gray-400 flex items-center gap-1 hover:text-gray-500 transition-colors">
                         Batafsil <ChevronRight size={13} />
                       </span>
                     </div>

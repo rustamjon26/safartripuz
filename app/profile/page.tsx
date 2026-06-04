@@ -19,7 +19,7 @@ type UserStats = {
 };
 
 const inputClass =
-  "w-full bg-slate-900 border border-slate-700/50 rounded-2xl px-4 py-3 font-bold text-white outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 transition-all";
+  "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all";
 
 export default function ProfilePage() {
   const { user, loading: userLoading } = useCurrentUser();
@@ -92,13 +92,13 @@ export default function ProfilePage() {
 
   return (
     <DashboardShell title="Mening Profilim" subtitle="Shaxsiy ma'lumotlar va hisob sozlamalari">
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-800/90 to-slate-900 rounded-3xl border border-slate-700/50 p-8 mb-8 shadow-sm shadow-slate-900/20">
+      <div className="relative overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 mb-6 text-white">
         <div className="absolute -top-16 -right-16 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl" />
         <div className="relative flex flex-col items-center text-center">
           <div className="relative mb-4">
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-500 to-blue-600 blur-md opacity-60 scale-110" />
             <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-amber-500 to-blue-600 p-1">
-              <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-3xl font-black text-white">
+              <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-3xl font-black text-white">
                 {!userLoading ? initials : "?"}
               </div>
             </div>
@@ -106,32 +106,32 @@ export default function ProfilePage() {
           <h2 className="text-xl font-black text-white">
             {userLoading ? "Yuklanmoqda..." : `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() || "Foydalanuvchi"}
           </h2>
-          <p className="text-slate-500 text-sm mt-1">{user?.email}</p>
-          <span className="inline-block mt-3 text-xs font-black px-3 py-1.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+          <p className="text-gray-300 text-sm mt-1">{user?.email}</p>
+          <span className="inline-block mt-3 text-xs font-black px-3 py-1.5 rounded-full bg-white/20 text-white border border-white/30">
             {user?.role ? (roleLabel[user.role.toLowerCase()] ?? user.role) : "—"}
           </span>
 
           <div className="grid grid-cols-3 gap-4 w-full max-w-md mt-8">
             {statRow.map((s) => (
-              <div key={s.label} className="bg-slate-700/40 border border-slate-600/50 rounded-2xl p-4 hover:bg-slate-700/60 hover:border-amber-500/30 transition-all">
-                <s.icon size={16} className="text-amber-400 mx-auto mb-2" />
-                <p className="text-lg font-black text-white">{s.value}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">{s.label}</p>
+              <div key={s.label} className="bg-white/10 border border-white/20 rounded-2xl p-4 text-center backdrop-blur-sm">
+                <s.icon size={16} className="text-amber-300 mx-auto mb-2" />
+                <p className="text-white font-black text-2xl">{s.value}</p>
+                <p className="text-gray-300 text-xs uppercase tracking-widest mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-800 rounded-3xl border border-slate-700/50 overflow-hidden">
-        <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-700/50">
-          <User size={18} className="text-amber-400" />
-          <h3 className="font-black text-white">Shaxsiy Ma&apos;lumotlar</h3>
+      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <User size={18} className="text-amber-500" />
+          <h3 className="font-black text-gray-900">Shaxsiy Ma&apos;lumotlar</h3>
         </div>
         <form onSubmit={saveProfile} className="p-6 space-y-5 max-w-xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Ism</label>
+              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Ism</label>
               <input
                 value={form.first_name}
                 onChange={(e) => setForm({ ...form, first_name: e.target.value })}
@@ -140,7 +140,7 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Familiya</label>
+              <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Familiya</label>
               <input
                 value={form.last_name}
                 onChange={(e) => setForm({ ...form, last_name: e.target.value })}
@@ -151,14 +151,14 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2 flex items-center gap-1">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2 flex items-center gap-1">
               <Mail size={11} /> Email (o&apos;zgartirib bo&apos;lmaydi)
             </label>
             <input value={user?.email ?? ""} disabled className={`${inputClass} opacity-60 cursor-not-allowed`} />
           </div>
 
           <div>
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2 flex items-center gap-1">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2 flex items-center gap-1">
               <Phone size={11} /> Telefon raqam
             </label>
             <input
@@ -182,36 +182,36 @@ export default function ProfilePage() {
         </form>
       </div>
 
-      <div className="bg-slate-800 rounded-3xl border border-slate-700/50 overflow-hidden mt-6">
-        <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-700/50">
+      <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden mt-6">
+        <div className="flex items-center gap-2 px-6 py-5 border-b border-gray-200">
           <Key size={18} className="text-amber-400" />
           <h3 className="font-black text-white">Hisob Xavfsizligi</h3>
         </div>
         <div className="p-6 space-y-3">
-          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-slate-700/50">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
               <div className="font-bold text-white text-sm">Email tasdiqlangan</div>
-              <div className="text-xs text-slate-500 mt-0.5">{user?.email}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{user?.email}</div>
             </div>
             <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
               <CheckCircle2 size={12} /> Tasdiqlangan
             </span>
           </div>
-          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-slate-700/50">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
               <div className="font-bold text-white text-sm">Parolni o&apos;zgartirish</div>
-              <div className="text-xs text-slate-500 mt-0.5">Parolingizni muntazam yangilab turing</div>
+              <div className="text-xs text-gray-500 mt-0.5">Parolingizni muntazam yangilab turing</div>
             </div>
             <button type="button" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
               O&apos;zgartirish →
             </button>
           </div>
-          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-2xl border border-slate-700/50">
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
               <div className="font-bold text-white text-sm">Hisob turi</div>
-              <div className="text-xs text-slate-500 mt-0.5">{user?.role ? (roleLabel[user.role.toLowerCase()] ?? user.role) : "—"}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{user?.role ? (roleLabel[user.role.toLowerCase()] ?? user.role) : "—"}</div>
             </div>
-            <Shield size={18} className="text-slate-500" />
+            <Shield size={18} className="text-gray-500" />
           </div>
         </div>
       </div>

@@ -32,12 +32,12 @@ type Booking = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
-  PENDING:     { label: "Kutilmoqda",    classes: "bg-amber-500/15 border-amber-500/30 text-amber-400",     dot: "bg-amber-400" },
-  CONFIRMED:   { label: "Tasdiqlangan",  classes: "bg-blue-500/15 border-blue-500/30 text-blue-400",        dot: "bg-blue-400" },
-  IN_PROGRESS: { label: "Jarayonda",     classes: "bg-violet-500/15 border-violet-500/30 text-violet-400",  dot: "bg-violet-400" },
-  COMPLETED:   { label: "Yakunlandi",    classes: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400", dot: "bg-emerald-400" },
-  CANCELLED:   { label: "Bekor qilindi", classes: "bg-red-500/15 border-red-500/30 text-red-400",           dot: "bg-red-400" },
-  DISPUTE:     { label: "Munozara",      classes: "bg-orange-500/15 border-orange-500/30 text-orange-400",  dot: "bg-orange-400" },
+  PENDING:     { label: "Kutilmoqda",    classes: "bg-amber-50 border-amber-200 text-amber-700",     dot: "bg-amber-500" },
+  CONFIRMED:   { label: "Tasdiqlangan",  classes: "bg-blue-50 border-blue-200 text-blue-700",        dot: "bg-blue-500" },
+  IN_PROGRESS: { label: "Jarayonda",     classes: "bg-violet-50 border-violet-200 text-violet-700",  dot: "bg-violet-500" },
+  COMPLETED:   { label: "Yakunlandi",    classes: "bg-emerald-50 border-emerald-200 text-emerald-700", dot: "bg-emerald-500" },
+  CANCELLED:   { label: "Bekor qilindi", classes: "bg-red-50 border-red-200 text-red-700",           dot: "bg-red-500" },
+  DISPUTE:     { label: "Munozara",      classes: "bg-orange-50 border-orange-200 text-orange-700",  dot: "bg-orange-500" },
 };
 
 export default function MyGuideBookingsPage() {
@@ -95,11 +95,11 @@ export default function MyGuideBookingsPage() {
     <DashboardShell title="Guide Bookings" subtitle="My guide booking history">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <p className="text-slate-400 text-sm">{items.length} ta bron</p>
+          <p className="text-gray-500 text-sm">{items.length} ta bron</p>
           <button
             type="button"
             onClick={() => { setPage(1); void load(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white text-xs font-black transition-all hover:border-slate-500"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-300 text-xs font-black transition-all"
           >
             <RefreshCw size={13} /> Yangilash
           </button>
@@ -108,23 +108,23 @@ export default function MyGuideBookingsPage() {
         {loading && (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700/50 rounded-2xl p-5 animate-pulse">
+              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-5 animate-pulse">
                 <div className="flex justify-between mb-4">
-                  <div className="h-4 bg-slate-700/50 rounded-lg w-1/3" />
-                  <div className="h-6 bg-slate-700/50 rounded-full w-24" />
+                  <div className="h-4 bg-gray-50 rounded-lg w-1/3" />
+                  <div className="h-6 bg-gray-50 rounded-full w-24" />
                 </div>
-                <div className="h-3 bg-slate-700/50 rounded-lg w-1/2 mb-2" />
-                <div className="h-3 bg-slate-700/50 rounded-lg w-1/4" />
+                <div className="h-3 bg-gray-50 rounded-lg w-1/2 mb-2" />
+                <div className="h-3 bg-gray-50 rounded-lg w-1/4" />
               </div>
             ))}
           </div>
         )}
 
         {!loading && items.length === 0 && (
-          <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-12 text-center">
+          <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
             <div className="text-5xl mb-3">🧭</div>
-            <h3 className="text-white font-black text-lg mb-2">Gid bronlari yo&apos;q</h3>
-            <p className="text-slate-500 text-sm mb-5">Hali hech qanday gid bron qilmagansiz.</p>
+            <h3 className="text-gray-900 font-black text-lg mb-2">Gid bronlari yo&apos;q</h3>
+            <p className="text-gray-500 text-sm mb-5">Hali hech qanday gid bron qilmagansiz.</p>
             <Link
               href="/guide"
               className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-all"
@@ -146,17 +146,17 @@ export default function MyGuideBookingsPage() {
             return (
               <div
                 key={item.id}
-                className="bg-slate-800/80 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/25 hover:bg-slate-800 transition-all duration-200"
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-amber-200 hover:shadow-md transition-all duration-200"
               >
                 <div className={`h-0.5 w-full ${cfg.dot}`} />
 
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-white text-base leading-snug line-clamp-2 mb-1">
+                      <h3 className="font-black text-gray-900 text-base leading-snug line-clamp-2 mb-1">
                         🧭 {item.listing.title}
                       </h3>
-                      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
                           <CalendarDays size={11} className="text-amber-400" />
                           {dateStr}
@@ -184,19 +184,19 @@ export default function MyGuideBookingsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                     <div>
-                      <span className="text-xl font-black text-amber-400">
+                      <span className="text-xl font-black text-amber-600">
                         {Number(item.totalPrice).toLocaleString()}
                       </span>
-                      <span className="text-xs text-slate-500 ml-1">so&apos;m</span>
+                      <span className="text-xs text-gray-500 ml-1">so&apos;m</span>
                     </div>
                     <div className="flex gap-2">
                       {(item.status === "PENDING" || item.status === "CONFIRMED") && (
                         <button
                           type="button"
                           onClick={() => void cancelBooking(item.id)}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-black hover:bg-red-500/20 transition-all"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 text-xs font-black transition-all"
                         >
                           <XCircle size={13} /> Bekor qilish
                         </button>
@@ -204,13 +204,13 @@ export default function MyGuideBookingsPage() {
                       {item.status === "COMPLETED" && !item.review && (
                         <Link
                           href={`/user/bookings/guide/${item.id}/review`}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black hover:bg-amber-500/20 transition-all"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-black transition-all"
                         >
                           <Star size={13} /> Baho berish
                         </Link>
                       )}
                       {item.status === "COMPLETED" && item.review && (
-                        <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
+                        <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
                           <CheckCircle2 size={13} /> Baholandi
                         </span>
                       )}
@@ -226,7 +226,7 @@ export default function MyGuideBookingsPage() {
             <button
               type="button"
               onClick={() => setPage((p) => p + 1)}
-              className="px-6 py-2.5 rounded-xl bg-slate-800 border border-slate-700/50 text-slate-400 hover:text-white hover:border-slate-500 text-sm font-black transition-all"
+              className="px-6 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:text-gray-900 hover:border-gray-300 text-sm font-black transition-all"
             >
               Ko&apos;proq yuklash
             </button>

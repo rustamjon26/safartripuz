@@ -65,31 +65,31 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
         
         {/* Plan Summary Card */}
         {plan && (
-          <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm mb-8">
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-50">
-              <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center shrink-0">
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 shadow-sm mb-8">
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+              <div className="w-16 h-16 bg-gray-900 text-white rounded-2xl flex items-center justify-center shrink-0">
                 <ListChecks size={28} />
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-800 leading-tight">
+                <h2 className="text-xl font-black text-gray-900 leading-tight">
                   {plan.tourPackage?.title || plan.destination}
                 </h2>
-                <p className="text-slate-500 font-bold text-sm flex items-center gap-1.5 mt-1">
-                  <MapPin size={14} className="text-slate-400" /> {plan.destination}
+                <p className="text-gray-500 font-bold text-sm flex items-center gap-1.5 mt-1">
+                  <MapPin size={14} className="text-gray-500" /> {plan.destination}
                 </p>
               </div>
             </div>
 
             <div className="flex items-end justify-between">
               <div>
-                <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                <span className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                   <Tag size={12} /> Umumiy To'lov
                 </span>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="font-black text-3xl text-slate-900 tracking-tight">
+                  <span className="font-black text-3xl text-gray-900 tracking-tight">
                     {Number(plan.totalAmount).toLocaleString()}
                   </span>
-                  <span className="text-sm font-black text-slate-500 uppercase">so'm</span>
+                  <span className="text-sm font-black text-gray-500 uppercase">so'm</span>
                 </div>
               </div>
             </div>
@@ -103,8 +103,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                  <CreditCard className="w-8 h-8" />
               </div>
               <div className="text-left">
-                <h3 className="text-xl font-black text-slate-800">Click Evolution</h3>
-                <p className="text-sm font-medium text-slate-500">Karta orqali tezkor to'lov</p>
+                <h3 className="text-xl font-black text-gray-900">Click Evolution</h3>
+                <p className="text-sm font-medium text-gray-500">Karta orqali tezkor to'lov</p>
               </div>
             </div>
           </button>
@@ -115,8 +115,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                  <ShieldCheck className="w-8 h-8" />
               </div>
               <div className="text-left">
-                <h3 className="text-xl font-black text-slate-800">Payme</h3>
-                <p className="text-sm font-medium text-slate-500">Xavfsiz va ishonchli transfer</p>
+                <h3 className="text-xl font-black text-gray-900">Payme</h3>
+                <p className="text-sm font-medium text-gray-500">Xavfsiz va ishonchli transfer</p>
               </div>
             </div>
           </button>
@@ -127,8 +127,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                  <Box className="w-8 h-8" />
               </div>
               <div className="text-left">
-                <h3 className="text-xl font-black text-slate-800">Uzum Bank</h3>
-                <p className="text-sm font-medium text-slate-500">Uzum hisobidan to'lash</p>
+                <h3 className="text-xl font-black text-gray-900">Uzum Bank</h3>
+                <p className="text-sm font-medium text-gray-500">Uzum hisobidan to'lash</p>
               </div>
             </div>
           </button>
@@ -139,8 +139,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                  <Banknote className="w-8 h-8" />
               </div>
               <div className="text-left">
-                <h3 className="text-xl font-black text-slate-800">Karta orqali (Ruchnoy)</h3>
-                <p className="text-sm font-medium text-slate-500">Hisob raqamiga pul o'tkazish</p>
+                <h3 className="text-xl font-black text-gray-900">Karta orqali (Ruchnoy)</h3>
+                <p className="text-sm font-medium text-gray-500">Hisob raqamiga pul o'tkazish</p>
               </div>
             </div>
           </button>

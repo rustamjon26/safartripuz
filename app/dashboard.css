@@ -1,10 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
 
 :root {
-  --color-base: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-2: #273549;
-  --color-border: #334155;
+  --color-base: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f9fafb;
+  --color-border: #e5e7eb;
 }
 
 .dashboard-root {
@@ -27,12 +27,12 @@
 }
 
 .dashboard-root ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #d1d5db;
   border-radius: 99px;
 }
 
 .dashboard-root ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #9ca3af;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -45,13 +45,13 @@
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(229, 231, 235, 0.9);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #f59e0b, #3b82f6);
+  background: linear-gradient(135deg, #d97706, #2563eb);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

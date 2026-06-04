@@ -20,7 +20,7 @@ type Listing = {
 };
 
 const inputCls =
-  "w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white placeholder:text-slate-600 text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]";
+  "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 [color-scheme:light]";
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: "📶",
@@ -106,10 +106,10 @@ export default function HomeStaySearchPage() {
   const activeAmenities = useMemo(() => query.amenities, [query.amenities]);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-gradient-to-br from-slate-900 to-slate-800 pt-20 pb-12 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-gray-900 to-gray-800 pt-24 pb-14 overflow-hidden">
         <div
           className="absolute inset-0 opacity-30 pointer-events-none"
           style={{
@@ -122,28 +122,28 @@ export default function HomeStaySearchPage() {
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
             Mahalliy <span className="text-amber-400">uylarida</span> qoling
           </h1>
-          <p className="text-slate-400 text-base max-w-xl mb-8">
+          <p className="text-gray-300 text-base max-w-xl mb-8">
             O&apos;zbek oilalari uyida autentik tajriba. Wifi, oshxona va ko&apos;p qulayliklar.
           </p>
 
-          <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-3 flex flex-wrap gap-2 max-w-3xl backdrop-blur-sm">
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-wrap gap-2 max-w-3xl backdrop-blur-sm">
             <input
               value={query.city}
               onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
               placeholder="🏙️ Shahar"
-              className="flex-1 min-w-[140px] bg-transparent text-white placeholder:text-slate-500 text-sm font-medium outline-none px-3 py-2"
+              className="flex-1 min-w-[140px] bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400/50"
             />
             <input
               type="date"
               value={query.checkIn}
               onChange={(e) => setQuery((p) => ({ ...p, checkIn: e.target.value }))}
-              className="bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
+              className="bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]"
             />
             <input
               type="date"
               value={query.checkOut}
               onChange={(e) => setQuery((p) => ({ ...p, checkOut: e.target.value }))}
-              className="bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none [color-scheme:dark]"
+              className="bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]"
             />
             <input
               type="number"
@@ -151,7 +151,7 @@ export default function HomeStaySearchPage() {
               value={query.guests}
               onChange={(e) => setQuery((p) => ({ ...p, guests: Number(e.target.value) }))}
               placeholder="Mehmonlar"
-              className="w-28 bg-slate-900 border border-slate-700/50 rounded-xl px-3 py-2 text-white text-sm outline-none"
+              className="w-28 bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50"
             />
             <button
               type="button"
@@ -167,22 +167,22 @@ export default function HomeStaySearchPage() {
       <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-[260px] shrink-0">
-            <div className="bg-slate-800/90 border border-slate-700/50 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm shadow-slate-900/20">
-              <h3 className="font-black text-white text-sm flex items-center gap-2">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm">
+              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2">
                 <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
               </h3>
 
               <button
                 type="button"
                 onClick={() => setFiltersOpen((p) => !p)}
-                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-700/50 text-sm font-bold text-slate-400 bg-slate-900"
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 bg-gray-50"
               >
                 {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
               </button>
 
               <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-6`}>
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
                     Narx oralig&apos;i
                   </label>
                   <input
@@ -194,21 +194,21 @@ export default function HomeStaySearchPage() {
                     onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))}
                     className="w-full accent-amber-500"
                   />
-                  <div className="flex justify-between text-xs text-amber-400 font-bold mt-2">
+                  <div className="flex justify-between text-xs text-amber-600 font-bold mt-2">
                     <span>0</span>
                     <span>{formatUzInteger(query.maxPrice)} so&apos;m</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
                     Qulayliklar
                   </label>
                   <div className="space-y-2">
                     {amenityOptions.map((a) => (
                       <label
                         key={a}
-                        className="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer group"
+                        className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer group"
                       >
                         <input
                           type="checkbox"
@@ -223,7 +223,7 @@ export default function HomeStaySearchPage() {
                           }
                           className="accent-amber-500"
                         />
-                        <span className="group-hover:text-white transition-colors">
+                        <span className="group-hover:text-gray-900 transition-colors">
                           {amenityChipIcon(a)} {a}
                         </span>
                       </label>
@@ -232,7 +232,7 @@ export default function HomeStaySearchPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">
                     Minimal xonalar
                   </label>
                   <input
@@ -240,7 +240,7 @@ export default function HomeStaySearchPage() {
                     min={1}
                     value={query.minRooms}
                     onChange={(e) => setQuery((p) => ({ ...p, minRooms: Number(e.target.value) }))}
-                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-2.5 text-white font-bold text-sm outline-none focus:border-amber-500/50"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
                   />
                 </div>
 
@@ -261,15 +261,15 @@ export default function HomeStaySearchPage() {
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden animate-pulse"
+                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse"
                   >
-                    <div className="h-52 bg-slate-700/50" />
+                    <div className="h-52 bg-gray-100" />
                     <div className="p-4 space-y-3">
-                      <div className="h-4 bg-slate-700/50 rounded w-3/4" />
-                      <div className="h-3 bg-slate-700/50 rounded w-1/2" />
+                      <div className="h-4 bg-gray-100 rounded w-3/4" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
                       <div className="flex justify-between mt-4">
-                        <div className="h-6 bg-slate-700/50 rounded w-1/3" />
-                        <div className="h-8 bg-slate-700/50 rounded-xl w-20" />
+                        <div className="h-6 bg-gray-100 rounded w-1/3" />
+                        <div className="h-8 bg-gray-100 rounded-xl w-20" />
                       </div>
                     </div>
                   </div>
@@ -278,8 +278,8 @@ export default function HomeStaySearchPage() {
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="text-6xl mb-4">🔍</div>
-                <h3 className="font-black text-white text-lg mb-2">Natija topilmadi</h3>
-                <p className="text-slate-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
+                <h3 className="font-black text-gray-900 text-lg mb-2">Natija topilmadi</h3>
+                <p className="text-gray-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
                 <button
                   type="button"
                   onClick={() => void runSearch({ city: "", amenities: [], minRooms: 1 })}
@@ -294,9 +294,9 @@ export default function HomeStaySearchPage() {
                   <Link
                     key={item.id}
                     href={`/homestay/${item.id}`}
-                    className="group bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden shadow-sm shadow-slate-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-900/50"
+                    className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-amber-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                   >
-                    <div className="relative h-52 bg-slate-900 overflow-hidden">
+                    <div className="relative h-52 bg-gray-50 overflow-hidden">
                       {item.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -308,7 +308,7 @@ export default function HomeStaySearchPage() {
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center">
                           <span className="text-6xl">🏡</span>
-                          <span className="text-slate-600 text-xs mt-2">{item.city}</span>
+                          <span className="text-gray-400 text-xs mt-2">{item.city}</span>
                         </div>
                       )}
 
@@ -316,7 +316,7 @@ export default function HomeStaySearchPage() {
                         <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1">
                           <Star size={11} className="text-amber-400 fill-amber-400" />
                           <span className="text-white text-xs font-black">{item.avgRating.toFixed(1)}</span>
-                          <span className="text-slate-400 text-xs">({item.reviewCount})</span>
+                          <span className="text-gray-500 text-xs">({item.reviewCount})</span>
                         </div>
                       )}
 
@@ -335,16 +335,16 @@ export default function HomeStaySearchPage() {
                     </div>
 
                     <div className="p-4">
-                      <h3 className="font-black text-white text-sm leading-tight mb-1">{item.title}</h3>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mb-3">
+                      <h3 className="font-black text-gray-900 text-sm leading-tight mb-1">{item.title}</h3>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
                         <MapPin size={11} /> {item.city} · {item.rooms} xona
                       </p>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-xl font-black text-amber-400">
+                          <span className="text-xl font-black text-amber-600">
                             {Number(item.pricePerNight).toLocaleString()}
                           </span>
-                          <span className="text-xs text-slate-500 ml-1">so&apos;m / tun</span>
+                          <span className="text-xs text-gray-500 ml-1">so&apos;m / tun</span>
                         </div>
                         <span className="text-amber-400 text-xs font-black bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
                           Ko&apos;rish →

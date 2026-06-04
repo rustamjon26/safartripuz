@@ -35,10 +35,10 @@ export default function GuideReviewPage() {
 
   return (
     <DashboardShell title="Guide Review" subtitle="Guide tajribangizni baholang">
-      <div className="max-w-2xl mx-auto bg-slate-800 rounded-3xl border border-slate-700/50 p-6 shadow-sm shadow-slate-900/20">
+      <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-gray-200 p-6 shadow-sm shadow-gray-900/20">
         <form onSubmit={submitReview} className="space-y-5">
           <div>
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-3">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
               Rating
             </label>
             <div className="flex items-center gap-1">
@@ -48,7 +48,7 @@ export default function GuideReviewPage() {
                   type="button"
                   onClick={() => setRating(s)}
                   className={`p-1 rounded-lg transition-all hover:scale-110 ${
-                    s <= rating ? "text-amber-400" : "text-slate-700 hover:text-amber-400/50"
+                    s <= rating ? "text-amber-400" : "text-gray-300 hover:text-amber-300"
                   }`}
                 >
                   <Star size={32} fill={s <= rating ? "currentColor" : "none"} />
@@ -58,13 +58,13 @@ export default function GuideReviewPage() {
           </div>
 
           <div>
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">
+            <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">
               Comment
             </label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full min-h-[140px] bg-slate-700/40 border border-slate-600/50 rounded-2xl px-4 py-3 text-white placeholder:text-slate-500 resize-none outline-none focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/10 text-sm"
+              className="w-full min-h-[140px] bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-gray-900 placeholder:text-gray-400 resize-none outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 text-sm transition-all"
               placeholder="Tajriba haqida yozing..."
             />
           </div>
@@ -72,7 +72,7 @@ export default function GuideReviewPage() {
           <button
             type="submit"
             disabled={saving}
-            className="bg-amber-500 hover:bg-amber-400 text-white font-black px-6 py-3 rounded-xl text-sm disabled:opacity-40 transition-all"
+            className="bg-gray-900 hover:bg-gray-800 text-white font-black px-6 py-3 rounded-xl text-sm disabled:opacity-40 transition-all"
           >
             {saving ? "Submitting..." : "Submit review"}
           </button>

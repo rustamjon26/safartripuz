@@ -165,51 +165,51 @@ export default function TaxiBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="mb-8">
           <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">🚖 Taxi Xizmati</p>
-          <h1 className="text-3xl font-black text-white mb-2">Taxi buyurtma qiling</h1>
-          <p className="text-slate-400">Tez, qulay va xavfsiz sayohat</p>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">Taxi buyurtma qiling</h1>
+          <p className="text-gray-500">Tez, qulay va xavfsiz sayohat</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           <div className="space-y-4">
-            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="font-black text-white mb-4 flex items-center gap-2">
-                <MapPin size={18} className="text-amber-400" /> Manzillar
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h2 className="font-black text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin size={18} className="text-amber-500" /> Manzillar
               </h2>
               <div className="space-y-3">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-green-400 border-2 border-green-300" />
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-emerald-500" />
                   <input
                     value={pickupAddress}
                     onChange={(e) => setPickupAddress(e.target.value)}
                     placeholder="Qayerdan ketmoqchisiz?"
-                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3.5 text-gray-900 placeholder:text-gray-400 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-colors"
                   />
                 </div>
                 <div className="flex items-center gap-3 px-2">
-                  <div className="w-px h-6 bg-slate-700/50 ml-1" />
-                  <span className="text-xs text-slate-600">↕</span>
+                  <div className="w-px h-6 bg-gray-50 ml-1" />
+                  <span className="text-xs text-gray-400">↕</span>
                 </div>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-400 border-2 border-red-300" />
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-500" />
                   <input
                     value={dropoffAddress}
                     onChange={(e) => setDropoffAddress(e.target.value)}
                     placeholder="Qayerga borasiz?"
-                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl pl-10 pr-4 py-3.5 text-white placeholder:text-slate-500 text-sm outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3.5 text-gray-900 placeholder:text-gray-400 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-colors"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="font-black text-white mb-4 flex items-center gap-2">
-                <Clock size={18} className="text-amber-400" /> Vaqt
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h2 className="font-black text-gray-900 mb-4 flex items-center gap-2">
+                <Clock size={18} className="text-amber-500" /> Vaqt
               </h2>
               <div className="flex gap-2 mb-4">
                 <button
@@ -217,8 +217,8 @@ export default function TaxiBookingPage() {
                   onClick={() => setScheduleType("NOW")}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
                     scheduleType === "NOW"
-                      ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                      : "bg-slate-900 border border-slate-700/50 text-slate-400 hover:text-white"
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
                   ⚡ Hozir
@@ -228,8 +228,8 @@ export default function TaxiBookingPage() {
                   onClick={() => setScheduleType("SCHEDULED")}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-black transition-all ${
                     scheduleType === "SCHEDULED"
-                      ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
-                      : "bg-slate-900 border border-slate-700/50 text-slate-400 hover:text-white"
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
                   📅 Rejalashtirilgan
@@ -240,31 +240,31 @@ export default function TaxiBookingPage() {
                   type="datetime-local"
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-amber-500/50 [color-scheme:dark]"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 [color-scheme:light]"
                 />
               )}
               <textarea
                 value={customerNote}
                 onChange={(e) => setCustomerNote(e.target.value)}
                 placeholder="💬 Qo'shimcha izoh (ixtiyoriy)"
-                className="w-full mt-3 bg-slate-900 border border-slate-700/50 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 text-sm outline-none min-h-[80px] resize-none focus:border-amber-500/50"
+                className="w-full mt-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 text-sm outline-none min-h-[80px] resize-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
               />
             </div>
 
-            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl p-6">
-              <h2 className="font-black text-white mb-4 flex items-center gap-2">
-                <Car size={18} className="text-amber-400" /> Xizmat turi
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h2 className="font-black text-gray-900 mb-4 flex items-center gap-2">
+                <Car size={18} className="text-amber-500" /> Xizmat turi
               </h2>
               {loadingServices ? (
                 <div className="grid grid-cols-2 gap-3">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-slate-900 rounded-xl p-4 animate-pulse h-24" />
+                    <div key={i} className="bg-gray-50 rounded-xl p-4 animate-pulse h-24" />
                   ))}
                 </div>
               ) : services.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="text-5xl mb-3">🚖</div>
-                  <p className="text-slate-500 text-sm">Xizmatlar mavjud emas</p>
+                  <p className="text-gray-500 text-sm">Xizmatlar mavjud emas</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -275,22 +275,22 @@ export default function TaxiBookingPage() {
                       onClick={() => setSelectedServiceId(s.id)}
                       className={`text-left rounded-xl p-4 transition-all border ${
                         selectedServiceId === s.id
-                          ? "bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10"
-                          : "bg-slate-900 border-slate-700/50 hover:border-slate-500"
+                          ? "bg-amber-50 border-amber-300 shadow-md"
+                          : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
                       <div className="text-2xl mb-2">{serviceEmoji(s.serviceType)}</div>
                       <p
                         className={`font-black text-sm ${
-                          selectedServiceId === s.id ? "text-amber-400" : "text-white"
+                          selectedServiceId === s.id ? "text-amber-700" : "text-gray-900"
                         }`}
                       >
                         {s.title}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5">{taxiServiceTypeLabel(s.serviceType)}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{taxiServiceTypeLabel(s.serviceType)}</p>
                       <p
                         className={`text-sm font-black mt-2 ${
-                          selectedServiceId === s.id ? "text-amber-400" : "text-slate-300"
+                          selectedServiceId === s.id ? "text-amber-400" : "text-gray-700"
                         }`}
                       >
                         {formatPricePerUnit(Number(s.price), "km")}
@@ -298,7 +298,7 @@ export default function TaxiBookingPage() {
                       {s.avgRating != null && (
                         <div className="flex items-center gap-1 mt-1">
                           <Star size={10} className="text-amber-400 fill-amber-400" />
-                          <span className="text-xs text-slate-500">{s.avgRating.toFixed(1)}</span>
+                          <span className="text-xs text-gray-500">{s.avgRating.toFixed(1)}</span>
                         </div>
                       )}
                     </button>
@@ -309,44 +309,44 @@ export default function TaxiBookingPage() {
           </div>
 
           <div className="lg:sticky lg:top-24 h-fit">
-            <div className="bg-slate-800 border border-slate-700/50 rounded-2xl overflow-hidden">
-              <div className="bg-gradient-to-r from-slate-700/50 to-slate-800 px-6 py-5 border-b border-slate-700/50">
-                <h3 className="font-black text-white flex items-center gap-2">
-                  <Receipt size={16} className="text-amber-400" /> Buyurtma xulosasi
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-100 to-white px-6 py-5 border-b border-gray-200">
+                <h3 className="font-black text-gray-900 flex items-center gap-2">
+                  <Receipt size={16} className="text-amber-500" /> Buyurtma xulosasi
                 </h3>
               </div>
 
               <div className="p-5 space-y-4">
                 {selectedService && (
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-700/50">
-                    <p className="text-xs text-slate-500 uppercase font-black mb-1">Xizmat</p>
-                    <p className="font-black text-white">{selectedService.title}</p>
-                    <p className="text-xs text-slate-400">{taxiServiceTypeLabel(selectedService.serviceType)}</p>
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <p className="text-xs text-gray-500 uppercase font-black mb-1">Xizmat</p>
+                    <p className="font-black text-gray-900">{selectedService.title}</p>
+                    <p className="text-xs text-gray-500">{taxiServiceTypeLabel(selectedService.serviceType)}</p>
                   </div>
                 )}
 
                 {estimate ? (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 space-y-2">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Masofa</span>
-                      <span className="text-white font-bold">
+                      <span className="text-gray-500">Masofa</span>
+                      <span className="text-gray-900 font-bold">
                         {Number(estimate.estimatedDistanceKm).toFixed(1)} km
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Taxminiy vaqt</span>
-                      <span className="text-white font-bold">~{estimate.estimatedMinutes} daqiqa</span>
+                      <span className="text-gray-500">Taxminiy vaqt</span>
+                      <span className="text-gray-900 font-bold">~{estimate.estimatedMinutes} daqiqa</span>
                     </div>
-                    <div className="border-t border-amber-500/20 pt-2 flex justify-between">
-                      <span className="text-amber-400 font-black">Taxminiy narx</span>
-                      <span className="text-amber-400 font-black text-lg">
+                    <div className="border-t border-amber-200 pt-2 flex justify-between">
+                      <span className="text-amber-700 font-black">Taxminiy narx</span>
+                      <span className="text-amber-600 font-black text-lg">
                         {Number(estimate.estimatedPrice).toLocaleString()} so&apos;m
                       </span>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-slate-900 border border-dashed border-slate-700/50 rounded-xl p-4 text-center">
-                    <p className="text-slate-500 text-sm">Narxni hisoblang</p>
+                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4 text-center">
+                    <p className="text-gray-500 text-sm">Narxni hisoblang</p>
                   </div>
                 )}
 
@@ -354,7 +354,7 @@ export default function TaxiBookingPage() {
                   type="button"
                   onClick={() => void calculateEstimate()}
                   disabled={estimating || !selectedService}
-                  className="w-full bg-slate-700/50 hover:bg-slate-700/50 border border-slate-700/50 text-white font-black py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  className="w-full bg-gray-100 border border-gray-200 hover:bg-gray-200 text-gray-700 font-black py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                 >
                   {estimating ? <Loader2 size={16} className="animate-spin" /> : <Calculator size={16} />}
                   {estimating ? "Hisoblanmoqda..." : "Narxni hisoblash"}
