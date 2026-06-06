@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
-import { MapPin, Calendar, Users, Search } from "lucide-react";
+import { MapPin, Calendar, Users, Search, Building2 } from "lucide-react";
 import { loginWithNext } from "@/lib/authLinks";
 
 type HotelRow = {
@@ -167,7 +167,7 @@ function HotelsSearchInner() {
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-          <p className="text-5xl mb-3">🔍</p>
+          <Search size={40} className="text-slate-300 mx-auto mb-3" />
           <h3 className="font-black text-slate-900 text-lg mb-2">Natija topilmadi</h3>
           <p className="text-slate-500 text-sm mb-4">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
         </div>
@@ -183,7 +183,7 @@ function HotelsSearchInner() {
               }
               title={h.name}
               image={h.imageUrl}
-              placeholderEmoji="🏨"
+              placeholderIcon={Building2}
               city={h.city}
               subtitle={nights > 1 ? `${nights} tun` : undefined}
               price={h.nightlyPrice}

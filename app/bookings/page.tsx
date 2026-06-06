@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
   Calendar, MapPin, User as UserIcon, CreditCard, Package,
   Clock, CheckCircle2, XCircle, Home, PlusCircle, Info, Car,
-  Users, Loader2, Wallet, ListChecks,
+  Users, Loader2, Wallet, ListChecks, Map,
 } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 
@@ -119,8 +119,8 @@ export default function BookingsPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-5 text-4xl border border-gray-200">
-              🗺️
+            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mb-5 border border-gray-200">
+              <Map size={36} className="text-slate-400" />
             </div>
             <h3 className="text-xl font-black text-gray-900 mb-2">Hali sayohatlar yo&apos;q</h3>
             <p className="text-gray-500 max-w-xs text-sm">Birinchi sayohatingizni rejalashtiring — mehmonxona, transport va gidni bir joyda band qiling.</p>

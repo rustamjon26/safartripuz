@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
-import { Search, SlidersHorizontal, MapPin, Calendar, Users } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Calendar, Users, Home } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
 
 type Listing = {
@@ -252,7 +252,7 @@ export default function HomeStaySearchPage() {
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-              <p className="text-5xl mb-3">🔍</p>
+              <Search size={40} className="text-slate-300 mx-auto mb-3" />
               <h3 className="font-black text-slate-900 text-lg">Natija topilmadi</h3>
               <button
                 type="button"
@@ -270,7 +270,7 @@ export default function HomeStaySearchPage() {
                   onClick={() => router.push(`/homestay/${item.id}`)}
                   title={item.title}
                   image={item.images?.[0]}
-                  placeholderEmoji="🏡"
+                  placeholderIcon={Home}
                   placeholderGradient="from-emerald-100 via-teal-50 to-slate-100"
                   city={item.city}
                   subtitle={`${item.rooms} xona · HomeStay`}

@@ -13,6 +13,7 @@ import {
   XCircle,
   Star,
   CheckCircle2,
+  Compass,
 } from "lucide-react";
 
 type Booking = {
@@ -122,7 +123,7 @@ export default function MyGuideBookingsPage() {
 
         {!loading && items.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-3">🧭</div>
+            <Compass size={40} className="text-slate-300 mx-auto mb-3" />
             <h3 className="text-gray-900 font-black text-lg mb-2">Gid bronlari yo&apos;q</h3>
             <p className="text-gray-500 text-sm mb-5">Hali hech qanday gid bron qilmagansiz.</p>
             <Link
@@ -153,8 +154,9 @@ export default function MyGuideBookingsPage() {
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-gray-900 text-base leading-snug line-clamp-2 mb-1">
-                        🧭 {item.listing.title}
+                      <h3 className="font-black text-gray-900 text-base leading-snug line-clamp-2 mb-1 flex items-center gap-1.5">
+                        <Compass size={16} className="text-orange-500 shrink-0" />
+                        {item.listing.title}
                       </h3>
                       <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                         <span className="flex items-center gap-1">

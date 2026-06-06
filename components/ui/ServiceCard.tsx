@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, Star } from "lucide-react";
+import { Building2, Check, Star } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
 
 export type ServiceCardAmenity = {
@@ -12,7 +12,7 @@ export type ServiceCardAmenity = {
 export type ServiceCardProps = {
   title: string;
   image?: string | null;
-  placeholderEmoji?: string;
+  placeholderIcon?: React.ElementType;
   placeholderGradient?: string;
   city?: string;
   subtitle?: string;
@@ -50,7 +50,7 @@ function StarBadge({ count }: { count: number }) {
 function CardInner({
   title,
   image,
-  placeholderEmoji = "🏨",
+  placeholderIcon: PlaceholderIcon = Building2,
   placeholderGradient = "from-orange-100 via-amber-50 to-slate-100",
   city,
   subtitle,
@@ -74,7 +74,9 @@ function CardInner({
           <div
             className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br ${placeholderGradient}`}
           >
-            <span className="text-5xl">{placeholderEmoji}</span>
+            <div className="w-16 h-16 rounded-2xl bg-white/70 flex items-center justify-center shadow-sm">
+              <PlaceholderIcon size={32} className="text-slate-400" />
+            </div>
             {city && <span className="text-slate-500 text-xs font-bold mt-2">{city}</span>}
           </div>
         )}

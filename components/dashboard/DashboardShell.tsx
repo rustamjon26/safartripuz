@@ -20,6 +20,7 @@ import {
   Tent,
   X,
   List,
+  Package,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -58,11 +59,11 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SERVICE_LINKS = [
-  { href: "/hotels", label: "Mehmonxona", emoji: "🏨" },
-  { href: "/homestay", label: "HomeStay", emoji: "🛖" },
-  { href: "/taxi", label: "Taxi", emoji: "🚖" },
-  { href: "/guide", label: "Gid", emoji: "🧭" },
-  { href: "/tours", label: "Turlar", emoji: "📦" },
+  { href: "/hotels", label: "Mehmonxona", icon: Building2 },
+  { href: "/homestay", label: "HomeStay", icon: Home },
+  { href: "/taxi", label: "Taxi", icon: Car },
+  { href: "/guide", label: "Gid", icon: Compass },
+  { href: "/tours", label: "Turlar", icon: Package },
 ] as const;
 
 type XizmatlarItem = {
@@ -388,9 +389,10 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-all whitespace-nowrap"
+                  className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50 transition-all whitespace-nowrap"
                 >
-                  {link.emoji} {link.label}
+                  <link.icon size={14} className="text-orange-500" />
+                  {link.label}
                 </Link>
               ))}
             </div>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Car, Zap, CheckCircle2, X } from "lucide-react";
 
 type TaxiOrder = {
   id: string;
@@ -27,10 +27,10 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: strin
 };
 
 const tabs = [
-  { value: "ALL", label: "Barchasi", icon: "🚖" },
-  { value: "ACTIVE", label: "Faol", icon: "⚡" },
-  { value: "COMPLETED", label: "Yakunlangan", icon: "✅" },
-  { value: "CANCELLED", label: "Bekor", icon: "❌" },
+  { value: "ALL", label: "Barchasi", icon: Car },
+  { value: "ACTIVE", label: "Faol", icon: Zap },
+  { value: "COMPLETED", label: "Yakunlangan", icon: CheckCircle2 },
+  { value: "CANCELLED", label: "Bekor", icon: X },
 ] as const;
 
 export default function MyTaxiOrdersPage() {
@@ -75,7 +75,7 @@ export default function MyTaxiOrdersPage() {
                   : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
               }`}
             >
-              <span>{t.icon}</span> {t.label}
+              <t.icon size={16} /> {t.label}
               {tab === t.value && (
                 <span className="ml-1 bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-black">
                   {filtered.length}
@@ -97,7 +97,7 @@ export default function MyTaxiOrdersPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-3">🚖</div>
+            <Car size={40} className="text-slate-300 mx-auto mb-3" />
             <h3 className="text-gray-900 font-black text-lg mb-2">Taxi buyurtmalar yo&apos;q</h3>
             <p className="text-gray-500 text-sm mb-5">Hali taxi buyurtma qilmagansiz.</p>
             <Link

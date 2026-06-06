@@ -11,6 +11,12 @@ import {
   Receipt,
   Star,
   Loader2,
+  Zap,
+  Calendar,
+  Bus,
+  Truck,
+  Building2,
+  Map as MapIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPricePerUnit, taxiServiceTypeLabel } from "@/lib/displayHelpers";
@@ -30,19 +36,20 @@ type Estimate = {
   estimatedMinutes: number;
 };
 
-const SERVICE_TYPE_ICONS: Record<string, string> = {
-  STANDARD: "🚗",
-  COMFORT: "🚙",
-  BUSINESS: "🚘",
-  MINIBUS: "🚐",
-  CARGO: "🚚",
-  INTERCITY_TRANSFER: "🚌",
-  HOTEL_TRANSFER: "🏨",
-  TOUR_DAILY_TRANSPORT: "🗺️",
+const SERVICE_TYPE_ICONS: Record<string, React.ElementType> = {
+  STANDARD: Car,
+  COMFORT: Car,
+  BUSINESS: Car,
+  MINIBUS: Bus,
+  CARGO: Truck,
+  INTERCITY_TRANSFER: Bus,
+  HOTEL_TRANSFER: Building2,
+  TOUR_DAILY_TRANSPORT: MapIcon,
 };
 
-function serviceEmoji(serviceType: string) {
-  return SERVICE_TYPE_ICONS[serviceType] ?? "🚗";
+function ServiceIcon({ serviceType, className }: { serviceType: string; className?: string }) {
+  const Icon = SERVICE_TYPE_ICONS[serviceType] ?? Car;
+  return <Icon size={24} className={className} />;
 }
 
 export default function TaxiBookingPage() {
@@ -211,7 +218,9 @@ export default function TaxiBookingPage() {
                       : "bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  ⚡ Hozir
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <Zap size={16} /> Hozir
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -222,7 +231,9 @@ export default function TaxiBookingPage() {
                       : "bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  📅 Rejalashtirilgan
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <Calendar size={16} /> Rejalashtirilgan
+                  </span>
                 </button>
               </div>
               {scheduleType === "SCHEDULED" && (
@@ -236,7 +247,7 @@ export default function TaxiBookingPage() {
               <textarea
                 value={customerNote}
                 onChange={(e) => setCustomerNote(e.target.value)}
-                placeholder="💬 Qo'shimcha izoh (ixtiyoriy)"
+                placeholder="Qo'shimcha izoh (ixtiyoriy)"
                 className="w-full mt-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 text-sm outline-none min-h-[80px] resize-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
               />
             </div>
@@ -253,7 +264,7 @@ export default function TaxiBookingPage() {
                 </div>
               ) : services.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="text-5xl mb-3">🚖</div>
+                  <Car size={40} className="text-slate-300 mb-3" />
                   <p className="text-gray-500 text-sm">Xizmatlar mavjud emas</p>
                 </div>
               ) : (
@@ -269,7 +280,10 @@ export default function TaxiBookingPage() {
                           : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
-                      <div className="text-2xl mb-2">{serviceEmoji(s.serviceType)}</div>
+                      <ServiceIcon
+                        serviceType={s.serviceType}
+                        className={`mb-2 ${selectedServiceId === s.id ? "text-orange-500" : "text-slate-500"}`}
+                      />
                       <p
                         className={`font-black text-sm ${
                           selectedServiceId === s.id ? "text-amber-700" : "text-gray-900"
@@ -357,7 +371,7 @@ export default function TaxiBookingPage() {
                   className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-30 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 disabled:cursor-not-allowed"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Car size={16} />}
-                  {submitting ? "Yuborilmoqda..." : "Buyurtma berish 🚖"}
+                  {submitting ? "Yuborilmoqda..." : "Buyurtma berish"}
                 </button>
               </div>
             </div>

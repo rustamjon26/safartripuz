@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { toast } from "sonner";
-import { Loader2, Percent, Save } from "lucide-react";
+import { Loader2, Percent, Save, Building2, Home, Compass, Car } from "lucide-react";
 import Link from "next/link";
 
 const VERTICALS = [
-  { key: "HOTEL", label: "Mehmonxona", icon: "🏨" },
-  { key: "HOMESTAY", label: "Uy mehmonxona", icon: "🏠" },
-  { key: "GUIDE", label: "Gid", icon: "🧭" },
-  { key: "TAXI", label: "Taksi", icon: "🚕" },
+  { key: "HOTEL", label: "Mehmonxona", icon: Building2 },
+  { key: "HOMESTAY", label: "Uy mehmonxona", icon: Home },
+  { key: "GUIDE", label: "Gid", icon: Compass },
+  { key: "TAXI", label: "Taksi", icon: Car },
 ] as const;
 
 type Rates = Record<(typeof VERTICALS)[number]["key"], number>;
@@ -86,7 +86,7 @@ export default function CommissionSettingsPage() {
               className="flex items-center justify-between p-4 border border-slate-200 rounded-2xl bg-white"
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{v.icon}</span>
+                <v.icon size={24} className="text-orange-500" />
                 <span className="font-bold text-slate-900">{v.label}</span>
               </div>
               <div className="flex items-center gap-2">

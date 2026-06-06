@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { MapPin, Calendar, ArrowRight, XCircle, Star, CheckCircle2 } from "lucide-react";
+import { MapPin, Calendar, ArrowRight, XCircle, Star, CheckCircle2, Home } from "lucide-react";
 
 type Booking = {
   id: string;
@@ -84,7 +84,7 @@ export default function MyHomeStayBookingsPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-            <div className="text-5xl mb-3">🛖</div>
+            <Home size={40} className="text-slate-300 mx-auto mb-3" />
             <h3 className="text-gray-900 font-black text-lg mb-2">Bronlar yo&apos;q</h3>
             <p className="text-gray-500 text-sm mb-5">Hali HomeStay bron qilmagansiz.</p>
             <Link
@@ -129,7 +129,7 @@ export default function MyHomeStayBookingsPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center">
-                      <span className="text-4xl mb-1">🛖</span>
+                      <Home size={32} className="text-slate-300 mb-1" />
                       <span className="text-gray-400 text-xs font-bold">Rasm yo&apos;q</span>
                     </div>
                   )}

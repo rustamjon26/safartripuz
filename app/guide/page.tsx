@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
-import { Search, SlidersHorizontal, MapPin } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Compass } from "lucide-react";
 import {
   formatUzInteger,
   guideCategoryLabel,
@@ -247,7 +247,7 @@ export default function GuideSearchPage() {
             </div>
           ) : items.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-              <p className="text-5xl mb-3">🔍</p>
+              <Search size={40} className="text-slate-300 mx-auto mb-3" />
               <h3 className="font-black text-slate-900 text-lg">Natija topilmadi</h3>
               <button
                 type="button"
@@ -265,7 +265,7 @@ export default function GuideSearchPage() {
                   onClick={() => router.push(`/guide/${item.id}`)}
                   title={item.title}
                   image={item.images?.[0]}
-                  placeholderEmoji="🧭"
+                  placeholderIcon={Compass}
                   placeholderGradient="from-violet-100 via-indigo-50 to-slate-100"
                   city={item.host ? `${item.host.first_name} ${item.host.last_name}` : undefined}
                   subtitle={guideCategoryLabel(item.category)}

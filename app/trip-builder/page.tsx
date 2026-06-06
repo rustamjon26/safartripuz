@@ -6,7 +6,7 @@ import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
   Check, X, Calendar, Users, Sparkles, Wand2, Sun, CloudRain, Wind,
-  ChevronRight,
+  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
@@ -70,13 +70,13 @@ const DRAWER_TITLES: Record<DrawerTab, string> = {
   transport: "Transport",
 };
 
-const DEST_VISUAL: Record<string, { emoji: string; gradient: string }> = {
-  samarqand: { emoji: "🕌", gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
-  buxoro:    { emoji: "🏰", gradient: "from-orange-800/90 via-amber-900/40 to-gray-900" },
-  xiva:      { emoji: "🏛️", gradient: "from-teal-800/90 via-slate-900/40 to-gray-900" },
-  zomin:     { emoji: "🌲", gradient: "from-emerald-800/90 via-green-900/40 to-gray-900" },
-  toshkent:  { emoji: "🌆", gradient: "from-blue-800/90 via-indigo-900/40 to-gray-900" },
-  jizzax:    { emoji: "🏔️", gradient: "from-slate-600/90 via-gray-800/40 to-gray-900" },
+const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }> = {
+  samarqand: { icon: Landmark, gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
+  buxoro:    { icon: Landmark, gradient: "from-orange-800/90 via-amber-900/40 to-gray-900" },
+  xiva:      { icon: Landmark, gradient: "from-teal-800/90 via-slate-900/40 to-gray-900" },
+  zomin:     { icon: Trees,    gradient: "from-emerald-800/90 via-green-900/40 to-gray-900" },
+  toshkent:  { icon: Building, gradient: "from-blue-800/90 via-indigo-900/40 to-gray-900" },
+  jizzax:    { icon: Mountain, gradient: "from-slate-600/90 via-gray-800/40 to-gray-900" },
 };
 
 const AI_EXAMPLES = ["Samarqandga 2 kun", "Zominda tur", "Buxoroga oilaviy", "Xivaga 3 kun"];
@@ -90,7 +90,7 @@ function getDestVisual(title: string) {
   for (const [k, v] of Object.entries(DEST_VISUAL)) {
     if (key.includes(k)) return v;
   }
-  return { emoji: "📍", gradient: "from-slate-700/90 to-gray-900" };
+  return { icon: MapPin, gradient: "from-slate-700/90 to-gray-900" };
 }
 
 function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
@@ -322,7 +322,7 @@ export default function TripBuilderPage() {
       return {
         title: item.title,
         image: item.images?.[0],
-        placeholderEmoji: "🏨",
+        placeholderIcon: Building2,
         city: item.city,
         subtitle: item.roomTypeName,
         price: item.nightlyPrice,
@@ -334,7 +334,7 @@ export default function TripBuilderPage() {
       return {
         title: item.title,
         image: item.images?.[0],
-        placeholderEmoji: "🧭",
+        placeholderIcon: Compass,
         placeholderGradient: "from-violet-100 via-indigo-50 to-slate-100",
         city: item.region || item.city,
         subtitle: item.language ? languageLabel(item.language) : undefined,
@@ -345,7 +345,7 @@ export default function TripBuilderPage() {
     }
     return {
       title: item.title,
-      placeholderEmoji: "🚖",
+      placeholderIcon: Car,
       placeholderGradient: "from-orange-100 via-amber-50 to-slate-100",
       subtitle: item.type ? taxiServiceTypeLabel(item.type) : undefined,
       price: item.price,
@@ -756,7 +756,7 @@ export default function TripBuilderPage() {
                 className="absolute bottom-4 right-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all shadow-lg shadow-violet-500/25"
               >
                 {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                Tuzish 🪄
+                Tuzish
               </button>
             </form>
             <div className="relative z-10 flex flex-wrap gap-2 mb-5">
@@ -795,6 +795,7 @@ export default function TripBuilderPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
                 {destinations.map((d) => {
                   const vis = getDestVisual(d.title);
+                  const DestIcon = vis.icon;
                   const selected = destination === d.title;
                   return (
                     <button
@@ -807,7 +808,7 @@ export default function TripBuilderPage() {
                     >
                       <div className={`absolute inset-0 bg-gradient-to-t ${vis.gradient}`} />
                       <div className="absolute inset-0 flex flex-col justify-end p-4 text-left">
-                        <span className="text-3xl mb-1">{vis.emoji}</span>
+                        <DestIcon size={28} className="text-white mb-1" />
                         <span className={`font-bold text-sm ${selected ? "text-amber-700" : "text-gray-700"}`}>{d.title}</span>
                       </div>
                       {selected && (
@@ -1001,19 +1002,28 @@ export default function TripBuilderPage() {
             <div className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-200 space-y-2 text-xs">
               {selectedHotel?.nightlyPrice != null && (
                 <div className="flex justify-between text-gray-500">
-                  <span>🏨 {formatUzInteger(selectedHotel.nightlyPrice)} × {days} kun × {roomCount} xona</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Building2 size={14} className="text-slate-500" />
+                    {formatUzInteger(selectedHotel.nightlyPrice)} × {days} kun × {roomCount} xona
+                  </span>
                   <span className="text-gray-900 font-bold">{formatUzInteger(hotelTotal)}</span>
                 </div>
               )}
               {selectedTaxi && (
                 <div className="flex justify-between text-gray-500">
-                  <span>🚖 Transport</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Car size={14} className="text-slate-500" />
+                    Transport
+                  </span>
                   <span className="text-gray-900 font-bold">{formatUzInteger(taxiTotal)}</span>
                 </div>
               )}
               {selectedGuide?.pricePerDay != null && (
                 <div className="flex justify-between text-gray-500">
-                  <span>🧭 {formatUzInteger(selectedGuide.pricePerDay)} × {days} kun</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Compass size={14} className="text-slate-500" />
+                    {formatUzInteger(selectedGuide.pricePerDay)} × {days} kun
+                  </span>
                   <span className="text-gray-900 font-bold">{formatUzInteger(guideTotal)}</span>
                 </div>
               )}
@@ -1035,9 +1045,9 @@ export default function TripBuilderPage() {
               <span className="text-sm text-gray-500 ml-1">so&apos;m</span>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-gray-200">
-              {hotelTotal > 0 && <span className="text-xs text-gray-400">🏨 {formatUzInteger(hotelTotal)}</span>}
-              {taxiTotal > 0 && <span className="text-xs text-gray-400">🚖 {formatUzInteger(taxiTotal)}</span>}
-              {guideTotal > 0 && <span className="text-xs text-gray-400">🧭 {formatUzInteger(guideTotal)}</span>}
+              {hotelTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Building2 size={12} /> {formatUzInteger(hotelTotal)}</span>}
+              {taxiTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Car size={12} /> {formatUzInteger(taxiTotal)}</span>}
+              {guideTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Compass size={12} /> {formatUzInteger(guideTotal)}</span>}
             </div>
           </div>
 
