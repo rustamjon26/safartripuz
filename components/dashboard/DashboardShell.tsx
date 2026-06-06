@@ -214,22 +214,39 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               Xizmatlar
             </p>
             {[
-              { href: "/hotels", label: "Mehmonxonalar", icon: Building2 },
-              { href: "/homestay", label: "HomeStay", icon: Tent },
-              { href: "/guide", label: "Gidlar", icon: Map },
-              { href: "/taxi", label: "Taxi", icon: Car },
+              { href: "/hotels", label: "Mehmonxonalar", icon: Building2, tab: "hotel" },
+              { href: "/homestay", label: "HomeStay", icon: Tent, tab: "hotel" },
+              { href: "/guide", label: "Gidlar", icon: Map, tab: "guide" },
+              { href: "/taxi", label: "Taxi", icon: Car, tab: "transport" },
             ].map((svc) => {
               const isActive = pathname === svc.href || pathname.startsWith(`${svc.href}/`);
+              const className = `flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
+                isActive
+                  ? "border-amber-500 bg-amber-50 text-amber-700"
+                  : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+              }`;
+
+              if (pathname === "/trip-builder") {
+                return (
+                  <button
+                    key={svc.href}
+                    type="button"
+                    onClick={() => {
+                      setSidebarOpen(false);
+                      window.dispatchEvent(
+                        new CustomEvent("trip-builder-tab", { detail: svc.tab }),
+                      );
+                    }}
+                    className={className}
+                  >
+                    <svc.icon size={16} className="text-gray-400" />
+                    {svc.label}
+                  </button>
+                );
+              }
+
               return (
-                <Link
-                  key={svc.href}
-                  href={svc.href}
-                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 ${
-                    isActive
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                >
+                <Link key={svc.href} href={svc.href} className={className}>
                   <svc.icon size={16} className={isActive ? "text-amber-600" : "text-gray-400"} />
                   {svc.label}
                 </Link>

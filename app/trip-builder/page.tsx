@@ -119,6 +119,17 @@ export default function TripBuilderPage() {
   }, []);
 
   useEffect(() => {
+    function handleTabEvent(e: Event) {
+      const tab = (e as CustomEvent<TabId>).detail;
+      if (TABS.some((t) => t.id === tab)) {
+        setActiveTab(tab);
+      }
+    }
+    window.addEventListener("trip-builder-tab", handleTabEvent);
+    return () => window.removeEventListener("trip-builder-tab", handleTabEvent);
+  }, []);
+
+  useEffect(() => {
     if (!destination) {
       setInventory(null);
       setSelectedHotel(null); setSelectedTaxi(null); setSelectedGuide(null);
