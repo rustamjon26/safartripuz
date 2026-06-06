@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 import {
   MapPin,
   Clock,
@@ -165,17 +164,8 @@ export default function TaxiBookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-
-      <main className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">🚖 Taxi Xizmati</p>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">Taxi buyurtma qiling</h1>
-          <p className="text-gray-500">Tez, qulay va xavfsiz sayohat</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+    <DashboardShell title="Taxi Xizmati" subtitle="Tez, qulay va xavfsiz sayohat">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           <div className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h2 className="font-black text-gray-900 mb-4 flex items-center gap-2">
@@ -373,9 +363,6 @@ export default function TaxiBookingPage() {
             </div>
           </div>
         </div>
-      </main>
-
-      <Footer />
-    </div>
+    </DashboardShell>
   );
 }

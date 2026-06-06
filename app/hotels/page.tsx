@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import { MapPin, Star, Loader2, Search, ChevronRight } from "lucide-react";
-import { formatUzInteger } from "@/lib/displayHelpers";
+import { useRouter, useSearchParams } from "next/navigation";
+import DashboardShell from "@/components/dashboard/DashboardShell";
+import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
+import { MapPin, Calendar, Users, Search } from "lucide-react";
 import { loginWithNext } from "@/lib/authLinks";
 
 type HotelRow = {
@@ -20,98 +18,21 @@ type HotelRow = {
   imageUrl: string | null;
 };
 
-const inputCls =
-  "bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]";
-
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-    </div>
-  );
-}
-
-function HotelCard({
-  hotel: h,
-  city,
-  checkIn,
-  checkOut,
-}: {
-  hotel: HotelRow;
-  city: string;
-  checkIn: string;
-  checkOut: string;
-}) {
-  const nights =
-    checkIn && checkOut
-      ? Math.max(0, Math.ceil((+new Date(checkOut) - +new Date(checkIn)) / 86400000))
-      : 1;
-
-  return (
-    <div className="group bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm shadow-gray-900/20 hover:border-amber-500/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-900/50 flex flex-col">
-      <div className="relative h-52 bg-gray-50 overflow-hidden">
-        {h.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={h.imageUrl}
-            alt={h.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <span className="text-5xl">🏨</span>
-            <span className="text-gray-400 text-xs font-bold">{h.city}</span>
-          </div>
-        )}
-
-        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-amber-400 text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
-          {"★".repeat(Math.min(h.stars || 3, 5))}
-        </div>
-
-        {h.rating != null && (
-          <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-black px-2.5 py-1 rounded-lg flex items-center gap-1">
-            <Star size={11} className="text-amber-400 fill-amber-400" />
-            {h.rating.toFixed(1)}
-            <span className="text-gray-500">({h.reviewCount || 0})</span>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 flex-1 flex flex-col">
-        <h3 className="font-black text-gray-900 text-sm leading-tight mb-1 line-clamp-2">{h.name}</h3>
-        <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
-          <MapPin size={11} /> {h.city || "—"}
-        </p>
-
-        <div className="mt-auto flex items-center justify-between">
-          <div>
-              <span className="text-xl font-black text-amber-600">{formatUzInteger(h.nightlyPrice)}</span>
-            <span className="text-xs text-gray-500 ml-1">so&apos;m / tun</span>
-            {nights > 1 && (
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                {nights} tun = {formatUzInteger(h.nightlyPrice * nights)} so&apos;m
-              </p>
-            )}
-          </div>
-          <Link
-            href={loginWithNext(`/trip-builder?dest=${encodeURIComponent(h.city || city || "zomin")}`)}
-            className="bg-gray-900 hover:bg-gray-800 text-white text-xs font-black px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0"
-          >
-            Tanlash <ChevronRight size={14} />
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
+const fieldCls =
+  "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 [color-scheme:light]";
 
 function HotelsSearchInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const city = searchParams.get("city") ?? "";
   const checkIn = searchParams.get("checkIn") ?? "";
   const checkOut = searchParams.get("checkOut") ?? "";
   const guests = searchParams.get("guests") ?? "2";
+
+  const [cityInput, setCityInput] = useState(city);
+  const [checkInInput, setCheckInInput] = useState(checkIn);
+  const [checkOutInput, setCheckOutInput] = useState(checkOut);
+  const [guestsInput, setGuestsInput] = useState(guests);
 
   const [items, setItems] = useState<HotelRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,123 +80,139 @@ function HotelsSearchInner() {
     };
   }, [qs]);
 
+  function applySearch() {
+    const p = new URLSearchParams();
+    if (cityInput) p.set("city", cityInput);
+    if (checkInInput) p.set("checkIn", checkInInput);
+    if (checkOutInput) p.set("checkOut", checkOutInput);
+    if (guestsInput) p.set("guests", guestsInput);
+    router.push(`/hotels?${p.toString()}`);
+  }
+
+  function nightsFor() {
+    return checkIn && checkOut
+      ? Math.max(0, Math.ceil((+new Date(checkOut) - +new Date(checkIn)) / 86400000))
+      : 1;
+  }
+  const nights = nightsFor();
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
-
-      <section className="relative bg-gradient-to-br from-gray-900 to-gray-800 pt-24 pb-14 overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">
-            🏨 Premium Mehmonxonalar
-          </p>
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-            Eng yaxshi <span className="text-amber-400">mehmonxonalar</span>
-          </h1>
-          <p className="text-gray-300 text-base max-w-xl mb-8">
-            O&apos;zbekiston bo&apos;ylab 4-5 yulduzli mehmonxonalar. Qulay narxlar, onlayn bron.
-          </p>
-
-          <form action="/hotels" method="get" className="bg-white/10 border border-white/20 rounded-2xl p-4 backdrop-blur-sm flex flex-wrap gap-2 max-w-3xl">
+    <DashboardShell title="Mehmonxonalar" subtitle="O'zbekiston bo'ylab eng yaxshi mehmonxonalar">
+      {/* Search bar */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="relative">
+            <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              name="city"
-              defaultValue={city}
-              placeholder="🏙️ Shahar (Samarqand, Buxoro...)"
-              className="flex-1 min-w-[150px] bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400/50"
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              placeholder="Shahar"
+              className={`${fieldCls} pl-10`}
             />
-            <input type="date" name="checkIn" defaultValue={checkIn} className={inputCls} aria-label="Kirish" />
-            <input type="date" name="checkOut" defaultValue={checkOut} className={inputCls} aria-label="Chiqish" />
+          </div>
+          <div className="relative">
+            <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="date"
+              value={checkInInput}
+              onChange={(e) => setCheckInInput(e.target.value)}
+              className={`${fieldCls} pl-10`}
+            />
+          </div>
+          <div className="relative">
+            <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="date"
+              value={checkOutInput}
+              onChange={(e) => setCheckOutInput(e.target.value)}
+              className={`${fieldCls} pl-10`}
+            />
+          </div>
+          <div className="relative">
+            <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="number"
-              name="guests"
               min={1}
-              defaultValue={guests}
+              value={guestsInput}
+              onChange={(e) => setGuestsInput(e.target.value)}
               placeholder="Mehmonlar"
-              className="w-28 bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50"
+              className={`${fieldCls} pl-10`}
             />
-            <button
-              type="submit"
-              className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all"
-            >
-              <Search size={16} /> Qidirish
-            </button>
-          </form>
+          </div>
+          <button
+            type="button"
+            onClick={applySearch}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
+          >
+            <Search size={16} /> Qidirish
+          </button>
         </div>
-      </section>
+      </div>
 
-      <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 w-full">
-        {!loading && items.length > 0 && (
-          <p className="text-gray-500 text-sm mb-6">
-            <span className="text-gray-900 font-bold">{items.length}</span> ta mehmonxona topildi
-            {city ? (
-              <>
-                {" "}
-                · <span className="text-amber-400">{city}</span>
-              </>
-            ) : null}
-          </p>
-        )}
+      <h2 className="text-xl font-bold text-slate-700 mb-6">
+        {loading
+          ? "Qidirilmoqda..."
+          : `${items.length} ta mehmonxona topildi${city ? ` · ${city}` : ""}`}
+      </h2>
 
-        {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse"
-              >
-                <div className="h-52 bg-gray-50" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-gray-50 rounded w-3/4" />
-                  <div className="h-3 bg-gray-50 rounded w-1/3" />
-                  <div className="flex justify-between mt-4">
-                    <div className="h-6 bg-gray-50 rounded w-1/3" />
-                    <div className="h-8 bg-gray-50 rounded-xl w-20" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-5 py-4 text-red-400 font-semibold text-sm">
-            ⚠️ {error}
-          </div>
-        )}
-
-        {!loading && !error && items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="font-black text-gray-900 text-lg mb-2">Natija topilmadi</h3>
-            <p className="text-gray-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
-            <Link
-              href={loginWithNext("/trip-builder")}
-              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm transition-all"
-            >
-              Safar Tuzish →
-            </Link>
-          </div>
-        )}
-
-        {!loading && items.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {items.map((h) => (
-              <HotelCard key={h.id} hotel={h} city={city} checkIn={checkIn} checkOut={checkOut} />
-            ))}
-          </div>
-        )}
-      </main>
-
-      <Footer />
-    </div>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <ServiceCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 text-red-600 font-semibold text-sm">
+          ⚠️ {error}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
+          <p className="text-5xl mb-3">🔍</p>
+          <h3 className="font-black text-slate-900 text-lg mb-2">Natija topilmadi</h3>
+          <p className="text-slate-500 text-sm mb-4">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map((h) => (
+            <ServiceCard
+              key={h.id}
+              onClick={() =>
+                router.push(
+                  loginWithNext(`/trip-builder?dest=${encodeURIComponent(h.city || city || "zomin")}`),
+                )
+              }
+              title={h.name}
+              image={h.imageUrl}
+              placeholderEmoji="🏨"
+              city={h.city}
+              subtitle={nights > 1 ? `${nights} tun` : undefined}
+              price={h.nightlyPrice}
+              priceUnit="so'm/kecha"
+              rating={h.rating}
+              ratingCount={h.reviewCount}
+              starCount={h.stars}
+              actionLabel="Tanlash →"
+            />
+          ))}
+        </div>
+      )}
+    </DashboardShell>
   );
 }
 
 export default function HotelsSearchPage() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
+    <Suspense
+      fallback={
+        <DashboardShell title="Mehmonxonalar">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ServiceCardSkeleton key={i} />
+            ))}
+          </div>
+        </DashboardShell>
+      }
+    >
       <HotelsSearchInner />
     </Suspense>
   );
