@@ -92,6 +92,12 @@ function getDestVisual(title: string) {
   return { emoji: "📍", gradient: "from-slate-700/90 to-gray-900" };
 }
 
+function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
+  if (tab === "hotel") return data.hotels ?? [];
+  if (tab === "guide") return data.guides ?? [];
+  return data.taxis ?? [];
+}
+
 export default function TripBuilderPage() {
   const router = useRouter();
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -121,6 +127,9 @@ export default function TripBuilderPage() {
   const [cartBash, setCartBash] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("hotel");
+  const [drawerInventory, setDrawerInventory] = useState<InventoryData | null>(null);
+  const [drawerItems, setDrawerItems] = useState<InventoryItem[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
 
   useEffect(() => {
     async function loadDestinations() {
@@ -163,6 +172,37 @@ export default function TripBuilderPage() {
     }
     void fetchInventory();
   }, [destination]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    let cancelled = false;
+    async function fetchDrawerInventory() {
+      setDrawerLoading(true);
+      try {
+        const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination || "")}`);
+        const data: InventoryData = await res.json();
+        if (!cancelled) {
+          setDrawerInventory(data);
+          setDrawerItems(pickDrawerItems(data, drawerTab));
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Xizmatlarni yuklashda xato");
+          setDrawerInventory(null);
+          setDrawerItems([]);
+        }
+      } finally {
+        if (!cancelled) setDrawerLoading(false);
+      }
+    }
+    void fetchDrawerInventory();
+    return () => { cancelled = true; };
+  }, [drawerOpen, destination]);
+
+  useEffect(() => {
+    if (!drawerInventory) return;
+    setDrawerItems(pickDrawerItems(drawerInventory, drawerTab));
+  }, [drawerInventory, drawerTab]);
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   const days = useMemo(() => {
@@ -630,6 +670,59 @@ export default function TripBuilderPage() {
     );
   }
 
+  function renderDrawerCatalog() {
+    const selectedItem =
+      drawerTab === "hotel" ? selectedHotel : drawerTab === "guide" ? selectedGuide : selectedTaxi;
+    const setSelected =
+      drawerTab === "hotel" ? setSelectedHotel : drawerTab === "guide" ? setSelectedGuide : setSelectedTaxi;
+    const label = drawerTab === "hotel" ? "mehmonxona" : drawerTab === "guide" ? "gid" : "transport";
+
+    const handleSelect = (item: InventoryItem) => {
+      const isDeselecting = selectedItem?.id === item.id;
+      setSelected(isDeselecting ? null : item);
+      if (aiSuggestedTotal != null) setAiSuggestedTotal(null);
+      if (!isDeselecting) setDrawerOpen(false);
+    };
+
+    if (drawerLoading) return <DrawerCatalogSkeleton />;
+
+    if (drawerItems.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-white/50">
+          <Info className="w-10 h-10 text-gray-400 mb-3" />
+          <h3 className="font-black text-gray-900">Tizimda takliflar yo&apos;q</h3>
+          <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
+            {destination
+              ? `${destination} hududida hozircha "${label}" mavjud emas.`
+              : `Hozircha "${label}" takliflari mavjud emas.`}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-3">
+        {drawerItems.map((item) => {
+          const isSelected = selectedItem?.id === item.id;
+          const onSelect = () => handleSelect(item);
+          if (drawerTab === "hotel") {
+            return (
+              <DrawerHotelCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
+            );
+          }
+          if (drawerTab === "guide") {
+            return (
+              <DrawerGuideCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
+            );
+          }
+          return (
+            <DrawerTransportCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
+          );
+        })}
+      </div>
+    );
+  }
+
   function TimelineNode({
     icon: Icon, title, time, isAdded, onNavigate, onRemove, children,
   }: {
@@ -823,38 +916,14 @@ export default function TripBuilderPage() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
-              {!destination ? (
-                <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-gray-50/50">
-                  <MapPin className="w-10 h-10 text-gray-400 mb-3" />
-                  <h3 className="font-black text-gray-900">Avval manzil tanlang</h3>
-                  <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
-                    Xizmatlarni ko&apos;rish uchun sayohat manzilini belgilang.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDrawerOpen(false);
-                      setActiveTab("basics");
-                    }}
-                    className="mt-4 text-sm font-bold text-amber-600 hover:text-amber-700"
-                  >
-                    Manzil tanlash →
-                  </button>
+              {destination && (
+                <div className="mb-4">
+                  <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                    {destination}
+                  </span>
                 </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
-                      {destination}
-                    </span>
-                  </div>
-                  <CatalogSection
-                    tabId={drawerTab}
-                    variant="drawer"
-                    onItemSelected={() => setDrawerOpen(false)}
-                  />
-                </>
               )}
+              {renderDrawerCatalog()}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { PartnerStatus, PartnerType, type Prisma } from "@prisma/client";
+import { HotelStatus, PartnerStatus, PartnerType, type Prisma } from "@prisma/client";
 
 function parseImages(images: unknown): string[] {
   if (Array.isArray(images)) {
@@ -29,7 +29,8 @@ function starRating(meta: unknown): number {
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const dest = searchParams.get("dest")?.toLowerCase() || "";
+  const destRaw = searchParams.get("dest");
+  const dest = destRaw?.trim() ? destRaw.toLowerCase() : "";
 
   const approvedHotelPartner = {
     status: PartnerStatus.approved,
@@ -44,20 +45,21 @@ export async function GET(req: Request) {
     type: PartnerType.taxi,
   };
 
-  const hotelWhere: Prisma.HotelWhereInput = dest
-    ? { partner: approvedHotelPartner, city: { contains: dest } }
-    : { partner: approvedHotelPartner };
+  const hotelWhere: Prisma.HotelWhereInput = {
+    status: HotelStatus.active,
+    partner: approvedHotelPartner,
+    ...(dest ? { city: { contains: dest } } : {}),
+  };
 
-  const guideWhere: Prisma.GuideListingWhereInput = dest
-    ? {
-        isActive: true,
-        partner: approvedGuidePartner,
-        OR: [{ region: { contains: dest } }, { region: { equals: "" } }, { region: null }],
-      }
-    : {
-        isActive: true,
-        partner: approvedGuidePartner,
-      };
+  const guideWhere: Prisma.GuideListingWhereInput = {
+    isActive: true,
+    partner: approvedGuidePartner,
+    ...(dest
+      ? {
+          OR: [{ region: { contains: dest } }, { region: { equals: "" } }, { region: null }],
+        }
+      : {}),
+  };
 
   const taxiWhere: Prisma.TaxiServiceWhereInput = {
     isActive: true,
