@@ -6,7 +6,7 @@ import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
   Check, X, Calendar, Users, Sparkles, Wand2, Sun, CloudRain, Wind,
-  ChevronRight, Plus,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
@@ -363,70 +363,17 @@ export default function TripBuilderPage() {
     );
   }
 
-  function ItemCard({ item, isSelected, onToggle }: { item: InventoryItem; isSelected: boolean; onToggle: () => void }) {
-    let sub = "";
-    if (item.nightlyPrice != null) sub = item.city || "";
-    else if (item.type) sub = taxiServiceTypeLabel(item.type);
-    else if (item.language) sub = languageLabel(item.language);
-    else sub = item.region || item.city || "";
-
-    let priceLine = formatPrice(0);
-    if (item.nightlyPrice != null)
-      priceLine = formatPricePerUnit(item.nightlyPrice, "kecha");
-    else if (item.pricePerHour != null && item.pricePerHour > 0)
-      priceLine = formatPricePerUnit(item.pricePerHour, "soat");
-    else if (item.price != null) priceLine = formatPrice(item.price);
-    else if (item.pricePerDay != null && item.pricePerDay > 0)
-      priceLine = formatPricePerUnit(item.pricePerDay, "kecha");
-
-    return (
-      <div
-        onClick={() => { onToggle(); triggerCartBounce(); }}
-        className={`relative p-5 rounded-2xl border cursor-pointer transition-all duration-200 hover:-translate-y-1 group ${
-          isSelected
-            ? "bg-blue-50 border-2 border-blue-500 shadow-md ring-4 ring-blue-500/10 scale-[1.02]"
-            : "bg-white border-2 border-gray-200 hover:border-gray-300 hover:shadow-sm hover:-translate-y-1"
-        }`}
-      >
-        {isSelected && (
-          <div className="absolute top-3 right-3 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center animate-in zoom-in duration-200">
-            <Check size={14} strokeWidth={3} className="text-white" />
-          </div>
-        )}
-        <h3 className={`font-black text-sm leading-tight pr-8 mb-1 ${isSelected ? "text-blue-900" : "text-gray-900"}`}>
-          {item.title}
-        </h3>
-        {sub && (
-          <p className="text-xs text-gray-500 mb-4 uppercase tracking-wide font-bold">{sub}</p>
-        )}
-        <div className="flex items-end justify-between pt-3 border-t border-gray-100">
-          <div className={`font-black text-base ${isSelected ? "text-blue-600" : "text-gray-900"}`}>
-            {priceLine}
-          </div>
-          <button
-            type="button"
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-              isSelected
-                ? "bg-red-50 text-red-500 hover:bg-red-100"
-                : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-900"
-            }`}
-          >
-            {isSelected ? <X size={14} /> : <Plus size={14} />}
-          </button>
-        </div>
-      </div>
-    );
+  function catalogTabToDrawerTab(tabId: "hotel" | "transport" | "guide"): DrawerTab {
+    if (tabId === "hotel") return "hotel";
+    if (tabId === "guide") return "guide";
+    return "transport";
   }
 
   function CatalogSkeleton() {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {[1, 2, 3, 4].map((k) => (
-          <div key={k} className="p-5 rounded-2xl border border-gray-200 bg-white animate-pulse">
-            <div className="h-4 bg-gray-50 rounded w-3/4 mb-2" />
-            <div className="h-3 bg-gray-50 rounded w-1/4 mb-6" />
-            <div className="h-5 bg-gray-50 rounded w-20" />
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map((k) => (
+          <ServiceCardSkeleton key={k} />
         ))}
       </div>
     );
@@ -464,16 +411,25 @@ export default function TripBuilderPage() {
       );
     }
 
+    const drawerTab = catalogTabToDrawerTab(tabId);
+
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {items.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            isSelected={selectedItem?.id === item.id}
-            onToggle={() => handleSelect(item)}
-          />
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item) => {
+          const isSelected = selectedItem?.id === item.id;
+          const cardProps = drawerItemToCardProps(item, drawerTab);
+          return (
+            <ServiceCard
+              key={item.id}
+              {...cardProps}
+              isSelected={isSelected}
+              onClick={() => {
+                handleSelect(item);
+                triggerCartBounce();
+              }}
+            />
+          );
+        })}
       </div>
     );
   }
