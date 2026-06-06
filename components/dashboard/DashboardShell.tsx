@@ -25,6 +25,10 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
+import {
+  dispatchTripBuilderTab,
+  type TripBuilderDrawerTab,
+} from "@/lib/tripBuilderEvents";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -48,7 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/trip-builder", label: "Yangi Safar (AI)", icon: ShoppingBag, roles: ["user"] },
   { href: "/tours", label: "Tayyor Turlar", icon: Compass, roles: ["user", "admin", "super_admin"] },
   { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel"] },
-  { href: "/guide", label: "Gid Paneli", icon: Map, roles: ["guide"] },
+  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide"] },
   { href: "/taxi/home", label: "Taxi Paneli", icon: Car, roles: ["taxi"] },
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];
@@ -60,6 +64,20 @@ const SERVICE_LINKS = [
   { href: "/guide", label: "Gid", emoji: "🧭" },
   { href: "/tours", label: "Turlar", emoji: "📦" },
 ] as const;
+
+type XizmatlarItem = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  drawerTab?: TripBuilderDrawerTab;
+};
+
+const XIZMATLAR_ITEMS: XizmatlarItem[] = [
+  { href: "/hotels", label: "Mehmonxonalar", icon: Building2, drawerTab: "hotel" },
+  { href: "/homestay", label: "HomeStay", icon: Tent },
+  { href: "/guide", label: "Gidlar", icon: Map, drawerTab: "guide" },
+  { href: "/taxi", label: "Taxi", icon: Car, drawerTab: "transport" },
+];
 
 const PAGE_ICONS: Record<string, React.ElementType> = {
   "/bookings": LayoutDashboard,
@@ -213,31 +231,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             <p className="px-4 pt-5 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
               Xizmatlar
             </p>
-            {[
-              { href: "/hotels", label: "Mehmonxonalar", icon: Building2, tab: "hotel" },
-              { href: "/homestay", label: "HomeStay", icon: Tent, tab: "hotel" },
-              { href: "/guide", label: "Gidlar", icon: Map, tab: "guide" },
-              { href: "/taxi", label: "Taxi", icon: Car, tab: "transport" },
-            ].map((svc) => {
+            {XIZMATLAR_ITEMS.map((svc) => {
               const isActive = pathname === svc.href || pathname.startsWith(`${svc.href}/`);
               const className = `flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
                 isActive
                   ? "border-amber-500 bg-amber-50 text-amber-700"
                   : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`;
+              const onTripBuilder = pathname === "/trip-builder" || pathname.startsWith("/trip-builder/");
 
-              if (pathname === "/trip-builder") {
+              if (onTripBuilder && svc.drawerTab) {
                 return (
                   <button
                     key={svc.href}
                     type="button"
                     onClick={() => {
                       setSidebarOpen(false);
-                      window.dispatchEvent(
-                        new CustomEvent("trip-builder-tab", {
-                          detail: { tab: svc.tab, open: true },
-                        }),
-                      );
+                      dispatchTripBuilderTab(svc.drawerTab!);
                     }}
                     className={className}
                   >

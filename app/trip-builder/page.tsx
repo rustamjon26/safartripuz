@@ -10,6 +10,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
+import {
+  TRIP_BUILDER_TAB_EVENT,
+  type TripBuilderDrawerTab,
+  type TripBuilderTabEventDetail,
+} from "@/lib/tripBuilderEvents";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import {
   formatPrice,
@@ -56,12 +61,7 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
-type DrawerTab = "hotel" | "guide" | "transport";
-
-type TripBuilderTabEventDetail = {
-  tab: DrawerTab;
-  open?: boolean;
-};
+type DrawerTab = TripBuilderDrawerTab;
 
 const DRAWER_TITLES: Record<DrawerTab, string> = {
   hotel: "Mehmonxonalar",
@@ -147,12 +147,11 @@ export default function TripBuilderPage() {
     function handleTabEvent(e: Event) {
       const detail = (e as CustomEvent<TripBuilderTabEventDetail>).detail;
       if (!detail?.open || !detail.tab) return;
-      if (detail.tab !== "hotel" && detail.tab !== "guide" && detail.tab !== "transport") return;
       setDrawerTab(detail.tab);
       setDrawerOpen(true);
     }
-    window.addEventListener("trip-builder-tab", handleTabEvent);
-    return () => window.removeEventListener("trip-builder-tab", handleTabEvent);
+    window.addEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
+    return () => window.removeEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
   }, []);
 
   useEffect(() => {
@@ -165,26 +164,31 @@ export default function TripBuilderPage() {
       setLoadingInv(true);
       try {
         const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination)}`);
+        if (!res.ok) throw new Error("inventory fetch failed");
         setInventory(await res.json());
       } catch {
         toast.error("Xizmatlarni yuklashda xato");
+        setInventory(null);
       } finally { setLoadingInv(false); }
     }
     void fetchInventory();
   }, [destination]);
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen) {
+      setDrawerInventory(null);
+      setDrawerItems([]);
+      setDrawerLoading(false);
+      return;
+    }
     let cancelled = false;
     async function fetchDrawerInventory() {
       setDrawerLoading(true);
       try {
         const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination || "")}`);
+        if (!res.ok) throw new Error("drawer inventory fetch failed");
         const data: InventoryData = await res.json();
-        if (!cancelled) {
-          setDrawerInventory(data);
-          setDrawerItems(pickDrawerItems(data, drawerTab));
-        }
+        if (!cancelled) setDrawerInventory(data);
       } catch {
         if (!cancelled) {
           toast.error("Xizmatlarni yuklashda xato");
