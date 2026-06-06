@@ -16,6 +16,7 @@ import {
   type TripBuilderTabEventDetail,
 } from "@/lib/tripBuilderEvents";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import {
   formatPrice,
   formatPricePerUnit,
@@ -316,218 +317,47 @@ export default function TripBuilderPage() {
     } finally { setSubmitting(false); }
   }
 
-  function StarRow({ count }: { count: number }) {
-    const filled = Math.min(5, Math.max(1, Math.round(count)));
-    return (
-      <div className="flex items-center gap-0.5" aria-label={`${filled} yulduz`}>
-        {Array.from({ length: 5 }, (_, i) => (
-          <span
-            key={i}
-            className={`text-xs leading-none ${i < filled ? "text-amber-400" : "text-gray-200"}`}
-          >
-            ★
-          </span>
-        ))}
-      </div>
-    );
-  }
-
-  function DrawerSelectButton({ isSelected }: { isSelected: boolean }) {
-    return (
-      <span
-        className={`shrink-0 text-xs font-black px-3 py-2 rounded-xl transition-colors ${
-          isSelected
-            ? "bg-emerald-500 text-white"
-            : "bg-gray-900 text-white hover:bg-gray-800"
-        }`}
-      >
-        {isSelected ? "Tanlandi ✓" : "Tanlash"}
-      </span>
-    );
-  }
-
-  function DrawerHotelCard({
-    item,
-    isSelected,
-    onSelect,
-  }: {
-    item: InventoryItem;
-    isSelected: boolean;
-    onSelect: () => void;
-  }) {
-    const cover = item.images?.[0];
-    return (
-      <button
-        type="button"
-        onClick={() => { onSelect(); triggerCartBounce(); }}
-        className={`w-full flex gap-3 rounded-2xl border overflow-hidden text-left transition-all hover:shadow-md ${
-          isSelected
-            ? "border-2 border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/10"
-            : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
-      >
-        <div className="w-[120px] h-[100px] shrink-0 bg-gray-100 overflow-hidden">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-3xl">
-              🏨
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 py-3 pr-3 flex flex-col justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <h3 className="font-black text-sm text-gray-900 leading-tight line-clamp-2">{item.title}</h3>
-            {item.city && (
-              <p className="text-xs text-gray-500 font-semibold flex items-center gap-1">
-                <MapPin size={11} className="shrink-0" />
-                {item.city}
-              </p>
-            )}
-            <StarRow count={item.rating ?? 4} />
-            {item.roomTypeName && (
-              <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide truncate">
-                {item.roomTypeName}
-              </p>
-            )}
-          </div>
-          <div className="flex items-end justify-between gap-2">
-            {item.nightlyPrice != null && (
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Kechasi</p>
-                <p className="text-lg font-black text-gray-900 leading-none">
-                  {formatUzInteger(item.nightlyPrice)}
-                  <span className="text-[10px] text-gray-500 font-bold ml-1">so&apos;m</span>
-                </p>
-              </div>
-            )}
-            <DrawerSelectButton isSelected={isSelected} />
-          </div>
-        </div>
-      </button>
-    );
-  }
-
-  function DrawerGuideCard({
-    item,
-    isSelected,
-    onSelect,
-  }: {
-    item: InventoryItem;
-    isSelected: boolean;
-    onSelect: () => void;
-  }) {
-    const cover = item.images?.[0];
-    return (
-      <button
-        type="button"
-        onClick={() => { onSelect(); triggerCartBounce(); }}
-        className={`w-full flex gap-3 rounded-2xl border overflow-hidden text-left transition-all hover:shadow-md ${
-          isSelected
-            ? "border-2 border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/10"
-            : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
-      >
-        <div className="w-[120px] h-[100px] shrink-0 bg-gray-100 overflow-hidden">
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={cover} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-indigo-100 text-3xl">
-              🧭
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0 py-3 pr-3 flex flex-col justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <h3 className="font-black text-sm text-gray-900 leading-tight line-clamp-2">{item.title}</h3>
-            {item.language && (
-              <p className="text-xs text-gray-500 font-semibold">
-                {languageLabel(item.language)}
-              </p>
-            )}
-            {item.avgRating != null && item.avgRating > 0 && (
-              <p className="text-xs text-amber-600 font-bold">★ {item.avgRating.toFixed(1)}</p>
-            )}
-          </div>
-          <div className="flex items-end justify-between gap-2">
-            {item.pricePerDay != null && item.pricePerDay > 0 && (
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Kunlik</p>
-                <p className="text-lg font-black text-gray-900 leading-none">
-                  {formatUzInteger(item.pricePerDay)}
-                  <span className="text-[10px] text-gray-500 font-bold ml-1">so&apos;m</span>
-                </p>
-              </div>
-            )}
-            <DrawerSelectButton isSelected={isSelected} />
-          </div>
-        </div>
-      </button>
-    );
-  }
-
-  function DrawerTransportCard({
-    item,
-    isSelected,
-    onSelect,
-  }: {
-    item: InventoryItem;
-    isSelected: boolean;
-    onSelect: () => void;
-  }) {
-    return (
-      <button
-        type="button"
-        onClick={() => { onSelect(); triggerCartBounce(); }}
-        className={`w-full flex gap-3 rounded-2xl border overflow-hidden text-left transition-all hover:shadow-md ${
-          isSelected
-            ? "border-2 border-emerald-500 bg-emerald-50/40 shadow-sm ring-2 ring-emerald-500/10"
-            : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
-      >
-        <div className="w-[120px] h-[100px] shrink-0 bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center text-4xl">
-          🚖
-        </div>
-        <div className="flex-1 min-w-0 py-3 pr-3 flex flex-col justify-between gap-2">
-          <div className="min-w-0 space-y-1">
-            <h3 className="font-black text-sm text-gray-900 leading-tight line-clamp-2">{item.title}</h3>
-            {item.type && (
-              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">
-                {taxiServiceTypeLabel(item.type)}
-              </p>
-            )}
-          </div>
-          <div className="flex items-end justify-between gap-2">
-            {item.price != null && (
-              <div>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Narx</p>
-                <p className="text-lg font-black text-gray-900 leading-none">
-                  {formatUzInteger(item.price)}
-                  <span className="text-[10px] text-gray-500 font-bold ml-1">so&apos;m</span>
-                </p>
-              </div>
-            )}
-            <DrawerSelectButton isSelected={isSelected} />
-          </div>
-        </div>
-      </button>
-    );
+  function drawerItemToCardProps(item: InventoryItem, tab: DrawerTab) {
+    if (tab === "hotel") {
+      return {
+        title: item.title,
+        image: item.images?.[0],
+        placeholderEmoji: "🏨",
+        city: item.city,
+        subtitle: item.roomTypeName,
+        price: item.nightlyPrice,
+        priceUnit: "so'm/kecha",
+        starCount: item.rating ?? 4,
+      };
+    }
+    if (tab === "guide") {
+      return {
+        title: item.title,
+        image: item.images?.[0],
+        placeholderEmoji: "🧭",
+        placeholderGradient: "from-violet-100 via-indigo-50 to-slate-100",
+        city: item.region || item.city,
+        subtitle: item.language ? languageLabel(item.language) : undefined,
+        price: item.pricePerDay,
+        priceUnit: "so'm/kun",
+        rating: item.avgRating,
+      };
+    }
+    return {
+      title: item.title,
+      placeholderEmoji: "🚖",
+      placeholderGradient: "from-orange-100 via-amber-50 to-slate-100",
+      subtitle: item.type ? taxiServiceTypeLabel(item.type) : undefined,
+      price: item.price,
+      priceUnit: "so'm",
+    };
   }
 
   function DrawerCatalogSkeleton() {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 gap-4">
         {[1, 2, 3].map((k) => (
-          <div key={k} className="flex gap-3 rounded-2xl border border-gray-200 bg-white animate-pulse overflow-hidden">
-            <div className="w-[120px] h-[100px] bg-gray-100 shrink-0" />
-            <div className="flex-1 py-3 pr-3 space-y-2">
-              <div className="h-4 bg-gray-100 rounded w-3/4" />
-              <div className="h-3 bg-gray-100 rounded w-1/2" />
-              <div className="h-5 bg-gray-100 rounded w-24 mt-4" />
-            </div>
-          </div>
+          <ServiceCardSkeleton key={k} />
         ))}
       </div>
     );
@@ -605,11 +435,9 @@ export default function TripBuilderPage() {
   function CatalogSection({
     tabId,
     onItemSelected,
-    variant = "default",
   }: {
     tabId: "hotel" | "transport" | "guide";
     onItemSelected?: () => void;
-    variant?: "default" | "drawer";
   }) {
     const items = tabId === "hotel" ? inventory?.hotels : tabId === "transport" ? inventory?.taxis : inventory?.guides;
     const selectedItem = tabId === "hotel" ? selectedHotel : tabId === "transport" ? selectedTaxi : selectedGuide;
@@ -624,7 +452,7 @@ export default function TripBuilderPage() {
     };
 
     if (loadingInv) {
-      return variant === "drawer" ? <DrawerCatalogSkeleton /> : <CatalogSkeleton />;
+      return <CatalogSkeleton />;
     }
     if (!items || items.length === 0) {
       return (
@@ -632,30 +460,6 @@ export default function TripBuilderPage() {
           <Info className="w-10 h-10 text-gray-400 mb-3" />
           <h3 className="font-black text-gray-900">Tizimda takliflar yo&apos;q</h3>
           <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">{destination} hududida hozircha &quot;{label}&quot; mavjud emas.</p>
-        </div>
-      );
-    }
-
-    if (variant === "drawer") {
-      return (
-        <div className="flex flex-col gap-3">
-          {items.map((item) => {
-            const isSelected = selectedItem?.id === item.id;
-            const onSelect = () => handleSelect(item);
-            if (tabId === "hotel") {
-              return (
-                <DrawerHotelCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
-              );
-            }
-            if (tabId === "guide") {
-              return (
-                <DrawerGuideCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
-              );
-            }
-            return (
-              <DrawerTransportCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
-            );
-          })}
         </div>
       );
     }
@@ -705,22 +509,20 @@ export default function TripBuilderPage() {
     }
 
     return (
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 gap-4">
         {drawerItems.map((item) => {
           const isSelected = selectedItem?.id === item.id;
-          const onSelect = () => handleSelect(item);
-          if (drawerTab === "hotel") {
-            return (
-              <DrawerHotelCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
-            );
-          }
-          if (drawerTab === "guide") {
-            return (
-              <DrawerGuideCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
-            );
-          }
+          const cardProps = drawerItemToCardProps(item, drawerTab);
           return (
-            <DrawerTransportCard key={item.id} item={item} isSelected={isSelected} onSelect={onSelect} />
+            <ServiceCard
+              key={item.id}
+              {...cardProps}
+              isSelected={isSelected}
+              onClick={() => {
+                handleSelect(item);
+                triggerCartBounce();
+              }}
+            />
           );
         })}
       </div>

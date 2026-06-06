@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { Search, SlidersHorizontal, Star, MapPin } from "lucide-react";
+import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
+import { Search, SlidersHorizontal, MapPin, Calendar, Users } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
 
 type Listing = {
@@ -19,9 +19,6 @@ type Listing = {
   rooms: number;
 };
 
-const inputCls =
-  "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 [color-scheme:light]";
-
 const AMENITY_ICONS: Record<string, string> = {
   wifi: "📶",
   parking: "🚗",
@@ -33,9 +30,12 @@ const AMENITY_ICONS: Record<string, string> = {
   "washing machine": "🫧",
 };
 
-function amenityChipIcon(a: string) {
+function amenityEmoji(a: string) {
   return AMENITY_ICONS[a] ?? "✓";
 }
+
+const fieldCls =
+  "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 [color-scheme:light]";
 
 export default function HomeStaySearchPage() {
   const [loading, setLoading] = useState(false);
@@ -106,83 +106,105 @@ export default function HomeStaySearchPage() {
   const activeAmenities = useMemo(() => query.amenities, [query.amenities]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar />
 
-      <section className="relative bg-gradient-to-br from-gray-900 to-gray-800 pt-24 pb-14 overflow-hidden">
+      {/* Hero */}
+      <section className="relative pt-24 pb-32 overflow-hidden">
         <div
-          className="absolute inset-0 opacity-30 pointer-events-none"
+          className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 50%, rgba(245,158,11,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(59,130,246,0.08) 0%, transparent 50%)",
+              "url(https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1600&q=80)",
           }}
         />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/85 via-slate-900/70 to-slate-900/90" />
+
         <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-amber-400 text-xs font-black uppercase tracking-[0.2em] mb-2">🏡 Uy Mehmonxonalar</p>
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight mb-4">
-            Mahalliy <span className="text-amber-400">uylarida</span> qoling
+          <p className="text-orange-400 text-xs font-bold uppercase tracking-[0.2em] mb-3">
+            🏡 Uy Mehmonxonalar
+          </p>
+          <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight mb-4 max-w-2xl">
+            Mahalliy uylarda <span className="text-orange-400">autentik</span> dam oling
           </h1>
-          <p className="text-gray-300 text-base max-w-xl mb-8">
-            O&apos;zbek oilalari uyida autentik tajriba. Wifi, oshxona va ko&apos;p qulayliklar.
+          <p className="text-slate-300 text-base max-w-xl mb-10 leading-relaxed">
+            O&apos;zbek oilalari mehmondorchiligi, qulay uylar va haqiqiy mahalliy tajriba — barchasi bir joyda.
           </p>
 
-          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-wrap gap-2 max-w-3xl backdrop-blur-sm">
-            <input
-              value={query.city}
-              onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
-              placeholder="🏙️ Shahar"
-              className="flex-1 min-w-[140px] bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 placeholder:text-gray-400 text-sm font-medium outline-none focus:ring-2 focus:ring-amber-400/50"
-            />
-            <input
-              type="date"
-              value={query.checkIn}
-              onChange={(e) => setQuery((p) => ({ ...p, checkIn: e.target.value }))}
-              className="bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]"
-            />
-            <input
-              type="date"
-              value={query.checkOut}
-              onChange={(e) => setQuery((p) => ({ ...p, checkOut: e.target.value }))}
-              className="bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50 [color-scheme:light]"
-            />
-            <input
-              type="number"
-              min={1}
-              value={query.guests}
-              onChange={(e) => setQuery((p) => ({ ...p, guests: Number(e.target.value) }))}
-              placeholder="Mehmonlar"
-              className="w-28 bg-white/90 border-0 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:ring-2 focus:ring-amber-400/50"
-            />
-            <button
-              type="button"
-              onClick={() => void runSearch()}
-              className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all"
-            >
-              <Search size={16} /> Qidirish
-            </button>
+          {/* Search form */}
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-5 max-w-4xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="relative lg:col-span-1">
+                <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={query.city}
+                  onChange={(e) => setQuery((p) => ({ ...p, city: e.target.value }))}
+                  placeholder="Shahar"
+                  className={`${fieldCls} pl-10`}
+                />
+              </div>
+              <div className="relative">
+                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="date"
+                  value={query.checkIn}
+                  onChange={(e) => setQuery((p) => ({ ...p, checkIn: e.target.value }))}
+                  className={`${fieldCls} pl-10`}
+                />
+              </div>
+              <div className="relative">
+                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="date"
+                  value={query.checkOut}
+                  onChange={(e) => setQuery((p) => ({ ...p, checkOut: e.target.value }))}
+                  className={`${fieldCls} pl-10`}
+                />
+              </div>
+              <div className="relative">
+                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="number"
+                  min={1}
+                  value={query.guests}
+                  onChange={(e) => setQuery((p) => ({ ...p, guests: Number(e.target.value) }))}
+                  placeholder="Mehmonlar"
+                  className={`${fieldCls} pl-10`}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => void runSearch()}
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors h-full min-h-[46px]"
+              >
+                <Search size={16} /> Qidirish
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
-      <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16 w-full">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <aside className="lg:w-[260px] shrink-0">
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm">
-              <h3 className="font-black text-gray-900 text-sm flex items-center gap-2">
-                <SlidersHorizontal size={16} className="text-amber-400" /> Filtrlar
+      <main className="flex-1 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-16 w-full -mt-16 relative z-10">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters */}
+          <aside className="lg:w-[280px] shrink-0">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 sticky top-24 space-y-6 shadow-sm">
+              <h3 className="text-xl font-bold text-slate-700 flex items-center gap-2">
+                <SlidersHorizontal size={18} className="text-orange-500" />
+                Filtrlar
               </h3>
 
               <button
                 type="button"
                 onClick={() => setFiltersOpen((p) => !p)}
-                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-500 bg-gray-50"
+                className="w-full lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:border-orange-400 transition-colors"
               >
                 {filtersOpen ? "Yopish" : "Filtrlarni ko'rsatish"}
               </button>
 
               <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-6`}>
                 <div>
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-3">
                     Narx oralig&apos;i
                   </label>
                   <input
@@ -192,23 +214,23 @@ export default function HomeStaySearchPage() {
                     step={50_000}
                     value={query.maxPrice}
                     onChange={(e) => setQuery((p) => ({ ...p, maxPrice: Number(e.target.value) }))}
-                    className="w-full accent-amber-500"
+                    className="w-full accent-orange-500"
                   />
-                  <div className="flex justify-between text-xs text-amber-600 font-bold mt-2">
+                  <div className="flex justify-between text-xs text-orange-500 font-bold mt-2">
                     <span>0</span>
                     <span>{formatUzInteger(query.maxPrice)} so&apos;m</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-3">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-3">
                     Qulayliklar
                   </label>
                   <div className="space-y-2">
                     {amenityOptions.map((a) => (
                       <label
                         key={a}
-                        className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer group"
+                        className="flex items-center gap-2.5 text-sm text-slate-600 cursor-pointer group"
                       >
                         <input
                           type="checkbox"
@@ -221,10 +243,10 @@ export default function HomeStaySearchPage() {
                                 : p.amenities.filter((x) => x !== a),
                             }))
                           }
-                          className="accent-amber-500"
+                          className="accent-orange-500 rounded"
                         />
-                        <span className="group-hover:text-gray-900 transition-colors">
-                          {amenityChipIcon(a)} {a}
+                        <span className="group-hover:text-slate-900 transition-colors font-medium">
+                          {amenityEmoji(a)} {a}
                         </span>
                       </label>
                     ))}
@@ -232,7 +254,7 @@ export default function HomeStaySearchPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">
                     Minimal xonalar
                   </label>
                   <input
@@ -240,14 +262,14 @@ export default function HomeStaySearchPage() {
                     min={1}
                     value={query.minRooms}
                     onChange={(e) => setQuery((p) => ({ ...p, minRooms: Number(e.target.value) }))}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                    className={fieldCls}
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={() => void runSearch()}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-white font-black py-3 rounded-xl text-sm transition-all"
+                  className="w-full bg-slate-900 hover:bg-orange-500 text-white font-bold py-3 rounded-xl text-sm transition-colors"
                 >
                   Filtrlarni qo&apos;llash
                 </button>
@@ -255,103 +277,57 @@ export default function HomeStaySearchPage() {
             </div>
           </aside>
 
+          {/* Results */}
           <section className="flex-1 min-w-0">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-slate-700">
+                {loading ? "Qidirilmoqda..." : `${items.length} ta uy topildi`}
+              </h2>
+            </div>
+
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden animate-pulse"
-                  >
-                    <div className="h-52 bg-gray-100" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-100 rounded w-3/4" />
-                      <div className="h-3 bg-gray-100 rounded w-1/2" />
-                      <div className="flex justify-between mt-4">
-                        <div className="h-6 bg-gray-100 rounded w-1/3" />
-                        <div className="h-8 bg-gray-100 rounded-xl w-20" />
-                      </div>
-                    </div>
-                  </div>
+                  <ServiceCardSkeleton key={i} />
                 ))}
               </div>
             ) : items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
                 <div className="text-6xl mb-4">🔍</div>
-                <h3 className="font-black text-gray-900 text-lg mb-2">Natija topilmadi</h3>
-                <p className="text-gray-500 text-sm max-w-xs mb-6">Boshqa filtr yoki shaharni sinab ko&apos;ring</p>
+                <h3 className="font-black text-slate-900 text-lg mb-2">Natija topilmadi</h3>
+                <p className="text-slate-500 text-sm max-w-xs mb-6">
+                  Boshqa filtr yoki shaharni sinab ko&apos;ring
+                </p>
                 <button
                   type="button"
                   onClick={() => void runSearch({ city: "", amenities: [], minRooms: 1 })}
-                  className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-2.5 rounded-xl text-sm"
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors"
                 >
                   Filterni tozalash
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {items.map((item) => (
-                  <Link
+                  <ServiceCard
                     key={item.id}
                     href={`/homestay/${item.id}`}
-                    className="group bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-amber-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-                  >
-                    <div className="relative h-52 bg-gray-50 overflow-hidden">
-                      {item.images?.[0] ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.images[0]}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center">
-                          <span className="text-6xl">🏡</span>
-                          <span className="text-gray-400 text-xs mt-2">{item.city}</span>
-                        </div>
-                      )}
-
-                      {item.avgRating != null && (
-                        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1">
-                          <Star size={11} className="text-amber-400 fill-amber-400" />
-                          <span className="text-white text-xs font-black">{item.avgRating.toFixed(1)}</span>
-                          <span className="text-gray-500 text-xs">({item.reviewCount})</span>
-                        </div>
-                      )}
-
-                      {item.amenities?.slice(0, 3).length > 0 && (
-                        <div className="absolute bottom-3 left-3 flex gap-1.5">
-                          {item.amenities.slice(0, 3).map((a) => (
-                            <span
-                              key={a}
-                              className="bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md"
-                            >
-                              {amenityChipIcon(a)} {a}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="font-black text-gray-900 text-sm leading-tight mb-1">{item.title}</h3>
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                        <MapPin size={11} /> {item.city} · {item.rooms} xona
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xl font-black text-amber-600">
-                            {Number(item.pricePerNight).toLocaleString()}
-                          </span>
-                          <span className="text-xs text-gray-500 ml-1">so&apos;m / tun</span>
-                        </div>
-                        <span className="text-amber-400 text-xs font-black bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
-                          Ko&apos;rish →
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
+                    title={item.title}
+                    image={item.images?.[0]}
+                    placeholderEmoji="🏡"
+                    placeholderGradient="from-emerald-100 via-teal-50 to-slate-100"
+                    city={item.city}
+                    subtitle={`${item.rooms} xona · HomeStay`}
+                    price={item.pricePerNight}
+                    priceUnit="so'm/kecha"
+                    rating={item.avgRating}
+                    ratingCount={item.reviewCount}
+                    amenities={item.amenities?.slice(0, 4).map((a) => ({
+                      label: a,
+                      emoji: amenityEmoji(a),
+                    }))}
+                    actionLabel="Tanlash →"
+                  />
                 ))}
               </div>
             )}
