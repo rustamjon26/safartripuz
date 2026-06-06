@@ -54,6 +54,18 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
+type DrawerTab = "hotel" | "guide" | "transport";
+
+type TripBuilderTabEventDetail = {
+  tab: DrawerTab;
+  open?: boolean;
+};
+
+const DRAWER_TITLES: Record<DrawerTab, string> = {
+  hotel: "Mehmonxonalar",
+  guide: "Gidlar",
+  transport: "Transport",
+};
 
 const DEST_VISUAL: Record<string, { emoji: string; gradient: string }> = {
   samarqand: { emoji: "🕌", gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
@@ -105,6 +117,8 @@ export default function TripBuilderPage() {
   const [priceEditOpen, setPriceEditOpen] = useState(false);
 
   const [cartBash, setCartBash] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("hotel");
 
   useEffect(() => {
     async function loadDestinations() {
@@ -120,10 +134,11 @@ export default function TripBuilderPage() {
 
   useEffect(() => {
     function handleTabEvent(e: Event) {
-      const tab = (e as CustomEvent<TabId>).detail;
-      if (TABS.some((t) => t.id === tab)) {
-        setActiveTab(tab);
-      }
+      const detail = (e as CustomEvent<TripBuilderTabEventDetail>).detail;
+      if (!detail?.open || !detail.tab) return;
+      if (detail.tab !== "hotel" && detail.tab !== "guide" && detail.tab !== "transport") return;
+      setDrawerTab(detail.tab);
+      setDrawerOpen(true);
     }
     window.addEventListener("trip-builder-tab", handleTabEvent);
     return () => window.removeEventListener("trip-builder-tab", handleTabEvent);
@@ -324,7 +339,13 @@ export default function TripBuilderPage() {
     );
   }
 
-  function CatalogSection({ tabId }: { tabId: "hotel" | "transport" | "guide" }) {
+  function CatalogSection({
+    tabId,
+    onItemSelected,
+  }: {
+    tabId: "hotel" | "transport" | "guide";
+    onItemSelected?: () => void;
+  }) {
     const items = tabId === "hotel" ? inventory?.hotels : tabId === "transport" ? inventory?.taxis : inventory?.guides;
     const selectedItem = tabId === "hotel" ? selectedHotel : tabId === "transport" ? selectedTaxi : selectedGuide;
     const setSelected = tabId === "hotel" ? setSelectedHotel : tabId === "transport" ? setSelectedTaxi : setSelectedGuide;
@@ -348,8 +369,10 @@ export default function TripBuilderPage() {
             item={item}
             isSelected={selectedItem?.id === item.id}
             onToggle={() => {
-              setSelected(selectedItem?.id === item.id ? null : item);
+              const isDeselecting = selectedItem?.id === item.id;
+              setSelected(isDeselecting ? null : item);
               if (aiSuggestedTotal != null) setAiSuggestedTotal(null);
+              if (!isDeselecting) onItemSelected?.();
             }}
           />
         ))}
@@ -528,6 +551,63 @@ export default function TripBuilderPage() {
           {renderTripSidebar()}
         </div>
       </div>
+
+      {drawerOpen && (
+        <div className="fixed inset-0 z-[60]">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Yopish"
+          />
+          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl sm:rounded-none sm:bottom-auto sm:right-0 sm:top-0 sm:left-auto sm:h-full sm:max-h-none w-full sm:w-[480px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
+              <h2 className="text-lg font-black text-gray-900">{DRAWER_TITLES[drawerTab]}</h2>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                aria-label="Yopish"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {!destination ? (
+                <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-gray-50/50">
+                  <MapPin className="w-10 h-10 text-gray-400 mb-3" />
+                  <h3 className="font-black text-gray-900">Avval manzil tanlang</h3>
+                  <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
+                    Xizmatlarni ko&apos;rish uchun sayohat manzilini belgilang.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      setActiveTab("basics");
+                    }}
+                    className="mt-4 text-sm font-bold text-amber-600 hover:text-amber-700"
+                  >
+                    Manzil tanlash →
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                      {destination}
+                    </span>
+                  </div>
+                  <CatalogSection
+                    tabId={drawerTab}
+                    onItemSelected={() => setDrawerOpen(false)}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile floating price bar */}
       {hasServices && (

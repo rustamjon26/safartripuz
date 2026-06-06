@@ -234,7 +234,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                     onClick={() => {
                       setSidebarOpen(false);
                       window.dispatchEvent(
-                        new CustomEvent("trip-builder-tab", { detail: svc.tab }),
+                        new CustomEvent("trip-builder-tab", {
+                          detail: { tab: svc.tab, open: true },
+                        }),
                       );
                     }}
                     className={className}
