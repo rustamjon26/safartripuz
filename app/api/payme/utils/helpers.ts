@@ -282,7 +282,8 @@ export function toCheckTransactionResult(transaction: {
 }) {
   return {
     create_time: bigintToNumber(transaction.paymeTime),
-    perform_time: bigintToNumber(transaction.performTime),
+    perform_time:
+      transaction.state === -1 ? 0 : bigintToNumber(transaction.performTime),
     cancel_time: bigintToNumber(transaction.cancelTime),
     transaction: transaction.id,
     state: transaction.state,

@@ -24,21 +24,29 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND);
   }
 
+  if (transaction.state === -1 || transaction.state === -2) {
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
+  }
+
   if (transaction.state === 2) {
     return paymeRpcSuccess(id, toPerformTransactionResult(transaction));
   }
 
-  if (transaction.state === -1 || transaction.state === -2) {
-    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_CANCELLED);
-  }
-
-  const expired = await autoCancelExpiredTransaction(transaction);
-  if (expired.state === -1) {
+  if (transaction.state !== 1) {
     return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
-  if (expired.booking.status === "PAID" && expired.performTime) {
-    return paymeRpcSuccess(id, toPerformTransactionResult({ ...expired, state: 2 }));
+  const expired = await autoCancelExpiredTransaction(transaction);
+  if (expired.state === -1 || expired.state === -2) {
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
+  }
+
+  if (expired.state === 2) {
+    return paymeRpcSuccess(id, toPerformTransactionResult(expired));
+  }
+
+  if (expired.state !== 1) {
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
   const performTime = BigInt(Date.now());
