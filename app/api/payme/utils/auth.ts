@@ -3,7 +3,7 @@ import { getPaymeSecretKey } from "./helpers";
 
 export type PaymeAuthResult =
   | { ok: true }
-  | { ok: false; error: typeof PAYME_ERRORS.INVALID_AUTHORIZATION | typeof PAYME_ERRORS.AUTH_FAILED };
+  | { ok: false; error: typeof PAYME_ERRORS.AUTH_FAILED };
 
 function maskToken(value: string): string {
   if (value.length <= 4) return "****";
@@ -12,12 +12,12 @@ function maskToken(value: string): string {
 
 export function validatePaymeAuth(authHeader: string | null): PaymeAuthResult {
   if (!authHeader) {
-    return { ok: false, error: PAYME_ERRORS.INVALID_AUTHORIZATION };
+    return { ok: false, error: PAYME_ERRORS.AUTH_FAILED };
   }
 
   const match = /^Basic\s+(.+)$/i.exec(authHeader.trim());
   if (!match) {
-    return { ok: false, error: PAYME_ERRORS.INVALID_AUTHORIZATION };
+    return { ok: false, error: PAYME_ERRORS.AUTH_FAILED };
   }
 
   const secretKey = getPaymeSecretKey();
