@@ -253,6 +253,7 @@ model User {
   partnerProfile Partner?
   hotelStaff     HotelStaff?
   partnerEarnings PartnerEarning[] @relation("PartnerEarnings")
+  paymeBookings  Booking[]          @relation("PaymeBookings")
 }
 
 model HomeSayPartner {
@@ -506,6 +507,7 @@ model Hotel {
   updatedAt    DateTime    @updatedAt
 
   bookings            HotelBooking[]
+  paymeBookings       Booking[]           @relation("PaymeBookings")
   roomTypes           RoomType[]
   rooms               PhysicalRoom[]
   guestProfiles       GuestProfile[]
@@ -1189,6 +1191,44 @@ model HomeStayBookingLog {
 
   @@index([bookingId, createdAt])
   @@index([actorId])
+}
+
+model Booking {
+  id           String    @id @default(cuid())
+  userId       String
+  hotelId      String
+  amount       Int
+  status       String    @default("PENDING")
+  checkInDate  DateTime?
+  checkOutDate DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user             User              @relation("PaymeBookings", fields: [userId], references: [id], onDelete: Cascade)
+  hotel            Hotel             @relation("PaymeBookings", fields: [hotelId], references: [id], onDelete: Cascade)
+  paymeTransaction PaymeTransaction?
+
+  @@index([userId, status])
+  @@index([hotelId, status])
+}
+
+model PaymeTransaction {
+  id          String   @id @default(cuid())
+  paymeId     String   @unique
+  paymeTime   BigInt
+  bookingId   String   @unique
+  state       Int      @default(1)
+  amount      Int
+  reason      Int?
+  performTime BigInt?
+  cancelTime  BigInt?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([paymeTime])
+  @@index([state])
 }
 
 model HomeStayReview {
