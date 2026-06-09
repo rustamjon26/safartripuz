@@ -6,12 +6,13 @@ import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
   Check, X, Calendar, Users, Sparkles, Wand2, Sun, CloudRain, Wind,
-  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building,
+  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building, Tent,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
 import {
   TRIP_BUILDER_TAB_EVENT,
+  dispatchTripBuilderTab,
   type TripBuilderDrawerTab,
   type TripBuilderTabEventDetail,
 } from "@/lib/tripBuilderEvents";
@@ -45,10 +46,14 @@ type InventoryItem = {
   availableRooms?: number;
   avgRating?: number;
   reviewCount?: number;
+  maxGuests?: number;
+  rooms?: number;
+  amenities?: string[];
 };
 
 type InventoryData = {
   hotels: InventoryItem[];
+  homestays: InventoryItem[];
   taxis: InventoryItem[];
   guides: InventoryItem[];
 };
@@ -66,6 +71,7 @@ type DrawerTab = TripBuilderDrawerTab;
 
 const DRAWER_TITLES: Record<DrawerTab, string> = {
   hotel: "Mehmonxonalar",
+  homestay: "HomeStay",
   guide: "Gidlar",
   transport: "Transport",
 };
@@ -95,6 +101,7 @@ function getDestVisual(title: string) {
 
 function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
   if (tab === "hotel") return data.hotels ?? [];
+  if (tab === "homestay") return data.homestays ?? [];
   if (tab === "guide") return data.guides ?? [];
   return data.taxis ?? [];
 }
@@ -111,8 +118,9 @@ export default function TripBuilderPage() {
   const [pax, setPax] = useState(2);
   const [roomCount, setRoomCount] = useState(1);
 
-  const [selectedHotel, setSelectedHotel]   = useState<InventoryItem | null>(null);
-  const [selectedTaxi, setSelectedTaxi]     = useState<InventoryItem | null>(null);
+  const [selectedHotel, setSelectedHotel]       = useState<InventoryItem | null>(null);
+  const [selectedHomestay, setSelectedHomestay] = useState<InventoryItem | null>(null);
+  const [selectedTaxi, setSelectedTaxi]         = useState<InventoryItem | null>(null);
   const [selectedGuide, setSelectedGuide]   = useState<InventoryItem | null>(null);
 
   const [inventory, setInventory]   = useState<InventoryData | null>(null);
@@ -158,7 +166,10 @@ export default function TripBuilderPage() {
   useEffect(() => {
     if (!destination) {
       setInventory(null);
-      setSelectedHotel(null); setSelectedTaxi(null); setSelectedGuide(null);
+      setSelectedHotel(null);
+      setSelectedHomestay(null);
+      setSelectedTaxi(null);
+      setSelectedGuide(null);
       return;
     }
     async function fetchInventory() {
@@ -217,9 +228,10 @@ export default function TripBuilderPage() {
   }, [startDate, endDate]);
 
   const hotelTotal = selectedHotel?.nightlyPrice ? selectedHotel.nightlyPrice * days * roomCount : 0;
+  const homestayTotal = selectedHomestay?.nightlyPrice ? selectedHomestay.nightlyPrice * days : 0;
   const taxiTotal  = selectedTaxi?.price ?? 0;
   const guideTotal = selectedGuide?.pricePerDay ? selectedGuide.pricePerDay * days : 0;
-  const grandTotal = hotelTotal + taxiTotal + guideTotal;
+  const grandTotal = hotelTotal + homestayTotal + taxiTotal + guideTotal;
 
   const triggerCartBounce = () => {
     setCartBash(true);
@@ -292,6 +304,9 @@ export default function TripBuilderPage() {
             : undefined,
           taxi: selectedTaxi ? { id: selectedTaxi.id, title: selectedTaxi.title } : undefined,
           guide: selectedGuide ? { id: selectedGuide.id, title: selectedGuide.title } : undefined,
+          homestay: selectedHomestay
+            ? { id: selectedHomestay.id, title: selectedHomestay.title }
+            : undefined,
         }),
       });
       if (res.status === 401) {
@@ -328,6 +343,20 @@ export default function TripBuilderPage() {
         price: item.nightlyPrice,
         priceUnit: "so'm/kecha",
         starCount: item.rating ?? 4,
+      };
+    }
+    if (tab === "homestay") {
+      return {
+        title: item.title,
+        image: item.images?.[0],
+        placeholderIcon: Tent,
+        placeholderGradient: "from-emerald-100 via-teal-50 to-slate-100",
+        city: item.city,
+        subtitle: item.rooms ? `${item.rooms} xona · HomeStay` : "HomeStay",
+        price: item.nightlyPrice,
+        priceUnit: "so'm/kecha",
+        rating: item.avgRating,
+        ratingCount: item.reviewCount,
       };
     }
     if (tab === "guide") {
@@ -436,10 +465,29 @@ export default function TripBuilderPage() {
 
   function renderDrawerCatalog() {
     const selectedItem =
-      drawerTab === "hotel" ? selectedHotel : drawerTab === "guide" ? selectedGuide : selectedTaxi;
+      drawerTab === "hotel"
+        ? selectedHotel
+        : drawerTab === "homestay"
+          ? selectedHomestay
+          : drawerTab === "guide"
+            ? selectedGuide
+            : selectedTaxi;
     const setSelected =
-      drawerTab === "hotel" ? setSelectedHotel : drawerTab === "guide" ? setSelectedGuide : setSelectedTaxi;
-    const label = drawerTab === "hotel" ? "mehmonxona" : drawerTab === "guide" ? "gid" : "transport";
+      drawerTab === "hotel"
+        ? setSelectedHotel
+        : drawerTab === "homestay"
+          ? setSelectedHomestay
+          : drawerTab === "guide"
+            ? setSelectedGuide
+            : setSelectedTaxi;
+    const label =
+      drawerTab === "hotel"
+        ? "mehmonxona"
+        : drawerTab === "homestay"
+          ? "homestay"
+          : drawerTab === "guide"
+            ? "gid"
+            : "transport";
 
     const handleSelect = (item: InventoryItem) => {
       const isDeselecting = selectedItem?.id === item.id;
@@ -570,7 +618,7 @@ export default function TripBuilderPage() {
   };
 
   const weather = getWeatherAdvice();
-  const hasServices = !!(selectedHotel || selectedTaxi || selectedGuide);
+  const hasServices = !!(selectedHotel || selectedHomestay || selectedTaxi || selectedGuide);
   const stepIndex = TABS.findIndex((t) => t.id === activeTab);
 
   return (
@@ -965,6 +1013,26 @@ export default function TripBuilderPage() {
           </TimelineNode>
 
           <TimelineNode
+            icon={Tent}
+            title="HomeStay"
+            time="1-KUN, 15:00"
+            isAdded={!!selectedHomestay}
+            onNavigate={() => dispatchTripBuilderTab("homestay")}
+            onRemove={() => setSelectedHomestay(null)}
+          >
+            {selectedHomestay && (
+              <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                <span className="text-xs font-semibold text-gray-500 leading-tight pr-2">{selectedHomestay.title}</span>
+                <span className="font-black text-gray-900 text-sm shrink-0">
+                  {selectedHomestay.nightlyPrice != null
+                    ? formatPricePerUnit(selectedHomestay.nightlyPrice, "kecha")
+                    : "—"}
+                </span>
+              </div>
+            )}
+          </TimelineNode>
+
+          <TimelineNode
             icon={UserCircle}
             title="Gid"
             time="2-KUN, 10:00"
@@ -1009,6 +1077,15 @@ export default function TripBuilderPage() {
                   <span className="text-gray-900 font-bold">{formatUzInteger(hotelTotal)}</span>
                 </div>
               )}
+              {selectedHomestay?.nightlyPrice != null && (
+                <div className="flex justify-between text-gray-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Tent size={14} className="text-slate-500" />
+                    {formatUzInteger(selectedHomestay.nightlyPrice)} × {days} kun
+                  </span>
+                  <span className="text-gray-900 font-bold">{formatUzInteger(homestayTotal)}</span>
+                </div>
+              )}
               {selectedTaxi && (
                 <div className="flex justify-between text-gray-500">
                   <span className="inline-flex items-center gap-1.5">
@@ -1046,6 +1123,7 @@ export default function TripBuilderPage() {
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-gray-200">
               {hotelTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Building2 size={12} /> {formatUzInteger(hotelTotal)}</span>}
+              {homestayTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Tent size={12} /> {formatUzInteger(homestayTotal)}</span>}
               {taxiTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Car size={12} /> {formatUzInteger(taxiTotal)}</span>}
               {guideTotal > 0 && <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Compass size={12} /> {formatUzInteger(guideTotal)}</span>}
             </div>
@@ -1054,7 +1132,7 @@ export default function TripBuilderPage() {
           <button
             type="button"
             onClick={() => void checkout()}
-            disabled={submitting || !destination || (!selectedHotel && !selectedTaxi && !selectedGuide)}
+            disabled={submitting || !destination || (!selectedHotel && !selectedHomestay && !selectedTaxi && !selectedGuide)}
             className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-gray-900/20 flex items-center justify-center gap-2 text-sm"
           >
             {submitting ? (

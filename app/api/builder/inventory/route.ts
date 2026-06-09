@@ -2,6 +2,23 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { HotelStatus, PartnerStatus, PartnerType, type Prisma } from "@prisma/client";
 
+function parseStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((x): x is string => typeof x === "string" && x.length > 0);
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((x): x is string => typeof x === "string" && x.length > 0);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
+
 function parseImages(images: unknown): string[] {
   if (Array.isArray(images)) {
     return images.filter((x): x is string => typeof x === "string" && x.length > 0);
@@ -66,6 +83,11 @@ export async function GET(req: Request) {
     partner: approvedTaxiPartner,
   };
 
+  const homestayWhere: Prisma.HomeStayListingWhereInput = {
+    status: "ACTIVE",
+    ...(dest ? { city: { contains: dest } } : {}),
+  };
+
   const hotelsFromDb = await prisma.hotel.findMany({
     where: hotelWhere,
     take: 30,
@@ -103,7 +125,7 @@ export async function GET(req: Request) {
       };
     });
 
-  const [taxiFromDb, guidesFromDb] = await Promise.all([
+  const [taxiFromDb, guidesFromDb, homestaysFromDb] = await Promise.all([
     prisma.taxiService.findMany({
       where: taxiWhere,
       take: 20,
@@ -115,6 +137,12 @@ export async function GET(req: Request) {
       take: 20,
       orderBy: { createdAt: "desc" },
       include: { partner: true },
+    }),
+    prisma.homeStayListing.findMany({
+      where: homestayWhere,
+      take: 20,
+      orderBy: { createdAt: "desc" },
+      include: { reviews: { select: { rating: true } } },
     }),
   ]);
 
@@ -136,8 +164,30 @@ export async function GET(req: Request) {
     avgRating: g.rating,
   }));
 
+  const homestays = homestaysFromDb.map((h) => {
+    const reviewCount = h.reviews.length;
+    const avgRating =
+      reviewCount === 0
+        ? undefined
+        : h.reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount;
+    return {
+      id: h.id,
+      title: h.title,
+      city: h.city,
+      region: h.region,
+      nightlyPrice: Number(h.pricePerNight),
+      maxGuests: h.maxGuests,
+      rooms: h.rooms,
+      images: parseImages(h.images),
+      amenities: parseStringArray(h.amenities),
+      avgRating,
+      reviewCount,
+    };
+  });
+
   return NextResponse.json({
     hotels,
+    homestays,
     taxis,
     guides,
   });

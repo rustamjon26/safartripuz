@@ -21,6 +21,7 @@ export function travelPlanTurTags(plan: PlanShape): PlanTurFilter[] {
   if (plan._count.taxiOrders > 0) tags.add("taxi");
   for (const it of plan.items) {
     if (it.type === "HOTEL") tags.add("hotel");
+    if (it.type === "HOMESTAY") tags.add("homestay");
     if (it.type === "TAXI") tags.add("taxi");
     if (it.type === "GUIDE") tags.add("guide");
   }
@@ -33,6 +34,7 @@ export function travelPlanPrimaryRevenueCategory(plan: PlanShape): RevenueCatego
   if (plan._count.guideBookings > 0) return "GUIDE";
   if (plan._count.taxiOrders > 0) return "TAXI";
   if (plan.items.some((i) => i.type === "HOTEL")) return "HOTEL";
+  if (plan.items.some((i) => i.type === "HOMESTAY")) return "HOMESTAY";
   if (plan.items.some((i) => i.type === "GUIDE")) return "GUIDE";
   if (plan.items.some((i) => i.type === "TAXI")) return "TAXI";
   return "OTHER";

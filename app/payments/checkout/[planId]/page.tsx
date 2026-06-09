@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { toast } from "sonner";
-import { Loader2, CreditCard, ShieldCheck, Box, Banknote } from "lucide-react";
+import { Loader2, CreditCard, ShieldCheck, Box, Banknote, Tent, Home, Car, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ListChecks, MapPin, Tag } from "lucide-react";
 
@@ -93,6 +93,50 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                 </div>
               </div>
             </div>
+
+            {(plan.items?.length > 0 || plan.homeStayBookings?.length > 0) && (
+              <div className="mt-6 pt-6 border-t border-gray-100 space-y-2">
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Xizmatlar</p>
+                {plan.items?.map((item: { id: string; type: string; title: string; totalPrice: unknown }) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="inline-flex items-center gap-2 text-gray-600 font-semibold min-w-0">
+                      {item.type === "HOTEL" ? (
+                        <Home size={14} className="shrink-0 text-slate-500" />
+                      ) : item.type === "HOMESTAY" ? (
+                        <Tent size={14} className="shrink-0 text-slate-500" />
+                      ) : item.type === "TAXI" ? (
+                        <Car size={14} className="shrink-0 text-slate-500" />
+                      ) : (
+                        <UserIcon size={14} className="shrink-0 text-slate-500" />
+                      )}
+                      <span className="truncate">{item.title}</span>
+                    </span>
+                    <span className="font-black text-gray-900 shrink-0">
+                      {Number(item.totalPrice).toLocaleString()} so&apos;m
+                    </span>
+                  </div>
+                ))}
+                {!plan.items?.some((item: { type: string }) => item.type === "HOMESTAY") &&
+                  plan.homeStayBookings?.map((booking: {
+                    id: string;
+                    totalPrice: unknown;
+                    listing?: { title?: string; city?: string };
+                  }) => (
+                    <div key={booking.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="inline-flex items-center gap-2 text-gray-600 font-semibold min-w-0">
+                        <Tent size={14} className="shrink-0 text-slate-500" />
+                        <span className="truncate">
+                          {booking.listing?.title ?? "HomeStay"}
+                          {booking.listing?.city ? ` · ${booking.listing.city}` : ""}
+                        </span>
+                      </span>
+                      <span className="font-black text-gray-900 shrink-0">
+                        {Number(booking.totalPrice).toLocaleString()} so&apos;m
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 

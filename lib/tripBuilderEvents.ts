@@ -1,4 +1,4 @@
-export type TripBuilderDrawerTab = "hotel" | "guide" | "transport";
+export type TripBuilderDrawerTab = "hotel" | "homestay" | "guide" | "transport";
 
 export type TripBuilderTabEventDetail = {
   tab: TripBuilderDrawerTab;

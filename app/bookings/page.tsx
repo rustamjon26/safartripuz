@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Calendar, MapPin, User as UserIcon, CreditCard, Package,
-  Clock, CheckCircle2, XCircle, Home, PlusCircle, Info, Car,
+  Clock, CheckCircle2, XCircle, Home, PlusCircle, Info, Car, Tent,
   Users, Loader2, Wallet, ListChecks, Map,
 } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -160,7 +160,15 @@ export default function BookingsPage() {
                               key={item.id}
                               className="inline-flex items-center gap-1.5 text-xs font-bold bg-gray-50 text-gray-700 px-2.5 py-1 rounded-full border border-gray-200"
                             >
-                              {item.type === "HOTEL" ? <Home size={10} /> : item.type === "TAXI" ? <Car size={10} /> : <UserIcon size={10} />}
+                              {item.type === "HOTEL" ? (
+                                <Home size={10} />
+                              ) : item.type === "HOMESTAY" ? (
+                                <Tent size={10} />
+                              ) : item.type === "TAXI" ? (
+                                <Car size={10} />
+                              ) : (
+                                <UserIcon size={10} />
+                              )}
                               {item.title}
                               {item.quantity > 1 && <span className="text-gray-500">×{item.quantity}</span>}
                             </span>

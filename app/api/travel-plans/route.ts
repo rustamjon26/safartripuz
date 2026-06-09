@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { checkHomeStayAvailability } from "@/lib/homestay/checkAvailability";
 
 const schema = z.object({
   destination: z.string().trim().min(2),
@@ -24,6 +25,12 @@ const schema = z.object({
     })
     .optional(),
   guide: z
+    .object({
+      id: z.string(),
+      title: z.string().optional(),
+    })
+    .optional(),
+  homestay: z
     .object({
       id: z.string(),
       title: z.string().optional(),
@@ -113,7 +120,7 @@ export async function POST(req: Request) {
     let total = 0;
     let verifiedHotelTotal = 0;
     const items: Array<{
-      type: "HOTEL" | "TAXI" | "GUIDE";
+      type: "HOTEL" | "HOMESTAY" | "TAXI" | "GUIDE";
       title: string;
       providerId?: string;
       quantity: number;
@@ -121,6 +128,7 @@ export async function POST(req: Request) {
       totalPrice: number;
       details?: Record<string, unknown>;
     }> = [];
+    let verifiedHomestayTotal = 0;
 
     if (input.hotel) {
       const roomType = await prisma.roomType.findUnique({
@@ -222,6 +230,49 @@ export async function POST(req: Request) {
       });
     }
 
+    if (input.homestay) {
+      const listing = await prisma.homeStayListing.findFirst({
+        where: { id: input.homestay.id, status: "ACTIVE" },
+        select: {
+          id: true,
+          title: true,
+          maxGuests: true,
+          pricePerNight: true,
+        },
+      });
+      if (!listing) {
+        return NextResponse.json({ message: "HomeStay topilmadi" }, { status: 404 });
+      }
+      if (input.pax > listing.maxGuests) {
+        return NextResponse.json(
+          { message: `Mehmonlar soni ${listing.maxGuests} dan oshmasligi kerak` },
+          { status: 400 },
+        );
+      }
+
+      const availability = await checkHomeStayAvailability(listing.id, startDate, endDate);
+      if (!availability.available) {
+        return NextResponse.json(
+          { message: "Tanlangan sanalar uchun HomeStay band" },
+          { status: 409 },
+        );
+      }
+
+      const verifiedPricePerNight = Number(listing.pricePerNight);
+      verifiedHomestayTotal = verifiedPricePerNight * days;
+      total += verifiedHomestayTotal;
+
+      items.push({
+        type: "HOMESTAY",
+        title: input.homestay.title ?? listing.title,
+        providerId: listing.id,
+        quantity: days,
+        unitPrice: verifiedPricePerNight,
+        totalPrice: verifiedHomestayTotal,
+        details: { days, guestCount: input.pax },
+      });
+    }
+
     if (input.guide) {
       const guideListing = await prisma.guideListing.findFirst({
         where: {
@@ -298,6 +349,40 @@ export async function POST(req: Request) {
             source: "SAFARTRIP",
             status: "PENDING",
             note: `TravelPlan: ${createdPlan.id}`,
+          },
+        });
+      }
+
+      if (input.homestay) {
+        const listing = await tx.homeStayListing.findFirst({
+          where: { id: input.homestay!.id, status: "ACTIVE" },
+          select: { id: true, pricePerNight: true },
+        });
+        if (!listing) {
+          throw new Error("HomeStay topilmadi");
+        }
+
+        const snapshotPricePerNight = Number(listing.pricePerNight);
+        const priceSnapshot: Prisma.InputJsonValue = {
+          pricePerNight: snapshotPricePerNight,
+          nights: days,
+          calculatedAt: new Date().toISOString(),
+          source: "trip-builder",
+        };
+
+        await tx.homeStayBooking.create({
+          data: {
+            listingId: listing.id,
+            travelPlanId: createdPlan.id,
+            guestId: actor.id,
+            checkIn: startDate,
+            checkOut: endDate,
+            nights: days,
+            guestCount: input.pax,
+            totalPrice: verifiedHomestayTotal,
+            priceSnapshot,
+            status: "PENDING",
+            guestNote: `TravelPlan: ${createdPlan.id}`,
           },
         });
       }

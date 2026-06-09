@@ -75,7 +75,7 @@ type XizmatlarItem = {
 
 const XIZMATLAR_ITEMS: XizmatlarItem[] = [
   { href: "/hotels", label: "Mehmonxonalar", icon: Building2, drawerTab: "hotel" },
-  { href: "/homestay", label: "HomeStay", icon: Tent },
+  { href: "/homestay", label: "HomeStay", icon: Tent, drawerTab: "homestay" },
   { href: "/guide", label: "Gidlar", icon: Map, drawerTab: "guide" },
   { href: "/taxi", label: "Taxi", icon: Car, drawerTab: "transport" },
 ];
