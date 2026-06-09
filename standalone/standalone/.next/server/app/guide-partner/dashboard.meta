@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/guide-partner/layout,_N_T_/guide-partner/dashboard/layout,_N_T_/guide-partner/dashboard/page,_N_T_/guide-partner/dashboard"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/guide-partner/dashboard/__PAGE__",
+    "/guide-partner/dashboard",
+    "/guide-partner",
+    "/_index",
+    "/_head"
+  ]
+}

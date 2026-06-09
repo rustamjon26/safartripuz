@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/hotels/[id]/reports/export/excel/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/var/www/safar/app/api/hotels/[id]/reports/export/excel/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/user/layout,_N_T_/user/bookings/layout,_N_T_/user/bookings/homestay/layout,_N_T_/user/bookings/homestay/page,_N_T_/user/bookings/homestay"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/user/bookings/homestay/__PAGE__",
+    "/user/bookings/homestay",
+    "/user/bookings",
+    "/user",
+    "/_index",
+    "/_head"
+  ]
+}

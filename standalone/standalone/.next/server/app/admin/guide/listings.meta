@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/guide/layout,_N_T_/admin/guide/listings/layout,_N_T_/admin/guide/listings/page,_N_T_/admin/guide/listings"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/guide/listings/__PAGE__",
+    "/admin/guide/listings",
+    "/admin/guide",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

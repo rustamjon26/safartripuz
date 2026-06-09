@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/taxi/driver/profile/online/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/var/www/safar/app/api/taxi/driver/profile/online/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

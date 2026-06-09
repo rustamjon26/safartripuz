@@ -1,0 +1,18 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /hotel/
+Disallow: /homestay-partner/
+Disallow: /guide-partner/
+Disallow: /taxi-partner/
+Disallow: /profile
+Disallow: /bookings
+Disallow: /payments/
+Disallow: /user/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+
+Host: https://safartrip.uz
+Sitemap: https://safartrip.uz/sitemap.xml

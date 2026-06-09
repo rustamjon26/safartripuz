@@ -1,0 +1,17 @@
+{
+  "status": 307,
+  "headers": {
+    "location": "/guide-partner/dashboard",
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/guide-partner/layout,_N_T_/guide-partner/page,_N_T_/guide-partner"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/guide-partner/__PAGE__",
+    "/guide-partner",
+    "/_index",
+    "/_head"
+  ]
+}

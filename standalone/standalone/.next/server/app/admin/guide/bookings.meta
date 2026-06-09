@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/admin/layout,_N_T_/admin/guide/layout,_N_T_/admin/guide/bookings/layout,_N_T_/admin/guide/bookings/page,_N_T_/admin/guide/bookings"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/admin/guide/bookings/__PAGE__",
+    "/admin/guide/bookings",
+    "/admin/guide",
+    "/admin",
+    "/_index",
+    "/_head"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/taxi-partner/layout,_N_T_/taxi-partner/profile/layout,_N_T_/taxi-partner/profile/page,_N_T_/taxi-partner/profile"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/taxi-partner/profile/__PAGE__",
+    "/taxi-partner/profile",
+    "/taxi-partner",
+    "/_index",
+    "/_head"
+  ]
+}

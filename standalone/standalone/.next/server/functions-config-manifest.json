@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/hotels/[id]/reports/export/excel": {},
+    "/api/hotels/[id]/reports/export/pdf": {},
+    "/api/upload/images": {},
+    "/api/uploads/[...path]": {}
+  }
+}

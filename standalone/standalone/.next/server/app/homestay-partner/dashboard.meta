@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/homestay-partner/layout,_N_T_/homestay-partner/dashboard/layout,_N_T_/homestay-partner/dashboard/page,_N_T_/homestay-partner/dashboard"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/homestay-partner/dashboard/__PAGE__",
+    "/homestay-partner/dashboard",
+    "/homestay-partner",
+    "/_index",
+    "/_head"
+  ]
+}

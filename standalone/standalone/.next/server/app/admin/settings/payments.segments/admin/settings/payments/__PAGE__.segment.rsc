@@ -1,0 +1,10 @@
+1:"$Sreact.fragment"
+2:I[61304,[],"ClientPageRoot"]
+3:I[61869,["6609","static/chunks/6609-5f743d5c58d6f934.js","8500","static/chunks/8500-f62a38ff68ab7f42.js","8287","static/chunks/8287-9053a30773cb0809.js","4522","static/chunks/4522-b4813db8caa0cfbe.js","3360","static/chunks/app/admin/settings/payments/page-119108b6948d30ba.js"],"default"]
+6:I[90484,[],"OutletBoundary"]
+7:"$Sreact.suspense"
+:HL["/_next/static/css/e34d25673d043e36.css","style"]
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/e34d25673d043e36.css","precedence":"next"}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"TrpfpJythG0IGdfyN3DyO"}
+4:{}
+5:"$0:rsc:props:children:0:props:serverProvidedParams:params"
+8:null
