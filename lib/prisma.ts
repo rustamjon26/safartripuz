@@ -14,7 +14,9 @@ function createPrismaClient() {
 function hasLatestDelegates(client: PrismaClient) {
   return (
     typeof (client as unknown as { taxiService?: unknown }).taxiService !== "undefined" &&
-    typeof (client as unknown as { guideListing?: unknown }).guideListing !== "undefined"
+    typeof (client as unknown as { guideListing?: unknown }).guideListing !== "undefined" &&
+    typeof (client as unknown as { booking?: unknown }).booking !== "undefined" &&
+    typeof (client as unknown as { paymeTransaction?: unknown }).paymeTransaction !== "undefined"
   );
 }
 

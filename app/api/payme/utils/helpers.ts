@@ -3,11 +3,17 @@ import { prisma } from "@/lib/prisma";
 
 export const PAYME_TRANSACTION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
+const bookingHotelInclude = {
+  hotel: {
+    select: { id: true, name: true },
+  },
+} as const;
+
 export type PaymeRpcParams = {
   id?: string;
   time?: number;
   amount?: number;
-  account?: Record<string, string | undefined>;
+  account?: Record<string, unknown>;
   reason?: number;
   from?: number;
   to?: number;
@@ -42,14 +48,38 @@ export type PaymeTransactionWithBooking = PaymeTransaction & {
   booking: BookingWithHotel;
 };
 
-export function getPaymeMerchantId(): string {
-  return readEnv("PAYME_MERCHANT_ID") ?? "";
-}
+export type PaymeCreateTransactionResult = {
+  create_time: number;
+  transaction: string;
+  state: number;
+};
 
+export type PaymeStatementTransaction = {
+  id: string;
+  time: number;
+  amount: number;
+  account: { booking_id: string };
+  create_time: number;
+  perform_time: number;
+  cancel_time: number;
+  transaction: string;
+  state: number;
+  reason: number | null;
+};
+
+/** Read env at runtime (bracket access avoids Next.js build-time inlining). */
 function readEnv(name: string): string | undefined {
   const value = process.env[name];
   if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
+
+  let trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
@@ -64,7 +94,21 @@ function isPaymeTestMode(): boolean {
   return flag === "true" || flag === "1" || flag === "yes";
 }
 
+function resolveSecretKeySource(isTest: boolean, testKey?: string, prodKey?: string): string {
+  if (isTest) {
+    if (testKey) return "PAYME_TEST_SECRET_KEY";
+    if (prodKey) return "PAYME_SECRET_KEY (fallback)";
+    return "none";
+  }
+
+  return prodKey ? "PAYME_SECRET_KEY" : "none";
+}
+
 let loggedPaymeSecretSource = false;
+
+export function getPaymeMerchantId(): string {
+  return readEnv("PAYME_MERCHANT_ID") ?? "";
+}
 
 export function getPaymeSecretKey(): string {
   const isTest = isPaymeTestMode();
@@ -78,7 +122,7 @@ export function getPaymeSecretKey(): string {
       "[Payme] Secret key config:",
       JSON.stringify({
         isTest,
-        source: isTest ? (testKey ? "PAYME_TEST_SECRET_KEY" : prodKey ? "PAYME_SECRET_KEY (fallback)" : "none") : prodKey ? "PAYME_SECRET_KEY" : "none",
+        source: resolveSecretKeySource(isTest, testKey, prodKey),
         preview: maskSecret(secretKey),
         length: secretKey.length,
         paymeIsTestRaw: process.env["PAYME_IS_TEST"] ?? null,
@@ -108,17 +152,22 @@ export function isValidTiyinAmount(amount: unknown): amount is number {
 
 export function bigintToNumber(value: bigint | null | undefined): number {
   if (value === null || value === undefined) return 0;
-  return Number(value);
+  const asNumber = Number(value);
+  return Number.isFinite(asNumber) ? asNumber : 0;
 }
 
 export function isTransactionExpired(paymeTime: bigint, nowMs = Date.now()): boolean {
-  return nowMs - Number(paymeTime) > PAYME_TRANSACTION_TIMEOUT_MS;
+  return nowMs - bigintToNumber(paymeTime) > PAYME_TRANSACTION_TIMEOUT_MS;
 }
 
 export function getBookingIdFromAccount(
-  account: Record<string, string | undefined> | undefined,
+  account: Record<string, unknown> | undefined,
 ): string | undefined {
-  return account?.booking_id?.trim() || undefined;
+  const raw = account?.booking_id;
+  if (raw === undefined || raw === null) return undefined;
+
+  const bookingId = String(raw).trim();
+  return bookingId.length > 0 ? bookingId : undefined;
 }
 
 export async function findBookingById(bookingId: string | undefined): Promise<BookingWithHotel | null> {
@@ -126,11 +175,7 @@ export async function findBookingById(bookingId: string | undefined): Promise<Bo
 
   return prisma.booking.findUnique({
     where: { id: bookingId },
-    include: {
-      hotel: {
-        select: { id: true, name: true },
-      },
-    },
+    include: bookingHotelInclude,
   });
 }
 
@@ -143,11 +188,7 @@ export async function findPaymeTransactionByPaymeId(
     where: { paymeId },
     include: {
       booking: {
-        include: {
-          hotel: {
-            select: { id: true, name: true },
-          },
-        },
+        include: bookingHotelInclude,
       },
     },
   });
@@ -171,18 +212,7 @@ export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetai
 
 export function serializePaymeTransaction(
   transaction: PaymeTransactionWithBooking,
-): {
-  id: string;
-  time: number;
-  amount: number;
-  account: { booking_id: string };
-  create_time: number;
-  perform_time: number;
-  cancel_time: number;
-  transaction: string;
-  state: number;
-  reason: number | null;
-} {
+): PaymeStatementTransaction {
   return {
     id: transaction.paymeId,
     time: bigintToNumber(transaction.paymeTime),
@@ -197,7 +227,11 @@ export function serializePaymeTransaction(
   };
 }
 
-export function createTransactionResponse(transaction: PaymeTransaction) {
+export function createTransactionResponse(transaction: {
+  paymeId: string;
+  paymeTime: bigint;
+  state: number;
+}): PaymeCreateTransactionResult {
   return {
     create_time: bigintToNumber(transaction.paymeTime),
     transaction: transaction.paymeId,
@@ -214,7 +248,7 @@ export async function autoCancelExpiredTransaction(
 
   const cancelTime = BigInt(Date.now());
 
-  const updated = await prisma.paymeTransaction.update({
+  return prisma.paymeTransaction.update({
     where: { id: transaction.id },
     data: {
       state: -1,
@@ -223,14 +257,8 @@ export async function autoCancelExpiredTransaction(
     },
     include: {
       booking: {
-        include: {
-          hotel: {
-            select: { id: true, name: true },
-          },
-        },
+        include: bookingHotelInclude,
       },
     },
   });
-
-  return updated;
 }
