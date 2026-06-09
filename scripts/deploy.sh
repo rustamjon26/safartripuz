@@ -22,8 +22,10 @@ cp -r .next/standalone ./standalone
 cp -r .next/static ./standalone/.next/static
 cp -r public ./standalone/public
 cp .env ./standalone/.env
+cp .env ./.next/standalone/.env
 if [ -f .env.local ]; then
   cp .env.local ./standalone/.env.local
+  cp .env.local ./.next/standalone/.env.local
 fi
 
 echo "Restarting PM2..."

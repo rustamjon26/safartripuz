@@ -1,19 +1,25 @@
 import { prisma } from "@/lib/prisma";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
-  findPaymeTransactionByPaymeId,
+  normalizePaymeTransactionId,
+  paymeTransactionInclude,
   toCancelTransactionResult,
   type PaymeRpcParams,
 } from "../utils/helpers";
 
 export async function cancelTransaction(id: number, params: PaymeRpcParams) {
-  const paymeId = params.id?.trim();
+  const paymeId = normalizePaymeTransactionId(params.id);
   if (!paymeId) {
     return paymeRpcError(id, PAYME_ERRORS.SYSTEM_ERROR);
   }
 
-  const transaction = await findPaymeTransactionByPaymeId(paymeId);
+  const transaction = await prisma.paymeTransaction.findUnique({
+    where: { paymeId },
+    include: paymeTransactionInclude,
+  });
+
   if (!transaction) {
+    console.log("[Payme] CancelTransaction not found by paymeId:", paymeId);
     return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND);
   }
 

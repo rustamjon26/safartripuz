@@ -9,8 +9,20 @@ const bookingHotelInclude = {
   },
 } as const;
 
+export const paymeTransactionInclude = {
+  booking: {
+    include: bookingHotelInclude,
+  },
+} as const;
+
+export function normalizePaymeTransactionId(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const value = String(raw).trim();
+  return value.length > 0 ? value : undefined;
+}
+
 export type PaymeRpcParams = {
-  id?: string;
+  id?: string | number;
   time?: number;
   amount?: number;
   account?: Record<string, unknown>;
@@ -180,17 +192,14 @@ export async function findBookingById(bookingId: string | undefined): Promise<Bo
 }
 
 export async function findPaymeTransactionByPaymeId(
-  paymeId: string | undefined,
+  paymeId: unknown,
 ): Promise<PaymeTransactionWithBooking | null> {
-  if (!paymeId) return null;
+  const normalizedPaymeId = normalizePaymeTransactionId(paymeId);
+  if (!normalizedPaymeId) return null;
 
   return prisma.paymeTransaction.findUnique({
-    where: { paymeId },
-    include: {
-      booking: {
-        include: bookingHotelInclude,
-      },
-    },
+    where: { paymeId: normalizedPaymeId },
+    include: paymeTransactionInclude,
   });
 }
 

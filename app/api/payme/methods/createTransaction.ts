@@ -7,11 +7,12 @@ import {
   findPaymeTransactionByPaymeId,
   getBookingIdFromAccount,
   isValidTiyinAmount,
+  normalizePaymeTransactionId,
   type PaymeRpcParams,
 } from "../utils/helpers";
 
 export async function createTransaction(id: number, params: PaymeRpcParams) {
-  const paymeId = params.id?.trim();
+  const paymeId = normalizePaymeTransactionId(params.id);
   const paymeTime = params.time;
 
   if (!paymeId || typeof paymeTime !== "number" || !Number.isFinite(paymeTime)) {
