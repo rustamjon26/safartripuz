@@ -221,21 +221,63 @@ export function serializePaymeTransaction(
     create_time: bigintToNumber(transaction.paymeTime),
     perform_time: bigintToNumber(transaction.performTime),
     cancel_time: bigintToNumber(transaction.cancelTime),
-    transaction: transaction.paymeId,
+    transaction: transaction.id,
     state: transaction.state,
     reason: transaction.reason ?? null,
   };
 }
 
 export function createTransactionResponse(transaction: {
-  paymeId: string;
+  id: string;
   paymeTime: bigint;
   state: number;
 }): PaymeCreateTransactionResult {
   return {
     create_time: bigintToNumber(transaction.paymeTime),
-    transaction: transaction.paymeId,
+    transaction: transaction.id,
     state: transaction.state,
+  };
+}
+
+export function toPerformTransactionResult(transaction: {
+  id: string;
+  performTime: bigint | null;
+  state: number;
+}) {
+  return {
+    transaction: transaction.id,
+    perform_time: bigintToNumber(transaction.performTime),
+    state: transaction.state,
+  };
+}
+
+export function toCancelTransactionResult(transaction: {
+  id: string;
+  cancelTime: bigint | null;
+  state: number;
+}) {
+  return {
+    transaction: transaction.id,
+    cancel_time: bigintToNumber(transaction.cancelTime),
+    state: transaction.state,
+  };
+}
+
+export function toCheckTransactionResult(transaction: {
+  id: string;
+  paymeTime: bigint;
+  performTime: bigint | null;
+  cancelTime: bigint | null;
+  state: number;
+  reason: number | null;
+}) {
+  return {
+    create_time: bigintToNumber(transaction.paymeTime),
+    perform_time: bigintToNumber(transaction.performTime),
+    cancel_time: bigintToNumber(transaction.cancelTime),
+    transaction: transaction.id,
+    state: transaction.state,
+    reason: transaction.reason ?? null,
   };
 }
 

@@ -16,10 +16,18 @@ export async function checkPerformTransaction(id: number, params: PaymeRpcParams
   }
 
   if (!isValidTiyinAmount(params.amount)) {
+    console.log(
+      "[Payme] CheckPerformTransaction amount invalid:",
+      JSON.stringify({ bookingId, paramsAmount: params.amount, bookingAmount: booking.amount }),
+    );
     return paymeRpcError(id, PAYME_ERRORS.AMOUNT_MISMATCH, "amount");
   }
 
   if (params.amount !== booking.amount) {
+    console.log(
+      "[Payme] CheckPerformTransaction amount mismatch:",
+      JSON.stringify({ bookingId, paramsAmount: params.amount, bookingAmount: booking.amount }),
+    );
     return paymeRpcError(id, PAYME_ERRORS.AMOUNT_MISMATCH, "amount");
   }
 

@@ -1,8 +1,8 @@
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
   autoCancelExpiredTransaction,
-  bigintToNumber,
   findPaymeTransactionByPaymeId,
+  toCheckTransactionResult,
   type PaymeRpcParams,
 } from "../utils/helpers";
 
@@ -19,12 +19,5 @@ export async function checkTransaction(id: number, params: PaymeRpcParams) {
 
   const current = await autoCancelExpiredTransaction(transaction);
 
-  return paymeRpcSuccess(id, {
-    create_time: bigintToNumber(current.paymeTime),
-    perform_time: bigintToNumber(current.performTime),
-    cancel_time: bigintToNumber(current.cancelTime),
-    transaction: current.paymeId,
-    state: current.state,
-    reason: current.reason,
-  });
+  return paymeRpcSuccess(id, toCheckTransactionResult(current));
 }

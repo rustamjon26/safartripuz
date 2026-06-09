@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
-  bigintToNumber,
   findPaymeTransactionByPaymeId,
+  toCancelTransactionResult,
   type PaymeRpcParams,
 } from "../utils/helpers";
 
@@ -18,11 +18,7 @@ export async function cancelTransaction(id: number, params: PaymeRpcParams) {
   }
 
   if (transaction.state === -1 || transaction.state === -2) {
-    return paymeRpcSuccess(id, {
-      transaction: transaction.paymeId,
-      cancel_time: bigintToNumber(transaction.cancelTime),
-      state: transaction.state,
-    });
+    return paymeRpcSuccess(id, toCancelTransactionResult(transaction));
   }
 
   const reason = typeof params.reason === "number" ? params.reason : null;
@@ -38,11 +34,14 @@ export async function cancelTransaction(id: number, params: PaymeRpcParams) {
       },
     });
 
-    return paymeRpcSuccess(id, {
-      transaction: updated.paymeId,
-      cancel_time: Number(cancelTime),
-      state: -1,
-    });
+    return paymeRpcSuccess(
+      id,
+      toCancelTransactionResult({
+        id: updated.id,
+        cancelTime: updated.cancelTime,
+        state: -1,
+      }),
+    );
   }
 
   if (transaction.state === 2) {
@@ -64,11 +63,14 @@ export async function cancelTransaction(id: number, params: PaymeRpcParams) {
       return cancelled;
     });
 
-    return paymeRpcSuccess(id, {
-      transaction: updated.paymeId,
-      cancel_time: Number(cancelTime),
-      state: -2,
-    });
+    return paymeRpcSuccess(
+      id,
+      toCancelTransactionResult({
+        id: updated.id,
+        cancelTime: updated.cancelTime,
+        state: -2,
+      }),
+    );
   }
 
   return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);

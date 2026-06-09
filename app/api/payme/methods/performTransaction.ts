@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
   autoCancelExpiredTransaction,
-  bigintToNumber,
   findPaymeTransactionByPaymeId,
+  toPerformTransactionResult,
   type PaymeRpcParams,
 } from "../utils/helpers";
 
@@ -19,11 +19,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
   }
 
   if (transaction.state === 2) {
-    return paymeRpcSuccess(id, {
-      transaction: transaction.paymeId,
-      perform_time: bigintToNumber(transaction.performTime),
-      state: 2,
-    });
+    return paymeRpcSuccess(id, toPerformTransactionResult(transaction));
   }
 
   if (transaction.state === -1 || transaction.state === -2) {
@@ -35,12 +31,8 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
-  if (expired.booking.status === "PAID") {
-    return paymeRpcSuccess(id, {
-      transaction: expired.paymeId,
-      perform_time: bigintToNumber(expired.performTime) || Date.now(),
-      state: 2,
-    });
+  if (expired.booking.status === "PAID" && expired.performTime) {
+    return paymeRpcSuccess(id, toPerformTransactionResult({ ...expired, state: 2 }));
   }
 
   const performTime = BigInt(Date.now());
@@ -62,9 +54,12 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
     return performed;
   });
 
-  return paymeRpcSuccess(id, {
-    transaction: updated.paymeId,
-    perform_time: Number(performTime),
-    state: 2,
-  });
+  return paymeRpcSuccess(
+    id,
+    toPerformTransactionResult({
+      id: updated.id,
+      performTime: updated.performTime,
+      state: 2,
+    }),
+  );
 }
