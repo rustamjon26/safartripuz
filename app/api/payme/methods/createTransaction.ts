@@ -85,32 +85,7 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
     }
 
     if (current.state === 1) {
-      const transaction = await prisma.$transaction(async (tx) => {
-        await tx.paymeTransaction.update({
-          where: { id: current.id },
-          data: {
-            state: -1,
-            reason: 4,
-            cancelTime: BigInt(Date.now()),
-          },
-        });
-
-        await tx.paymeTransaction.delete({
-          where: { id: current.id },
-        });
-
-        return tx.paymeTransaction.create({
-          data: {
-            paymeId,
-            paymeTime: BigInt(paymeTime),
-            bookingId: booking.id,
-            amount,
-            state: 1,
-          },
-        });
-      });
-
-      return paymeRpcSuccess(id, createTransactionResponse(transaction));
+      return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
     }
 
     if (current.state === -1 || current.state === -2) {
