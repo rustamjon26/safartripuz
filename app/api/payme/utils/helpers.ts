@@ -43,27 +43,62 @@ export type PaymeTransactionWithBooking = PaymeTransaction & {
 };
 
 export function getPaymeMerchantId(): string {
-  return process.env.PAYME_MERCHANT_ID ?? "";
+  return readEnv("PAYME_MERCHANT_ID") ?? "";
 }
 
+function readEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function maskSecret(value: string | undefined): string {
+  if (!value) return "(empty)";
+  if (value.length <= 4) return "****";
+  return `${value.slice(0, 4)}****`;
+}
+
+function isPaymeTestMode(): boolean {
+  const flag = readEnv("PAYME_IS_TEST")?.toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+}
+
+let loggedPaymeSecretSource = false;
+
 export function getPaymeSecretKey(): string {
-  const isTest = process.env.PAYME_IS_TEST === "true";
-  if (isTest) {
-    return process.env.PAYME_TEST_SECRET_KEY ?? process.env.PAYME_SECRET_KEY ?? "";
+  const isTest = isPaymeTestMode();
+  const testKey = readEnv("PAYME_TEST_SECRET_KEY");
+  const prodKey = readEnv("PAYME_SECRET_KEY");
+  const secretKey = isTest ? (testKey ?? prodKey ?? "") : (prodKey ?? "");
+
+  if (!loggedPaymeSecretSource) {
+    loggedPaymeSecretSource = true;
+    console.log(
+      "[Payme] Secret key config:",
+      JSON.stringify({
+        isTest,
+        source: isTest ? (testKey ? "PAYME_TEST_SECRET_KEY" : prodKey ? "PAYME_SECRET_KEY (fallback)" : "none") : prodKey ? "PAYME_SECRET_KEY" : "none",
+        preview: maskSecret(secretKey),
+        length: secretKey.length,
+        paymeIsTestRaw: process.env["PAYME_IS_TEST"] ?? null,
+      }),
+    );
   }
-  return process.env.PAYME_SECRET_KEY ?? "";
+
+  return secretKey;
 }
 
 export function getPaymeMxikCode(): string {
-  return process.env.PAYME_MXIK_CODE ?? "00702001001000001";
+  return readEnv("PAYME_MXIK_CODE") ?? "00702001001000001";
 }
 
 export function getPaymePackageCode(): string {
-  return process.env.PAYME_PACKAGE_CODE ?? "123456";
+  return readEnv("PAYME_PACKAGE_CODE") ?? "123456";
 }
 
 export function getPaymeVatPercent(): number {
-  const parsed = Number(process.env.PAYME_VAT_PERCENT ?? "12");
+  const parsed = Number(readEnv("PAYME_VAT_PERCENT") ?? "12");
   return Number.isFinite(parsed) ? parsed : 12;
 }
 

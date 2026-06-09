@@ -1,7 +1,13 @@
+import { config as loadEnv } from "dotenv";
+import { resolve } from "path";
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
+
+// Ensure Payme and other runtime secrets are loaded under PM2 before Next.js starts.
+loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
+loadEnv({ path: resolve(process.cwd(), ".env"), override: true });
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
