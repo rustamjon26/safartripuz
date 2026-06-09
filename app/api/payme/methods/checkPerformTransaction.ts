@@ -9,7 +9,13 @@ import {
 
 export async function checkPerformTransaction(id: number, params: PaymeRpcParams) {
   const bookingId = getBookingIdFromAccount(params.account);
+  console.log("[CheckPerform] Looking for booking_id:", bookingId);
+
   const booking = await findBookingById(bookingId);
+  console.log(
+    "[CheckPerform] Found booking:",
+    booking ? { id: booking.id, amount: booking.amount, status: booking.status } : null,
+  );
 
   if (!booking) {
     return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
@@ -36,7 +42,7 @@ export async function checkPerformTransaction(id: number, params: PaymeRpcParams
   }
 
   if (booking.status === "CANCELLED") {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_CANCELLED, "booking_id");
   }
 
   return paymeRpcSuccess(id, {
