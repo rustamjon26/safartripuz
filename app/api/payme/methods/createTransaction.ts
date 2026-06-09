@@ -11,6 +11,23 @@ import {
   type PaymeRpcParams,
 } from "../utils/helpers";
 
+async function createPaymeTransactionRecord(input: {
+  paymeId: string;
+  paymeTime: number;
+  bookingId: string;
+  amount: number;
+}) {
+  return prisma.paymeTransaction.create({
+    data: {
+      paymeId: input.paymeId,
+      paymeTime: BigInt(input.paymeTime),
+      bookingId: input.bookingId,
+      amount: input.amount,
+      state: 1,
+    },
+  });
+}
+
 export async function createTransaction(id: number, params: PaymeRpcParams) {
   const paymeId = normalizePaymeTransactionId(params.id);
   const paymeTime = params.time;
@@ -21,12 +38,11 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
 
   const existingByPaymeId = await findPaymeTransactionByPaymeId(paymeId);
   if (existingByPaymeId) {
-    const expired = await autoCancelExpiredTransaction(existingByPaymeId);
-    if (expired.state !== 1) {
-      return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
+    const current = await autoCancelExpiredTransaction(existingByPaymeId);
+    if (current.state === 1) {
+      return paymeRpcSuccess(id, createTransactionResponse(current));
     }
-
-    return paymeRpcSuccess(id, createTransactionResponse(expired));
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
   const bookingId = getBookingIdFromAccount(params.account);
@@ -40,16 +56,18 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.AMOUNT_MISMATCH, "amount");
   }
 
-  if (params.amount !== booking.amount) {
+  const amount = params.amount;
+
+  if (amount !== booking.amount) {
     return paymeRpcError(id, PAYME_ERRORS.AMOUNT_MISMATCH, "amount");
   }
 
   if (booking.status === "PAID") {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
   if (booking.status === "CANCELLED") {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_CANCELLED);
   }
 
   const existingBookingTransaction = await prisma.paymeTransaction.findUnique({
@@ -57,56 +75,72 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
   });
 
   if (existingBookingTransaction) {
-    if (existingBookingTransaction.state === 2) {
-      return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
-    }
-
-    if (existingBookingTransaction.paymeId === paymeId) {
-      const expired = await autoCancelExpiredTransaction({
-        ...existingBookingTransaction,
-        booking,
-      });
-
-      if (expired.state !== 1) {
-        return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
-      }
-
-      return paymeRpcSuccess(id, createTransactionResponse(expired));
-    }
-
-    const expired = await autoCancelExpiredTransaction({
+    const current = await autoCancelExpiredTransaction({
       ...existingBookingTransaction,
       booking,
     });
 
-    if (expired.state === 1) {
+    if (current.state === 2) {
       return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
     }
 
-    const transaction = await prisma.paymeTransaction.update({
-      where: { id: expired.id },
-      data: {
-        paymeId,
-        paymeTime: BigInt(paymeTime),
-        amount: params.amount,
-        state: 1,
-        reason: null,
-        performTime: null,
-        cancelTime: null,
-      },
-    });
+    if (current.state === 1) {
+      const transaction = await prisma.$transaction(async (tx) => {
+        await tx.paymeTransaction.update({
+          where: { id: current.id },
+          data: {
+            state: -1,
+            reason: 4,
+            cancelTime: BigInt(Date.now()),
+          },
+        });
 
-    return paymeRpcSuccess(id, createTransactionResponse(transaction));
+        await tx.paymeTransaction.delete({
+          where: { id: current.id },
+        });
+
+        return tx.paymeTransaction.create({
+          data: {
+            paymeId,
+            paymeTime: BigInt(paymeTime),
+            bookingId: booking.id,
+            amount,
+            state: 1,
+          },
+        });
+      });
+
+      return paymeRpcSuccess(id, createTransactionResponse(transaction));
+    }
+
+    if (current.state === -1 || current.state === -2) {
+      const transaction = await prisma.$transaction(async (tx) => {
+        await tx.paymeTransaction.delete({
+          where: { id: current.id },
+        });
+
+        return tx.paymeTransaction.create({
+          data: {
+            paymeId,
+            paymeTime: BigInt(paymeTime),
+            bookingId: booking.id,
+            amount,
+            state: 1,
+          },
+        });
+      });
+
+      return paymeRpcSuccess(id, createTransactionResponse(transaction));
+    }
+
+    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
-  const transaction = await prisma.paymeTransaction.create({
-    data: {
-      paymeId,
-      paymeTime: BigInt(paymeTime),
-      bookingId: booking.id,
-      amount: params.amount,
-      state: 1,
-    },
+  const transaction = await createPaymeTransactionRecord({
+    paymeId,
+    paymeTime,
+    bookingId: booking.id,
+    amount,
   });
 
   return paymeRpcSuccess(id, createTransactionResponse(transaction));
