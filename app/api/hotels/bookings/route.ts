@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { requireUserWithProfile } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { fail, handleApiError, ok } from "../_utils";
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
         totalAmount,
         source: "SAFARTRIP",
         note: body.note?.trim() || null,
-        pricingSnapshot: quote.snapshot,
+        pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
         guests: [
           {
             firstName: actor.first_name,
