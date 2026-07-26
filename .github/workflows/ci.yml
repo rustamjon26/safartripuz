@@ -34,14 +34,21 @@ jobs:
       JWT_ACCESS_SECRET: ci_access_secret_for_tests_only
       JWT_REFRESH_SECRET: ci_refresh_secret_for_tests_only
       RESET_TEST_DB_MODE: migrate
+      # CI runners have far more free RAM than the 8 GB Contabo VPS; 4096 is ample
+      # for next build --webpack without starving the OS/MySQL service container.
+      NODE_OPTIONS: --max-old-space-size=4096
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Must match production Contabo Node (22.x) and local develop machines.
+          node-version: "22"
           cache: npm
+
+      - name: Runner memory snapshot (before install)
+        run: free -h
 
       - name: Install
         run: npm ci
@@ -66,5 +73,20 @@ jobs:
         env:
           TEST_DATABASE_URL: mysql://safar:safar@127.0.0.1:3307/safartrip_test
           DATABASE_URL: mysql://safar:safar@127.0.0.1:3307/safartrip_test
+
+      - name: Runner memory snapshot (before build)
+        run: free -h
+
+      # Production gate: a green CI means this SHA is deployable. Failure must block merge.
+      - name: Production build
+        run: |
+          set -euo pipefail
+          free -h
+          START=$(date +%s)
+          npm run build
+          END=$(date +%s)
+          echo "BUILD_DURATION_SEC=$((END - START))"
+          free -h
+          test -f .next/BUILD_ID
 
       # No deploy job — production deploy is server-side via scripts/deploy-safe.sh
