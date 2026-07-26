@@ -10,9 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     pool: "forks",
-    poolOptions: {
-      forks: { singleFork: true },
-    },
+    // Vitest 4: poolOptions removed; single-worker isolation via maxWorkers.
+    maxWorkers: 1,
+    fileParallelism: false,
     setupFiles: ["src/test/vitest.setup.ts"],
     include: ["src/**/*.{test,spec}.ts"],
     exclude: ["node_modules/**", ".next/**"],

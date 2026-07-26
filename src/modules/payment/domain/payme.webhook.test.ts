@@ -29,8 +29,8 @@ describe("payme amount + idempotency contracts", () => {
   it("rejects wrong amount via error code contract", () => {
     const expectedTiyin = 100_000n;
     const receivedTiyin = 99_000n;
-    const wrong = expectedTiyin !== receivedTiyin;
-    expect(wrong).toBe(true);
+    // Avoid `a !== b` on bigint literals — TS2367 (always-true comparison).
+    expect(expectedTiyin).not.toBe(receivedTiyin);
     expect(PAYME_ERRORS.WRONG_AMOUNT.code).toBe(-31001);
   });
 
