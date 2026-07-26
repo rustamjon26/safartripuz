@@ -176,7 +176,7 @@ async function fetchReports(
   return data;
 }
 
-function StatusBadge({ status }: { status: BookingStatus }) {
+function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${STATUS_STYLES[status]}`}
