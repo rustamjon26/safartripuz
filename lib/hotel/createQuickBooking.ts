@@ -1,4 +1,4 @@
-import type { BookingStatus } from "@prisma/client";
+import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { bookingService } from "@/src/modules/booking";
 import { InsufficientInventoryError } from "@/src/modules/inventory";
@@ -123,7 +123,7 @@ export async function createQuickBooking(input: QuickBookingInput) {
       paidAmount,
       source: "RECEPTION",
       note,
-      pricingSnapshot: quote.snapshot,
+      pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
       guests: [{ firstName: input.guestName, lastName: "" }],
     });
   } catch (err) {
