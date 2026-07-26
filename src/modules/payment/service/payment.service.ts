@@ -72,7 +72,7 @@ export class PaymentService {
     travelPlanId?: string | null;
     bookingId?: string | null;
     legacyPaymentId?: string | null;
-    metadata?: Prisma.InputJsonValue;
+    metadata?: Prisma.InputJsonValue | Record<string, unknown>;
   }) {
     return paymentRepository.createPaymentTransaction({
       provider: input.provider,
@@ -82,7 +82,7 @@ export class PaymentService {
       travelPlanId: input.travelPlanId,
       bookingId: input.bookingId,
       legacyPaymentId: input.legacyPaymentId,
-      metadata: input.metadata,
+      metadata: input.metadata as Prisma.InputJsonValue | undefined,
     });
   }
 }
