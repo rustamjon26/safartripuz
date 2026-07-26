@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { createRequestId } from "@/src/shared/observability/requestContext";
+import { createRequestId } from "@/src/shared/observability/requestId";
 
 /** JWT ichidagi `role` — to'liq ro'yxat `lib/auth.ts` dagi AppRole bilan mos kelishi kerak */
 type Role = string;

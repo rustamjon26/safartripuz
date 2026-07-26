@@ -1,14 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { randomUUID } from "node:crypto";
+import { createRequestId } from "./requestId";
 
 type Store = { requestId: string };
 
 const als = new AsyncLocalStorage<Store>();
 
-export function createRequestId(existing?: string | null): string {
-  if (existing && existing.trim()) return existing.trim().slice(0, 128);
-  return randomUUID();
-}
+export { createRequestId };
 
 export function withRequestId<T>(requestId: string, fn: () => T): T {
   return als.run({ requestId }, fn);
