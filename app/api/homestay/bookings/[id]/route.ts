@@ -2,6 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { logBookingStatus } from "@/lib/homestay/logBookingStatus";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
+import {
+  canGuestCancelStatus,
+  computeGuestCancelRefund,
+} from "@/src/modules/booking/domain/guest-cancel";
+import { Money } from "@/src/shared/money";
 import { fail, handleApiError, ok } from "../../host/_utils";
 
 type CancelInput = {
@@ -82,12 +87,20 @@ export async function PATCH(
         travelPlanId: true,
         status: true,
         cancellationReason: true,
+        totalPrice: true,
+        createdAt: true,
       },
     });
     if (!booking) return fail(HOMESTAY_ERRORS.BOOKING_NOT_FOUND, 404);
-    if (!["PENDING", "CONFIRMED"].includes(booking.status)) {
-      return fail("Only PENDING or CONFIRMED bookings can be cancelled", 400);
+    if (!canGuestCancelStatus(booking.status)) {
+      return fail("This booking can no longer be cancelled", 400);
     }
+
+    const refund = computeGuestCancelRefund({
+      checkInAt: booking.checkIn,
+      bookedAt: booking.createdAt,
+      grossPaidTiyin: Money.fromSomNumber(Number(booking.totalPrice)).toTiyin(),
+    });
 
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.homeStayBooking.update({
@@ -145,7 +158,16 @@ export async function PATCH(
       note: updated.cancellationReason ?? undefined,
     });
 
-    return ok(updated);
+    return ok({
+      ...updated,
+      refund: {
+        refundPercent: refund.refundPercent,
+        refundTiyin: refund.refundTiyin.toString(),
+        retainedTiyin: refund.retainedTiyin.toString(),
+        matchedRuleId: refund.matchedRuleId,
+        hoursBeforeCheckIn: refund.hoursBeforeCheckIn,
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }

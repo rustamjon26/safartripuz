@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-type BookingStatus = "PENDING" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
+type BookingStatus =
+  | "PENDING"
+  | "HELD"
+  | "PAID"
+  | "CONFIRMED"
+  | "CHECKED_IN"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REFUNDED"
+  | "NO_SHOW"
+  | "EXPIRED";
 type Booking = {
   id: string;
   roomTypeId: string | null;
@@ -19,13 +29,16 @@ type Booking = {
 type RoomType = { id: string; name: string; _count?: { rooms: number } };
 
 const nextStatuses: Record<BookingStatus, BookingStatus[]> = {
-  PENDING: ["CONFIRMED", "CANCELLED", "NO_SHOW"],
+  PENDING: ["HELD", "CONFIRMED", "CANCELLED", "EXPIRED"],
+  HELD: ["PAID", "CONFIRMED", "CANCELLED", "EXPIRED"],
+  PAID: ["CONFIRMED", "REFUNDED"],
   CONFIRMED: ["CHECKED_IN", "CANCELLED", "NO_SHOW"],
-  CHECKED_IN: ["CHECKED_OUT"],
-  CHECKED_OUT: ["COMPLETED"],
+  CHECKED_IN: ["COMPLETED"],
   COMPLETED: [],
   CANCELLED: [],
-  NO_SHOW: [],
+  REFUNDED: [],
+  NO_SHOW: ["REFUNDED"],
+  EXPIRED: [],
 };
 
 export default function HotelReservationsPage() {
@@ -220,12 +233,15 @@ export default function HotelReservationsPage() {
   const enoughRooms = availability ? roomCount <= availability.availableRooms : true;
   const statusClass: Record<BookingStatus, string> = {
     PENDING: "bg-amber-100 text-amber-800",
+    HELD: "bg-yellow-100 text-yellow-800",
+    PAID: "bg-teal-100 text-teal-800",
     CONFIRMED: "bg-sky-100 text-sky-800",
     CHECKED_IN: "bg-indigo-100 text-indigo-800",
-    CHECKED_OUT: "bg-violet-100 text-violet-800",
     COMPLETED: "bg-emerald-100 text-emerald-800",
     CANCELLED: "bg-rose-100 text-rose-800",
+    REFUNDED: "bg-orange-100 text-orange-800",
     NO_SHOW: "bg-slate-200 text-slate-700",
+    EXPIRED: "bg-slate-100 text-slate-500",
   };
 
   return (

@@ -51,6 +51,8 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
 
   const performTime = BigInt(Date.now());
 
+  const { ledgerService } = await import("@/src/modules/ledger");
+
   const updated = await prisma.$transaction(async (tx) => {
     const performed = await tx.paymeTransaction.update({
       where: { id: expired.id },
@@ -64,6 +66,17 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
       where: { id: expired.bookingId },
       data: { status: "PAID" },
     });
+
+    // Minimal ledger post (tiyin). Legacy Booking has no HotelBooking SM wiring.
+    await ledgerService.record(
+      {
+        idempotencyKey: `payme:${paymeId}`,
+        bookingId: expired.bookingId,
+        grossTiyin: BigInt(expired.amount),
+        partnerUserId: null,
+      },
+      tx,
+    );
 
     return performed;
   });

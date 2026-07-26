@@ -9,7 +9,8 @@ import { BookingDetailError, getBookingDetail } from "@/lib/hotel/getBookingDeta
 import { updateBookingStatus } from "@/lib/hotel/updateBookingStatus";
 
 const bodySchema = z.object({
-  status: z.enum(["CHECKED_IN", "CHECKED_OUT", "CANCELLED", "CONFIRMED"]),
+  /** CHECKED_OUT rejected — use COMPLETED for checkout. */
+  status: z.enum(["CHECKED_IN", "COMPLETED", "CANCELLED", "CONFIRMED", "NO_SHOW"]),
   note: z.string().trim().optional(),
 });
 

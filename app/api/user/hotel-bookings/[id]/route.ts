@@ -1,6 +1,7 @@
 import { requireUserWithProfile } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { bookingService, IllegalTransitionError } from "@/src/modules/booking";
 
 function guestMatchWhere(actor: { phone: string | null; first_name: string; last_name: string | null }) {
   const or: Array<Record<string, unknown>> = [];
@@ -44,16 +45,34 @@ export async function PATCH(
     if (!booking) {
       return NextResponse.json({ message: "Bron topilmadi" }, { status: 404 });
     }
-    if (booking.status !== "PENDING") {
-      return NextResponse.json({ message: "Faqat PENDING bron bekor qilinadi" }, { status: 400 });
+
+    try {
+      const { booking: updated, refund } = await bookingService.cancelWithPolicy(
+        booking.id,
+        {
+          actor: "USER",
+          reason: "GUEST_CANCEL",
+        },
+      );
+      return NextResponse.json(
+        {
+          data: updated,
+          refund: {
+            refundPercent: refund.refundPercent,
+            refundTiyin: refund.refundTiyin.toString(),
+            retainedTiyin: refund.retainedTiyin.toString(),
+            matchedRuleId: refund.matchedRuleId,
+            hoursBeforeCheckIn: refund.hoursBeforeCheckIn,
+          },
+        },
+        { status: 200 },
+      );
+    } catch (err) {
+      if (err instanceof IllegalTransitionError) {
+        return NextResponse.json({ message: err.message }, { status: 400 });
+      }
+      throw err;
     }
-
-    const updated = await prisma.hotelBooking.update({
-      where: { id: booking.id },
-      data: { status: "CANCELLED" },
-    });
-
-    return NextResponse.json({ data: updated }, { status: 200 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {

@@ -52,3 +52,20 @@ export function calcCommission(
   const netAmount = Number((grossAmount - commissionFee).toFixed(2));
   return { commissionFee, netAmount };
 }
+
+/**
+ * Pure BigInt commission in tiyin (floor division). Prefer for money-path tests + ledger.
+ * `ratePercent` is 0..100 integer percent.
+ */
+export function calcCommissionTiyin(
+  grossTiyin: bigint,
+  ratePercent: number,
+): { commissionFee: bigint; netAmount: bigint } {
+  if (grossTiyin < 0n) throw new Error("grossTiyin must be >= 0");
+  if (!Number.isFinite(ratePercent) || ratePercent < 0 || ratePercent > 100) {
+    throw new Error("ratePercent must be 0..100");
+  }
+  const rate = BigInt(Math.floor(ratePercent));
+  const commissionFee = (grossTiyin * rate) / 100n;
+  return { commissionFee, netAmount: grossTiyin - commissionFee };
+}

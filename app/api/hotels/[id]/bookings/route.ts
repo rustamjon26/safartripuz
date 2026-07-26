@@ -12,7 +12,18 @@ import { ListBookingsError, listHotelBookings } from "@/lib/hotel/listHotelBooki
 const querySchema = z
   .object({
     status: z
-      .enum(["PENDING", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED"])
+      .enum([
+        "PENDING",
+        "HELD",
+        "PAID",
+        "CONFIRMED",
+        "CHECKED_IN",
+        "COMPLETED",
+        "CANCELLED",
+        "REFUNDED",
+        "NO_SHOW",
+        "EXPIRED",
+      ])
       .optional(),
     date_filter: z.enum(["today", "week", "month"]).optional(),
     start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

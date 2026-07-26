@@ -31,7 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env — never commit secrets (commit .env.example only if you add one)
+# env — never commit secrets (allow committed examples)
 .env
 .env.*
 .env.local
@@ -40,6 +40,8 @@ yarn-error.log*
 .env.test.local
 .env.production
 .env.production.local
+!.env.test.example
+!.env.example
 
 # vercel
 .vercel

@@ -9,6 +9,12 @@ import { Server as SocketIOServer } from "socket.io";
 loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
 loadEnv({ path: resolve(process.cwd(), ".env"), override: true });
 
+// Sentry for custom Node server (Socket.IO shares this process). No-op without DSN.
+if (process.env.SENTRY_DSN) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("./sentry.server.config");
+}
+
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();

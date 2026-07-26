@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { paymentRepository } from "@/src/modules/payment/repository/payment.repository";
 
 export type ClickProviderConfig = {
   enabled?: boolean;
@@ -20,10 +20,8 @@ function asRecord(raw: unknown): Record<string, unknown> {
 }
 
 export async function getPaymentProvidersConfig() {
-  const setting = await prisma.systemSetting.findUnique({
-    where: { key: "payment_providers" },
-  });
-  return asRecord(setting?.value);
+  const value = await paymentRepository.findSystemSettingValue("payment_providers");
+  return asRecord(value);
 }
 
 export function getClickConfig(providers: Record<string, unknown>): ClickProviderConfig {

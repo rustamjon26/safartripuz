@@ -44,6 +44,10 @@ export async function PATCH(
         if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
         const body = await req.json();
+        // Status changes only via /status → BookingService.transition
+        const { status: _status, ...safeBody } = body as Record<string, unknown>;
+        void _status;
+
         const booking = await prisma.hotelBooking.findUnique({
             where: { id },
             select: { hotelId: true }
@@ -55,7 +59,7 @@ export async function PATCH(
 
         const updated = await prisma.hotelBooking.update({
             where: { id },
-            data: body // simplified patch
+            data: safeBody,
         });
 
         return NextResponse.json({ booking: updated });

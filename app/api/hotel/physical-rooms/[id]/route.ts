@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { inventoryService } from "@/src/modules/inventory";
 
 export async function PATCH(
   req: Request,
@@ -19,6 +20,12 @@ export async function PATCH(
     });
     if (!partner || !partner.hotel) return NextResponse.json({ message: "Hotel topilmadi" }, { status: 404 });
 
+    const before = await prisma.physicalRoom.findFirst({
+      where: { id, hotelId: partner.hotel.id },
+      select: { isActive: true, roomTypeId: true },
+    });
+    if (!before) return NextResponse.json({ message: "Xona topilmadi" }, { status: 404 });
+
     const physicalRoom = await prisma.physicalRoom.update({
       where: { id, hotelId: partner.hotel.id },
       data: {
@@ -28,6 +35,10 @@ export async function PATCH(
         isActive: isActive !== undefined ? isActive : undefined,
       }
     });
+
+    if (typeof isActive === "boolean" && isActive !== before.isActive) {
+      await inventoryService.adjustTotalRooms(before.roomTypeId, isActive ? 1 : -1);
+    }
 
     return NextResponse.json({ physicalRoom });
   } catch (e: unknown) {
@@ -52,9 +63,19 @@ export async function DELETE(
     });
     if (!partner || !partner.hotel) return NextResponse.json({ message: "Hotel topilmadi" }, { status: 404 });
 
+    const existing = await prisma.physicalRoom.findFirst({
+      where: { id, hotelId: partner.hotel.id },
+      select: { roomTypeId: true, isActive: true },
+    });
+    if (!existing) return NextResponse.json({ message: "Xona topilmadi" }, { status: 404 });
+
     await prisma.physicalRoom.delete({
       where: { id, hotelId: partner.hotel.id },
     });
+
+    if (existing.isActive) {
+      await inventoryService.adjustTotalRooms(existing.roomTypeId, -1);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

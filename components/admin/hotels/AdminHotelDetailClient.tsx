@@ -38,12 +38,15 @@ const ROLE_OPTIONS = [
 
 const BOOKING_STATUS_CLS: Record<string, string> = {
   PENDING: "bg-amber-50 text-amber-700 ring-amber-100",
+  HELD: "bg-yellow-50 text-yellow-700 ring-yellow-100",
+  PAID: "bg-teal-50 text-teal-700 ring-teal-100",
   CONFIRMED: "bg-blue-50 text-blue-700 ring-blue-100",
   CHECKED_IN: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  CHECKED_OUT: "bg-slate-100 text-slate-700 ring-slate-200",
   CANCELLED: "bg-rose-50 text-rose-700 ring-rose-100",
   COMPLETED: "bg-slate-100 text-slate-700 ring-slate-200",
+  REFUNDED: "bg-orange-50 text-orange-700 ring-orange-100",
   NO_SHOW: "bg-orange-50 text-orange-700 ring-orange-100",
+  EXPIRED: "bg-slate-50 text-slate-500 ring-slate-100",
 };
 
 function formatMoney(value: number) {
@@ -341,7 +344,7 @@ export function AdminHotelDetailClient({ data: initial }: Props) {
           {/* Booking stats mini */}
           <div className="adm-card p-4 bg-white border-none shadow-xl shadow-slate-200/50">
             <div className="flex flex-wrap gap-2">
-              {(["CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED"] as const).map((st) => (
+              {(["CONFIRMED", "CHECKED_IN", "COMPLETED", "CANCELLED"] as const).map((st) => (
                 <span
                   key={st}
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase ring-1 ${BOOKING_STATUS_CLS[st]}`}

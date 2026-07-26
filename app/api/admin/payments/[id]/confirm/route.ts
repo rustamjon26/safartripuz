@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
-import { emitDidoxInvoiceForPayment } from "@/lib/didox/emitDidoxInvoiceForPayment";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -35,8 +34,6 @@ export async function PATCH(req: Request, ctx: Ctx) {
         previousPaymentStatus: payment.status,
       }),
     );
-
-    void emitDidoxInvoiceForPayment(payment.id);
 
     return NextResponse.json(result, { status: 200 });
   } catch (e) {

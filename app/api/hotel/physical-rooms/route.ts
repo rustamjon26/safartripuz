@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { inventoryService } from "@/src/modules/inventory";
 
 // GET physical rooms (optional if we already include them in RoomType GET, but good to have)
 export async function GET() {
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
         floor: floor ? String(floor) : undefined,
       }
     });
+    await inventoryService.adjustTotalRooms(String(roomTypeId), 1);
     return NextResponse.json({ physicalRoom: newRoom }, { status: 201 });
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

@@ -68,6 +68,13 @@ export async function PUT(
       select: listSelect,
     });
 
+    try {
+      const { ratesService } = await import("@/src/modules/rates");
+      await ratesService.syncBasePlanFromRoomType(updated.id);
+    } catch (syncErr) {
+      console.error("[rates] syncBasePlanFromRoomType failed", syncErr);
+    }
+
     await prisma.auditLog.create({
       data: {
         actorId: actor.id,

@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { bookingService } from "@/src/modules/booking";
+import {
+  InsufficientInventoryError,
+  InventoryLockError,
+} from "@/src/modules/inventory";
 
 export async function GET(req: Request) {
   try {
@@ -91,35 +96,6 @@ export async function POST(req: Request) {
 
     const guestRows = Array.isArray(guests) ? (guests as GuestPayload[]) : [];
 
-    const concurrentBookings = await prisma.hotelBooking.findMany({
-      where: {
-        hotelId: ctx.hotel.id,
-        roomTypeId: String(roomTypeId),
-        status: { notIn: ["CANCELLED", "NO_SHOW"] },
-        OR: [{ checkInDate: { lt: end }, checkOutDate: { gt: start } }],
-      },
-      select: { roomCount: true },
-    });
-
-    const totalPhysicalRooms = await prisma.physicalRoom.count({
-      where: {
-        hotelId: ctx.hotel.id,
-        roomTypeId: String(roomTypeId),
-        isActive: true,
-      },
-    });
-
-    const usedRoomCount = concurrentBookings.reduce((sum, b) => sum + b.roomCount, 0);
-    if (usedRoomCount + Number(roomCount) > totalPhysicalRooms) {
-      return NextResponse.json(
-        {
-          message: "Tanlangan sanalarda bo'sh xonalar yetarli emas",
-          available: totalPhysicalRooms - usedRoomCount,
-        },
-        { status: 400 },
-      );
-    }
-
     const encryptedGuests = guestRows.map((g) => ({
       firstName: g.firstName ?? "Mehmon",
       lastName: g.lastName ?? "",
@@ -147,44 +123,59 @@ export async function POST(req: Request) {
       ? (physicalRoomIds as unknown[]).map((pid) => String(pid))
       : [];
 
-    const booking = await prisma.$transaction(async (tx) => {
-      const guest0 = guestRows[0];
-      const guestName =
-        `${guest0?.firstName ?? "Mehmon"}${guest0?.lastName ? ` ${guest0.lastName}` : ""}`;
-      const b = await tx.hotelBooking.create({
-        data: {
-          hotelId: ctx.hotel.id,
-          roomTypeId: String(roomTypeId),
-          guestName,
+    const guest0 = guestRows[0];
+    const guestName =
+      `${guest0?.firstName ?? "Mehmon"}${guest0?.lastName ? ` ${guest0.lastName}` : ""}`;
+
+    let booking;
+    try {
+      booking = await bookingService.createConfirmedHotelBooking({
+        hotelId: ctx.hotel.id,
+        roomTypeId: String(roomTypeId),
+        guestName,
+        checkInDate: start,
+        checkOutDate: end,
+        roomCount: Number(roomCount),
+        totalAmount: Number(totalAmount),
+        paidAmount: Number(paidAmount),
+        source: bookingSource,
+        note: noteStr,
+        guests: encryptedGuests,
+      });
+    } catch (err) {
+      if (err instanceof InsufficientInventoryError) {
+        return NextResponse.json(
+          { message: "Tanlangan sanalarda bo'sh xonalar yetarli emas" },
+          { status: 400 },
+        );
+      }
+      if (err instanceof InventoryLockError) {
+        return NextResponse.json(
+          { message: "Vaqtinchalik bandlik; qayta urinib ko'ring" },
+          { status: 503 },
+        );
+      }
+      throw err;
+    }
+
+    if (roomIds.length > 0) {
+      await prisma.bookingRoomAssignment.createMany({
+        data: roomIds.map((physicalRoomId) => ({
+          bookingId: booking.id,
+          physicalRoomId,
           checkInDate: start,
           checkOutDate: end,
-          roomCount: Number(roomCount),
-          totalAmount: Number(totalAmount),
-          paidAmount: Number(paidAmount),
-          status: "CONFIRMED",
-          source: bookingSource,
-          note: noteStr,
-          guests: { create: encryptedGuests },
-        },
-        include: { guests: true },
+          status: "ACTIVE",
+        })),
       });
+    }
 
-      if (roomIds.length > 0) {
-        await tx.bookingRoomAssignment.createMany({
-          data: roomIds.map((physicalRoomId) => ({
-            bookingId: b.id,
-            physicalRoomId,
-            checkInDate: start,
-            checkOutDate: end,
-            status: "ACTIVE",
-          })),
-        });
-      }
-
-      return b;
+    const withGuests = await prisma.hotelBooking.findUnique({
+      where: { id: booking.id },
+      include: { guests: true },
     });
 
-    return NextResponse.json({ booking });
+    return NextResponse.json({ booking: withGuests });
   } catch (error) {
     console.error("Bookings POST Error:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });

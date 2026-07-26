@@ -1,3 +1,8 @@
+/**
+ * Travel-plan Payme helpers — error codes aligned via payment module.
+ */
+import { PAYME_ERRORS as CORE } from "@/src/modules/payment/domain/errors";
+
 export interface PaymeRpcRequest {
   method: string;
   params: {
@@ -16,31 +21,14 @@ export function verifyPaymeAuth(authHeader: string, merchantKey: string): boolea
   return authHeader === `Basic ${expected}`;
 }
 
+/** Legacy key names used by older callers — codes match harden plan. */
 export const PAYME_ERRORS = {
-  INSUFFICIENT_PRIVILEGE: {
-    code: -32504,
-    message: { ru: "Недостаточно привилегий", uz: "Ruxsat yo'q", en: "Insufficient privilege" },
-  },
-  TRANSACTION_NOT_FOUND: {
-    code: -31003,
-    message: { ru: "Транзакция не найдена", uz: "Tranzaksiya topilmadi", en: "Transaction not found" },
-  },
-  WRONG_AMOUNT: {
-    code: -31001,
-    message: { ru: "Неверная сумма", uz: "Noto'g'ri summa", en: "Wrong amount" },
-  },
-  ORDER_NOT_FOUND: {
-    code: -31050,
-    message: { ru: "Заказ не найден", uz: "Buyurtma topilmadi", en: "Order not found" },
-  },
-  ORDER_ALREADY_PAID: {
-    code: -31099,
-    message: { ru: "Заказ уже оплачен", uz: "Buyurtma allaqachon to'langan", en: "Order already paid" },
-  },
-  UNABLE_TO_CANCEL: {
-    code: -31007,
-    message: { ru: "Невозможно отменить", uz: "Bekor qilib bo'lmaydi", en: "Unable to cancel" },
-  },
+  INSUFFICIENT_PRIVILEGE: CORE.AUTH_FAILED,
+  TRANSACTION_NOT_FOUND: CORE.TRANSACTION_NOT_FOUND,
+  WRONG_AMOUNT: CORE.WRONG_AMOUNT,
+  ORDER_NOT_FOUND: CORE.INVALID_ACCOUNT,
+  ORDER_ALREADY_PAID: CORE.ORDER_ALREADY_PAID,
+  UNABLE_TO_CANCEL: CORE.UNABLE_TO_CANCEL,
 } as const;
 
 export type PaymeErrorKey = keyof typeof PAYME_ERRORS;

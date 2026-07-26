@@ -205,12 +205,15 @@ export const translations = {
       },
       statuses: {
         PENDING: "Kutilmoqda",
+        HELD: "Band (hold)",
+        PAID: "To'langan",
         CONFIRMED: "Tasdiqlangan",
         CHECKED_IN: "Keldi (In)",
-        CHECKED_OUT: "Ketdi (Out)",
-        COMPLETED: "Yakunlandi",
+        COMPLETED: "Yakunlandi / Check-out",
         CANCELLED: "Bekor qilingan",
-        NO_SHOW: "Kelmagan"
+        REFUNDED: "Qaytarilgan",
+        NO_SHOW: "Kelmagan",
+        EXPIRED: "Muddati o'tgan",
       }
     },
     finance: {
@@ -1090,12 +1093,15 @@ export const translations = {
       },
       statuses: {
         PENDING: "Pending",
+        HELD: "Held",
+        PAID: "Paid",
         CONFIRMED: "Confirmed",
-        CHECKED_IN: "Checked-in (In)",
-        CHECKED_OUT: "Checked-out (Out)",
-        COMPLETED: "Completed",
+        CHECKED_IN: "Checked-in",
+        COMPLETED: "Completed / Checked-out",
         CANCELLED: "Cancelled",
-        NO_SHOW: "No Show"
+        REFUNDED: "Refunded",
+        NO_SHOW: "No Show",
+        EXPIRED: "Expired",
       }
     },
     finance: {

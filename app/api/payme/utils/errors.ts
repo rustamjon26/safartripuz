@@ -1,107 +1,32 @@
-export type PaymeLocalizedMessage = {
-  ru: string;
-  uz: string;
-  en: string;
-};
+/**
+ * Payme errors — aligned to harden plan; re-exported from payment module.
+ * Aliases preserve keys used by existing method handlers.
+ */
+import {
+  PAYME_ERRORS as CORE,
+  paymeRpcError,
+  paymeRpcSuccess,
+  type PaymeErrorDefinition,
+  type PaymeLocalizedMessage,
+} from "@/src/modules/payment/domain/errors";
 
-export type PaymeErrorDefinition = {
-  code: number;
-  message: PaymeLocalizedMessage;
-};
+export type { PaymeErrorDefinition, PaymeLocalizedMessage };
 
 export const PAYME_ERRORS = {
-  INVALID_AUTHORIZATION: {
-    code: -32300,
-    message: {
-      ru: "Неверная авторизация",
-      uz: "Noto'g'ri avtorizatsiya",
-      en: "Invalid authorization",
-    },
-  },
-  METHOD_NOT_FOUND: {
-    code: -32400,
-    message: {
-      ru: "Метод не найден",
-      uz: "Metod topilmadi",
-      en: "Method not found",
-    },
-  },
-  AUTH_FAILED: {
-    code: -32504,
-    message: {
-      ru: "Недостаточно привилегий",
-      uz: "Ruxsat yo'q",
-      en: "Insufficient privilege",
-    },
-  },
-  ORDER_NOT_FOUND: {
-    code: -31001,
-    message: {
-      ru: "Заказ не найден",
-      uz: "Buyurtma topilmadi",
-      en: "Order not found",
-    },
-  },
-  TRANSACTION_CANCELLED: {
-    code: -31003,
-    message: {
-      ru: "Транзакция отменена",
-      uz: "Tranzaksiya bekor qilindi",
-      en: "Transaction cancelled",
-    },
-  },
-  UNABLE_TO_PERFORM: {
-    code: -31008,
-    message: {
-      ru: "Невозможно выполнить транзакцию",
-      uz: "Tranzaksiyani bajarib bo'lmaydi",
-      en: "Unable to perform transaction",
-    },
-  },
-  ORDER_ALREADY_PAID: {
-    code: -31050,
-    message: {
-      ru: "Заказ уже оплачен",
-      uz: "Buyurtma allaqachon to'langan",
-      en: "Order already paid",
-    },
-  },
-  AMOUNT_MISMATCH: {
-    code: -31051,
-    message: {
-      ru: "Неверная сумма",
-      uz: "Noto'g'ri summa",
-      en: "Amount mismatch",
-    },
-  },
-  SYSTEM_ERROR: {
-    code: -31099,
-    message: {
-      ru: "Системная ошибка",
-      uz: "Tizim xatoligi",
-      en: "System error",
-    },
-  },
-} as const satisfies Record<string, PaymeErrorDefinition>;
+  ...CORE,
+  /** @deprecated use NOT_POST / PARSE_ERROR */
+  INVALID_AUTHORIZATION: CORE.PARSE_ERROR,
+  /** Missing order/booking — plan -31003 */
+  ORDER_NOT_FOUND: CORE.TRANSACTION_NOT_FOUND,
+  TRANSACTION_CANCELLED: CORE.TRANSACTION_NOT_FOUND,
+  UNABLE_TO_PERFORM: CORE.BAD_STATE,
+  AMOUNT_MISMATCH: CORE.WRONG_AMOUNT,
+  SYSTEM_ERROR: CORE.INTERNAL,
+  AUTH_FAILED: CORE.AUTH_FAILED,
+  ORDER_ALREADY_PAID: CORE.ORDER_ALREADY_PAID,
+  METHOD_NOT_FOUND: CORE.METHOD_NOT_FOUND,
+} as const;
 
 export type PaymeErrorKey = keyof typeof PAYME_ERRORS;
 
-export function paymeRpcError(id: number, error: PaymeErrorDefinition, data?: string) {
-  return {
-    jsonrpc: "2.0" as const,
-    id,
-    error: {
-      code: error.code,
-      message: error.message,
-      ...(data !== undefined ? { data } : {}),
-    },
-  };
-}
-
-export function paymeRpcSuccess<T extends object>(id: number, result: T) {
-  return {
-    jsonrpc: "2.0" as const,
-    id,
-    result,
-  };
-}
+export { paymeRpcError, paymeRpcSuccess };

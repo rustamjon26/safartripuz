@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { checkHomeStayAvailability } from "@/lib/homestay/checkAvailability";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
 import { fail, handleApiError, ok } from "../host/_utils";
+import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
+import { ratesService } from "@/src/modules/rates";
 
 type CreateBookingInput = {
   listingId?: string;
@@ -94,17 +95,15 @@ export async function POST(req: Request) {
       return fail(HOMESTAY_ERRORS.GUEST_LIMIT, 400);
     }
 
-    const availability = await checkHomeStayAvailability(listing.id, checkIn, checkOut);
-    if (!availability.available) {
-      return NextResponse.json(
-        { success: false, error: HOMESTAY_ERRORS.DATES_UNAVAILABLE, conflicts: availability.conflicts },
-        { status: 409 },
-      );
-    }
-
     const nights = calcNights(checkIn, checkOut);
-    const snapshotPricePerNight = Number(listing.pricePerNight);
-    const totalPrice = snapshotPricePerNight * nights;
+    const quote = await ratesService.quoteHomestay({
+      pricePerNightSom: Number(listing.pricePerNight),
+      checkIn,
+      checkOut,
+      adults: body.guestCount,
+    });
+    const totalPrice = quote.totalSom;
+    const snapshotPricePerNight = nights > 0 ? totalPrice / nights : totalPrice;
     if (typeof body.totalPrice === "number" && Math.abs(body.totalPrice - totalPrice) > 1) {
       return fail("Narx hisobida nomuvofiqlik aniqlandi", 400);
     }
@@ -112,9 +111,41 @@ export async function POST(req: Request) {
       pricePerNight: snapshotPricePerNight,
       nights,
       calculatedAt: new Date().toISOString(),
+      ...quote.snapshot,
     };
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await inventoryService.withSerializableRetry(async (tx) => {
+      // Lock listing row
+      await tx.$queryRawUnsafe(
+        `SELECT id FROM HomeStayListing WHERE id = ? FOR UPDATE`,
+        listing.id,
+      );
+
+      const conflicts = await tx.homeStayBooking.findMany({
+        where: {
+          listingId: listing.id,
+          status: { in: ["PENDING", "CONFIRMED", "CHECKED_IN"] },
+          checkIn: { lt: checkOut },
+          checkOut: { gt: checkIn },
+        },
+        select: { id: true },
+      });
+      if (conflicts.length > 0) {
+        throw new Error("DATES_UNAVAILABLE");
+      }
+
+      const blockConflict = await tx.homeStayAvailability.findFirst({
+        where: {
+          listingId: listing.id,
+          startDate: { lt: checkOut },
+          endDate: { gt: checkIn },
+        },
+        select: { id: true },
+      });
+      if (blockConflict) {
+        throw new Error("DATES_UNAVAILABLE");
+      }
+
       const existingPendingPlan = await tx.travelPlan.findFirst({
         where: {
           userId: actor.id,
@@ -142,6 +173,7 @@ export async function POST(req: Request) {
             })
           ).id;
 
+      const holdExpiresAt = new Date(Date.now() + HOLD_TTL_MS);
       const created = await tx.homeStayBooking.create({
         data: {
           listingId: listing.id,
@@ -154,7 +186,18 @@ export async function POST(req: Request) {
           totalPrice,
           priceSnapshot,
           status: "PENDING",
+          holdExpiresAt,
           guestNote: body.guestNote ?? null,
+        },
+      });
+
+      await tx.homeStayAvailability.create({
+        data: {
+          listingId: listing.id,
+          bookingId: created.id,
+          startDate: checkIn,
+          endDate: checkOut,
+          reason: "BOOKED",
         },
       });
 
@@ -178,6 +221,7 @@ export async function POST(req: Request) {
             checkOut,
             nights,
             totalPrice,
+            holdExpiresAt,
           },
         },
       });
@@ -187,6 +231,12 @@ export async function POST(req: Request) {
 
     return ok(booking, 201);
   } catch (error) {
+    if (error instanceof Error && error.message === "DATES_UNAVAILABLE") {
+      return NextResponse.json(
+        { success: false, error: HOMESTAY_ERRORS.DATES_UNAVAILABLE },
+        { status: 409 },
+      );
+    }
     return handleApiError(error);
   }
 }

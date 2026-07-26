@@ -1,11 +1,16 @@
-import type { BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BookingDetailError } from "@/lib/hotel/getBookingDetail";
+import {
+  bookingService,
+  IllegalTransitionError,
+  type BookingStatus,
+} from "@/src/modules/booking";
 
 export type UpdateBookingStatusInput = {
   hotelId: string;
   bookingId: string;
-  status: "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED" | "CONFIRMED";
+  /** CHECKED_OUT is rejected — use COMPLETED (checkout). */
+  status: "CHECKED_IN" | "COMPLETED" | "CANCELLED" | "CONFIRMED" | "NO_SHOW";
   note?: string;
   actorId: string;
 };
@@ -14,7 +19,7 @@ function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function assertTransition(
+function assertTiming(
   current: BookingStatus,
   next: UpdateBookingStatusInput["status"],
   checkInDate: Date,
@@ -22,45 +27,21 @@ function assertTransition(
 ): void {
   const today = startOfDay(new Date());
 
-  if (next === "CONFIRMED") {
-    if (current !== "PENDING") {
-      throw new BookingDetailError(
-        `Status o'zgartirish mumkin emas: ${current} → ${next}`,
-        400,
-      );
-    }
-    return;
-  }
-
-  if (next === "CANCELLED") {
-    if (current === "CHECKED_IN") {
-      throw new BookingDetailError("Check-in qilingan bronni bekor qilib bo'lmaydi", 409);
-    }
-    return;
-  }
-
   if (next === "CHECKED_IN") {
-    if (current !== "CONFIRMED" && current !== "PENDING") {
+    if (startOfDay(checkInDate) > today) {
       throw new BookingDetailError(
-        `Status o'zgartirish mumkin emas: ${current} → ${next}`,
+        "Check-in faqat kelish sanasi bugun yoki o'tgan kun bo'lganda mumkin",
         400,
       );
     }
-    if (startOfDay(checkInDate) > today) {
-      throw new BookingDetailError("Check-in faqat kelish sanasi bugun yoki o'tgan kun bo'lganda mumkin", 400);
-    }
-    return;
   }
 
-  if (next === "CHECKED_OUT") {
-    if (current !== "CHECKED_IN") {
+  if (next === "COMPLETED" && current === "CHECKED_IN") {
+    if (startOfDay(checkOutDate) > today) {
       throw new BookingDetailError(
-        `Status o'zgartirish mumkin emas: ${current} → ${next}`,
+        "Check-out faqat ketish sanasi bugun yoki o'tgan kun bo'lganda mumkin",
         400,
       );
-    }
-    if (startOfDay(checkOutDate) > today) {
-      throw new BookingDetailError("Check-out faqat ketish sanasi bugun yoki o'tgan kun bo'lganda mumkin", 400);
     }
   }
 }
@@ -74,8 +55,8 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput) {
     throw new BookingDetailError("Bron topilmadi", 404);
   }
 
-  assertTransition(
-    booking.status,
+  assertTiming(
+    booking.status as BookingStatus,
     input.status,
     booking.checkInDate,
     booking.checkOutDate,
@@ -87,48 +68,41 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput) {
       ? `${booking.note}\n${noteAppend}`
       : noteAppend || booking.note;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.hotelBooking.update({
-      where: { id: booking.id },
-      data: {
-        status: input.status,
-        ...(noteAppend ? { note: nextNote } : {}),
-      },
-    });
-
-    const assignments = await tx.bookingRoomAssignment.findMany({
-      where: { bookingId: booking.id, status: "ACTIVE" },
-      select: { id: true, physicalRoomId: true },
-    });
-    const roomIds = assignments.map((a) => a.physicalRoomId);
-
-    if (input.status === "CHECKED_IN" && roomIds.length) {
-      await tx.physicalRoom.updateMany({
-        where: { id: { in: roomIds } },
-        data: { status: "OCCUPIED" },
-      });
+  let nextStatus: string = input.status;
+  try {
+    if (input.status === "CANCELLED") {
+      const { booking: updated } = await bookingService.cancelWithPolicy(
+        booking.id,
+        {
+          actor: "PARTNER",
+          reason: "HMS_STATUS_UPDATE",
+          metadata: { actorId: input.actorId },
+          extra: noteAppend ? { note: nextNote } : undefined,
+        },
+      );
+      nextStatus = updated.status;
+    } else {
+      await bookingService.transition(
+        booking.id,
+        input.status,
+        {
+          actor: "PARTNER",
+          reason: "HMS_STATUS_UPDATE",
+          metadata: { actorId: input.actorId },
+          restoreInventory: false,
+          extra: noteAppend ? { note: nextNote } : undefined,
+        },
+      );
     }
-
-    if (input.status === "CHECKED_OUT" && roomIds.length) {
-      await tx.physicalRoom.updateMany({
-        where: { id: { in: roomIds } },
-        data: { status: "CLEANING" },
-      });
+  } catch (err) {
+    if (err instanceof IllegalTransitionError) {
+      throw new BookingDetailError(
+        `Status o'zgartirish mumkin emas: ${err.from} → ${err.to}`,
+        400,
+      );
     }
-
-    if (input.status === "CANCELLED" && assignments.length) {
-      await tx.bookingRoomAssignment.updateMany({
-        where: { bookingId: booking.id, status: "ACTIVE" },
-        data: { status: "CANCELLED" },
-      });
-      if (roomIds.length) {
-        await tx.physicalRoom.updateMany({
-          where: { id: { in: roomIds } },
-          data: { status: "AVAILABLE" },
-        });
-      }
-    }
-  });
+    throw err;
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -137,7 +111,7 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput) {
       entity: "HotelBooking",
       entityId: booking.id,
       oldData: { status: booking.status },
-      newData: { status: input.status, note: noteAppend ?? null },
+      newData: { status: nextStatus, note: noteAppend ?? null },
     },
   });
 }

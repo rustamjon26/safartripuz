@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { createRequestId } from "@/src/shared/observability/requestContext";
 
 /** JWT ichidagi `role` — to'liq ro'yxat `lib/auth.ts` dagi AppRole bilan mos kelishi kerak */
 type Role = string;
@@ -25,8 +26,21 @@ function isPathMatch(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
+function withRequestIdHeaders(req: NextRequest, requestId: string) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-request-id", requestId);
+  return requestHeaders;
+}
+
+function attachRequestId(res: NextResponse, requestId: string): NextResponse {
+  res.headers.set("x-request-id", requestId);
+  return res;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const requestId = createRequestId(req.headers.get("x-request-id"));
+  const requestHeaders = withRequestIdHeaders(req, requestId);
 
   const protectedAreas: Array<{
     prefix: string;
@@ -76,7 +90,12 @@ export async function middleware(req: NextRequest) {
   ];
 
   const area = protectedAreas.find((a) => isPathMatch(pathname, a.prefix));
-  if (!area) return NextResponse.next();
+  if (!area) {
+    return attachRequestId(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      requestId,
+    );
+  }
 
   const token = req.cookies.get("access_token")?.value;
 
@@ -84,7 +103,7 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
   const role = await getRoleFromAccessToken(token);
@@ -93,20 +112,25 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
   if (!area.allow.includes(role)) {
     if (area.wrongRoleRedirect) {
-      return NextResponse.redirect(new URL(area.wrongRoleRedirect, req.url));
+      return attachRequestId(
+        NextResponse.redirect(new URL(area.wrongRoleRedirect, req.url)),
+        requestId,
+      );
     }
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
-  return NextResponse.next();
+  return attachRequestId(
+    NextResponse.next({ request: { headers: requestHeaders } }),
+    requestId,
+  );
 }
 
 export const config = {
@@ -119,5 +143,11 @@ export const config = {
     "/restaurant/:path*",
     "/user",
     "/user/:path*",
+    "/api/payments/:path*",
+    "/api/payme",
+    "/api/payme/:path*",
+    "/api/hotels/:path*",
+    "/api/user/hotel-bookings/:path*",
+    "/api/cron/:path*",
   ],
 };

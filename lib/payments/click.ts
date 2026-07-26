@@ -1,40 +1,33 @@
-import crypto from "crypto";
+/**
+ * Compatibility shim — prefer `@/src/modules/payment`.
+ */
+import {
+  verifyClickSignature as verifyPhase,
+  type ClickSignFields,
+} from "@/src/modules/payment/adapters/click/sign";
+import { CLICK_ERRORS } from "@/src/modules/payment/domain/errors";
 
-export interface ClickPrepareBody {
-  click_trans_id: number;
-  service_id: number;
+export { CLICK_ERRORS };
+export type { ClickSignFields };
+
+export interface ClickPrepareBody extends ClickSignFields {
   click_paydoc_id?: number;
-  merchant_trans_id: string;
-  amount: number;
-  action: number;
-  error: number;
-  error_note: string;
-  sign_time: string;
+  error?: number;
+  error_note?: string;
   sign_string: string;
-  merchant_prepare_id?: number;
+  action: number;
 }
 
-export function verifyClickSignature(body: ClickPrepareBody, secretKey: string): boolean {
-  if (!secretKey) return false;
-
-  const merchantPrepareId = body.merchant_prepare_id ?? "";
-  const signString =
-    `${body.click_trans_id}${body.service_id}${secretKey}` +
-    `${body.merchant_trans_id}${merchantPrepareId}` +
-    `${body.amount}${body.action}${body.sign_time}`;
-
-  const hash = crypto.createHash("md5").update(signString).digest("hex");
-  return hash === body.sign_string;
+/** Legacy: phase inferred from action (0=prepare, else complete). */
+export function verifyClickSignature(
+  body: ClickPrepareBody,
+  secretKey: string,
+): boolean {
+  const phase = Number(body.action) === 0 ? "prepare" : "complete";
+  return verifyPhase(body, secretKey, phase);
 }
 
-export const CLICK_ERRORS = {
-  SUCCESS: 0,
-  SIGN_FAILED: -1,
-  INCORRECT_PARAMS: -2,
-  ACTION_NOT_FOUND: -3,
-  TRANSACTION_NOT_FOUND: -4,
-  TRANSACTION_CANCELLED: -5,
-  TRANSACTION_DUPLICATE: -6,
-  TRANSACTION_COMPLETED: -7,
-  TRANSACTION_EXPIRED: -8,
-} as const;
+export {
+  buildClickSignString,
+  timingSafeEqualHex,
+} from "@/src/modules/payment/adapters/click/sign";

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { checkHomeStayAvailability } from "@/lib/homestay/checkAvailability";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
 import { fail, handleApiError, ok } from "../../host/_utils";
+import { ratesService } from "@/src/modules/rates";
 
 type CheckInput = {
   checkIn?: string;
@@ -49,7 +50,13 @@ export async function POST(
     }
 
     const nights = calcNights(checkIn, checkOut);
-    const totalPrice = Number(listing.pricePerNight) * nights;
+    const quote = await ratesService.quoteHomestay({
+      pricePerNightSom: Number(listing.pricePerNight),
+      checkIn,
+      checkOut,
+      adults: body.guestCount ?? 1,
+    });
+    const totalPrice = quote.totalSom;
     const availability = await checkHomeStayAvailability(id, checkIn, checkOut);
     const unavailableDates = availability.conflicts.flatMap((conflict) => {
       const days: string[] = [];

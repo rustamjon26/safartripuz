@@ -1,0 +1,19 @@
+# Install on the VPS (root crontab or dedicated backup user):
+#   sudo cp scripts/cron/safartrip-backup.cron.example /etc/cron.d/safartrip-backup
+#   # edit paths / env, then: sudo chmod 644 /etc/cron.d/safartrip-backup
+#
+# Daily dump at 02:15 UTC; weekly restore-test Sundays 04:00 UTC.
+# Failures must alert — wrap with mail/Telegram if desired.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Load secrets from a file that is NOT in git (see ARCHITECTURE.md disaster restore).
+# Example: /etc/safartrip/backup.env MUST contain DATABASE_URL and BACKUP_OFFSITE_CMD
+# (off-site is mandatory — backup.sh exits non-zero if BACKUP_OFFSITE_CMD is unset/fails).
+# Example off-site (copy dump + DUMP_TS sidecar):
+#   BACKUP_OFFSITE_CMD='scp "$OUT_DAILY" "$OUT_META" backup@otherhost:/backups/'
+
+15 2 * * * root set -a; . /etc/safartrip/backup.env; set +a; /var/www/safar/scripts/backup.sh >> /var/log/safartrip-backup.log 2>&1 || echo "safartrip backup FAILED" | logger -t safartrip-backup
+
+0 4 * * 0 root set -a; . /etc/safartrip/backup.env; set +a; /var/www/safar/scripts/restore-test.sh >> /var/log/safartrip-restore-test.log 2>&1 || echo "safartrip restore-test FAILED" | logger -t safartrip-restore-test

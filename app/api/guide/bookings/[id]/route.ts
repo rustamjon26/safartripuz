@@ -1,6 +1,11 @@
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import {
+  canGuestCancelStatus,
+  computeGuestCancelRefund,
+} from "@/src/modules/booking/domain/guest-cancel";
+import { Money } from "@/src/shared/money";
 import { fail, handleApiError, ok } from "../../_utils";
 
 type CancelInput = {
@@ -47,12 +52,28 @@ export async function PATCH(
       select: {
         id: true,
         status: true,
+        date: true,
+        startTime: true,
+        totalPrice: true,
+        createdAt: true,
       },
     });
     if (!existing) return fail(GUIDE_ERRORS.BOOKING_NOT_FOUND, 404);
-    if (!["PENDING", "CONFIRMED"].includes(existing.status)) {
+    if (!canGuestCancelStatus(existing.status)) {
       return fail(GUIDE_ERRORS.CANNOT_CANCEL, 400);
     }
+
+    const checkInAt = new Date(existing.date);
+    if (existing.startTime) {
+      const [hh, mm] = existing.startTime.split(":").map(Number);
+      if (Number.isFinite(hh)) checkInAt.setHours(hh, mm || 0, 0, 0);
+    }
+
+    const refund = computeGuestCancelRefund({
+      checkInAt,
+      bookedAt: existing.createdAt,
+      grossPaidTiyin: Money.fromSomNumber(Number(existing.totalPrice)).toTiyin(),
+    });
 
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.guideBooking.update({
@@ -93,7 +114,16 @@ export async function PATCH(
       return next;
     });
 
-    return ok(updated);
+    return ok({
+      ...updated,
+      refund: {
+        refundPercent: refund.refundPercent,
+        refundTiyin: refund.refundTiyin.toString(),
+        retainedTiyin: refund.retainedTiyin.toString(),
+        matchedRuleId: refund.matchedRuleId,
+        hoursBeforeCheckIn: refund.hoursBeforeCheckIn,
+      },
+    });
   } catch (error) {
     return handleApiError(error);
   }

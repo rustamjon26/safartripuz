@@ -24,7 +24,7 @@ import { ROOM_AMENITY_OPTIONS } from "@/lib/hotel/roomTypeSchema";
 type BookingStatus = BookingDetail["status"];
 
 type PendingAction = {
-  status: "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "CANCELLED";
+  status: "CONFIRMED" | "CHECKED_IN" | "COMPLETED" | "CANCELLED";
   label: string;
   confirmText: string;
   variant: "primary" | "danger" | "neutral";
@@ -45,14 +45,17 @@ const MONTHS = [
   "dekabr",
 ] as const;
 
-const STATUS_STYLES: Record<BookingStatus, string> = {
+const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 border-amber-200",
+  HELD: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  PAID: "bg-teal-100 text-teal-800 border-teal-200",
   CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
   CHECKED_IN: "bg-green-100 text-green-800 border-green-200",
-  CHECKED_OUT: "bg-slate-100 text-slate-700 border-slate-200",
   CANCELLED: "bg-red-100 text-red-800 border-red-200",
   COMPLETED: "bg-slate-100 text-slate-700 border-slate-200",
+  REFUNDED: "bg-orange-100 text-orange-800 border-orange-200",
   NO_SHOW: "bg-orange-100 text-orange-800 border-orange-200",
+  EXPIRED: "bg-slate-100 text-slate-500 border-slate-200",
 };
 
 const PAYMENT_STATUS_STYLES = {
@@ -133,9 +136,9 @@ function getActions(status: BookingStatus): PendingAction[] {
     case "CHECKED_IN":
       return [
         {
-          status: "CHECKED_OUT",
+          status: "COMPLETED",
           label: "Check-out",
-          confirmText: "Mehmonni check-out qilasizmi?",
+          confirmText: "Mehmonni check-out qilasizmi? (COMPLETED)",
           variant: "primary",
         },
       ];
@@ -326,7 +329,7 @@ export default function HotelBookingDetailPage() {
   }
 
   const actions = getActions(booking.status);
-  const showPrintOnly = booking.status === "CHECKED_OUT" || booking.status === "CANCELLED";
+  const showPrintOnly = booking.status === "COMPLETED" || booking.status === "CANCELLED";
 
   return (
     <>

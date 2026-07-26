@@ -21,7 +21,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { BookingStatus } from "@prisma/client";
 import {
   AlertCircle,
   ChevronLeft,
@@ -34,7 +33,18 @@ import {
 import type { HotelReports, ReportsGroupBy } from "@/lib/hotel/getHotelReports";
 
 type DatePreset = "week" | "month" | "last_month" | "year" | "custom";
-type StatusFilter = "ALL" | BookingStatus;
+type BookingStatusFilter =
+  | "PENDING"
+  | "HELD"
+  | "PAID"
+  | "CONFIRMED"
+  | "CHECKED_IN"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REFUNDED"
+  | "NO_SHOW"
+  | "EXPIRED";
+type StatusFilter = "ALL" | BookingStatusFilter;
 
 const PER_PAGE = 20;
 
@@ -57,10 +67,13 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: "PENDING", label: "PENDING" },
   { value: "CONFIRMED", label: "CONFIRMED" },
   { value: "CHECKED_IN", label: "CHECKED_IN" },
-  { value: "CHECKED_OUT", label: "CHECKED_OUT" },
+  { value: "COMPLETED", label: "COMPLETED" },
   { value: "CANCELLED", label: "CANCELLED" },
   { value: "NO_SHOW", label: "NO_SHOW" },
-  { value: "COMPLETED", label: "COMPLETED" },
+  { value: "HELD", label: "HELD" },
+  { value: "PAID", label: "PAID" },
+  { value: "EXPIRED", label: "EXPIRED" },
+  { value: "REFUNDED", label: "REFUNDED" },
 ];
 
 const MONTHS_SHORT = [
@@ -78,14 +91,17 @@ const MONTHS_SHORT = [
   "dek",
 ] as const;
 
-const STATUS_STYLES: Record<BookingStatus, string> = {
+const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 border-amber-200",
+  HELD: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  PAID: "bg-teal-100 text-teal-800 border-teal-200",
   CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
   CHECKED_IN: "bg-green-100 text-green-800 border-green-200",
-  CHECKED_OUT: "bg-slate-100 text-slate-700 border-slate-200",
   CANCELLED: "bg-red-100 text-red-800 border-red-200",
   COMPLETED: "bg-slate-100 text-slate-700 border-slate-200",
+  REFUNDED: "bg-orange-100 text-orange-800 border-orange-200",
   NO_SHOW: "bg-orange-100 text-orange-800 border-orange-200",
+  EXPIRED: "bg-slate-100 text-slate-500 border-slate-200",
 };
 
 function formatMoney(value: number) {

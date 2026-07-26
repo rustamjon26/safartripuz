@@ -4,6 +4,13 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { checkHomeStayAvailability } from "@/lib/homestay/checkAvailability";
+import { bookingService } from "@/src/modules/booking";
+import {
+  HOLD_TTL_MS,
+  InsufficientInventoryError,
+  InventoryLockError,
+} from "@/src/modules/inventory";
+import { ratesService } from "@/src/modules/rates";
 
 const schema = z.object({
   destination: z.string().trim().min(2),
@@ -129,6 +136,7 @@ export async function POST(req: Request) {
       details?: Record<string, unknown>;
     }> = [];
     let verifiedHomestayTotal = 0;
+    let hotelPricingSnapshot: Record<string, unknown> | null = null;
 
     if (input.hotel) {
       const roomType = await prisma.roomType.findUnique({
@@ -158,36 +166,23 @@ export async function POST(req: Request) {
           status: "active",
           partner: { status: "approved", type: "hotel" },
         },
-        select: { id: true, totalRooms: true },
+        select: { id: true },
       });
       if (!hotel) {
         return NextResponse.json({ message: "Mehmonxona topilmadi" }, { status: 404 });
       }
 
-      const overlaps = await prisma.hotelBooking.findMany({
-        where: {
-          hotelId: input.hotel.id,
-          status: { in: ["PENDING", "CONFIRMED", "CHECKED_IN"] },
-          checkInDate: { lt: endDate },
-          checkOutDate: { gt: startDate },
-        },
-        select: { roomCount: true, hotel: { select: { totalRooms: true } } },
+      const hotelQuote = await ratesService.quoteHotel({
+        roomTypeId: input.hotel.roomTypeId,
+        checkIn: startDate,
+        checkOut: endDate,
+        roomCount: input.hotel.roomCount,
+        adults: input.pax,
       });
-
-      const totalRooms = overlaps[0]?.hotel.totalRooms ?? hotel.totalRooms;
-      const usedRooms = overlaps.reduce((sum, b) => sum + b.roomCount, 0);
-      const availableRooms = totalRooms - usedRooms;
-      if (input.hotel.roomCount > availableRooms) {
-        return NextResponse.json(
-          {
-            message: `Hotel availability yetarli emas. Mavjud: ${Math.max(availableRooms, 0)} xona`,
-          },
-          { status: 409 },
-        );
-      }
-
-      const verifiedPrice = Number(roomType.basePrice);
-      verifiedHotelTotal = verifiedPrice * days * input.hotel.roomCount;
+      verifiedHotelTotal = hotelQuote.totalSom;
+      hotelPricingSnapshot = hotelQuote.snapshot;
+      const verifiedPrice =
+        days > 0 ? verifiedHotelTotal / days / input.hotel.roomCount : verifiedHotelTotal;
       total += verifiedHotelTotal;
 
       items.push({
@@ -201,6 +196,7 @@ export async function POST(req: Request) {
           days,
           roomCount: input.hotel.roomCount,
           roomTypeId: input.hotel.roomTypeId,
+          pricingSnapshot: hotelQuote.snapshot,
         },
       });
     }
@@ -258,8 +254,15 @@ export async function POST(req: Request) {
         );
       }
 
-      const verifiedPricePerNight = Number(listing.pricePerNight);
-      verifiedHomestayTotal = verifiedPricePerNight * days;
+      const hsQuote = await ratesService.quoteHomestay({
+        pricePerNightSom: Number(listing.pricePerNight),
+        checkIn: startDate,
+        checkOut: endDate,
+        adults: input.pax,
+      });
+      verifiedHomestayTotal = hsQuote.totalSom;
+      const verifiedPricePerNight =
+        days > 0 ? verifiedHomestayTotal / days : verifiedHomestayTotal;
       total += verifiedHomestayTotal;
 
       items.push({
@@ -269,7 +272,7 @@ export async function POST(req: Request) {
         quantity: days,
         unitPrice: verifiedPricePerNight,
         totalPrice: verifiedHomestayTotal,
-        details: { days, guestCount: input.pax },
+        details: { days, guestCount: input.pax, pricingSnapshot: hsQuote.snapshot },
       });
     }
 
@@ -287,8 +290,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "Gid topilmadi" }, { status: 404 });
       }
 
-      const verifiedPricePerDay = Number(guideListing.pricePerDay);
-      const guideTotal = verifiedPricePerDay * days;
+      const guideQuote = ratesService.quoteGuideDaily({
+        pricePerDaySom: Number(guideListing.pricePerDay),
+        days,
+      });
+      const guideTotal = guideQuote.totalSom;
+      const verifiedPricePerDay = days > 0 ? guideTotal / days : guideTotal;
       total += guideTotal;
       items.push({
         type: "GUIDE",
@@ -297,118 +304,169 @@ export async function POST(req: Request) {
         quantity: days,
         unitPrice: verifiedPricePerDay,
         totalPrice: guideTotal,
-        details: { days },
+        details: { days, pricingSnapshot: guideQuote.snapshot },
       });
     }
 
-    const plan = await prisma.$transaction(async (tx) => {
-      const createdPlan = await tx.travelPlan.create({
-        data: {
-          userId: actor.id,
-          destination: input.destination,
-          startDate,
-          endDate,
-          pax: input.pax,
-          status: "PENDING_PAYMENT",
-          totalAmount: total,
-          note: input.note ?? null,
-        },
+    // Hotel hold first (inventory lock) — before travel plan commit
+    let heldHotelBookingId: string | null = null;
+    if (input.hotel) {
+      const u = await prisma.user.findUnique({
+        where: { id: actor.id },
+        select: { first_name: true, last_name: true, phone: true },
       });
-
-      if (items.length) {
-        await tx.travelPlanItem.createMany({
-          data: items.map((i) => ({
-            travelPlanId: createdPlan.id,
-            type: i.type,
-            title: i.title,
-            providerId: i.providerId,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            totalPrice: i.totalPrice,
-            details: (i.details ?? null) as Prisma.InputJsonValue,
-          })),
+      try {
+        const held = await bookingService.createHeldHotelBooking({
+          hotelId: input.hotel.id,
+          roomTypeId: input.hotel.roomTypeId,
+          guestName: `${u?.first_name ?? "Guest"} ${u?.last_name ?? ""}`.trim(),
+          guestPhone: u?.phone ?? null,
+          checkInDate: startDate,
+          checkOutDate: endDate,
+          roomCount: input.hotel.roomCount,
+          totalAmount: verifiedHotelTotal,
+          source: "SAFARTRIP",
+          pricingSnapshot: hotelPricingSnapshot ?? undefined,
         });
+        heldHotelBookingId = held.id;
+      } catch (err) {
+        if (err instanceof InsufficientInventoryError) {
+          return NextResponse.json(
+            { message: "Hotel availability yetarli emas" },
+            { status: 409 },
+          );
+        }
+        if (err instanceof InventoryLockError) {
+          return NextResponse.json(
+            { message: "Vaqtinchalik bandlik; qayta urinib ko'ring" },
+            { status: 503 },
+          );
+        }
+        throw err;
       }
+    }
 
-      if (input.hotel) {
-        const u = await tx.user.findUnique({
-          where: { id: actor.id },
-          select: { first_name: true, last_name: true, phone: true },
-        });
-        await tx.hotelBooking.create({
+    try {
+      const plan = await prisma.$transaction(async (tx) => {
+        const createdPlan = await tx.travelPlan.create({
           data: {
-            hotelId: input.hotel.id,
-            roomTypeId: input.hotel.roomTypeId,
-            guestName: `${u?.first_name ?? "Guest"} ${u?.last_name ?? ""}`.trim(),
-            guestPhone: u?.phone ?? null,
-            checkInDate: startDate,
-            checkOutDate: endDate,
-            roomCount: input.hotel.roomCount,
-            totalAmount: verifiedHotelTotal,
-            paidAmount: 0,
-            source: "SAFARTRIP",
-            status: "PENDING",
-            note: `TravelPlan: ${createdPlan.id}`,
+            userId: actor.id,
+            destination: input.destination,
+            startDate,
+            endDate,
+            pax: input.pax,
+            status: "PENDING_PAYMENT",
+            totalAmount: total,
+            note: input.note ?? null,
           },
         });
-      }
 
-      if (input.homestay) {
-        const listing = await tx.homeStayListing.findFirst({
-          where: { id: input.homestay!.id, status: "ACTIVE" },
-          select: { id: true, pricePerNight: true },
-        });
-        if (!listing) {
-          throw new Error("HomeStay topilmadi");
+        if (items.length) {
+          await tx.travelPlanItem.createMany({
+            data: items.map((i) => ({
+              travelPlanId: createdPlan.id,
+              type: i.type,
+              title: i.title,
+              providerId: i.providerId,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              totalPrice: i.totalPrice,
+              details: (i.details ?? null) as Prisma.InputJsonValue,
+            })),
+          });
         }
 
-        const snapshotPricePerNight = Number(listing.pricePerNight);
-        const priceSnapshot: Prisma.InputJsonValue = {
-          pricePerNight: snapshotPricePerNight,
-          nights: days,
-          calculatedAt: new Date().toISOString(),
-          source: "trip-builder",
-        };
+        if (heldHotelBookingId) {
+          await tx.hotelBooking.update({
+            where: { id: heldHotelBookingId },
+            data: { note: `TravelPlan: ${createdPlan.id}` },
+          });
+        }
 
-        await tx.homeStayBooking.create({
-          data: {
-            listingId: listing.id,
-            travelPlanId: createdPlan.id,
-            guestId: actor.id,
-            checkIn: startDate,
-            checkOut: endDate,
+        if (input.homestay) {
+          const listing = await tx.homeStayListing.findFirst({
+            where: { id: input.homestay!.id, status: "ACTIVE" },
+            select: { id: true, pricePerNight: true },
+          });
+          if (!listing) {
+            throw new Error("HomeStay topilmadi");
+          }
+
+          const snapshotPricePerNight = Number(listing.pricePerNight);
+          const priceSnapshot: Prisma.InputJsonValue = {
+            pricePerNight: snapshotPricePerNight,
             nights: days,
-            guestCount: input.pax,
-            totalPrice: verifiedHomestayTotal,
-            priceSnapshot,
-            status: "PENDING",
-            guestNote: `TravelPlan: ${createdPlan.id}`,
+            calculatedAt: new Date().toISOString(),
+            source: "trip-builder",
+          };
+
+          const holdExpiresAt = new Date(Date.now() + HOLD_TTL_MS);
+          const hs = await tx.homeStayBooking.create({
+            data: {
+              listingId: listing.id,
+              travelPlanId: createdPlan.id,
+              guestId: actor.id,
+              checkIn: startDate,
+              checkOut: endDate,
+              nights: days,
+              guestCount: input.pax,
+              totalPrice: verifiedHomestayTotal,
+              priceSnapshot,
+              status: "PENDING",
+              holdExpiresAt,
+              guestNote: `TravelPlan: ${createdPlan.id}`,
+            },
+          });
+
+          await tx.homeStayAvailability.create({
+            data: {
+              listingId: listing.id,
+              bookingId: hs.id,
+              startDate,
+              endDate,
+              reason: "BOOKED",
+            },
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actorId: actor.id,
+            action: "TRAVEL_PLAN_CREATED",
+            entity: "TravelPlan",
+            entityId: createdPlan.id,
+            newData: {
+              destination: createdPlan.destination,
+              totalAmount: total,
+              itemsCount: items.length,
+            },
           },
         });
-      }
 
-      await tx.auditLog.create({
-        data: {
-          actorId: actor.id,
-          action: "TRAVEL_PLAN_CREATED",
-          entity: "TravelPlan",
-          entityId: createdPlan.id,
-          newData: {
-            destination: createdPlan.destination,
-            totalAmount: total,
-            itemsCount: items.length,
-          },
-        },
+        return createdPlan;
       });
 
-      return createdPlan;
-    });
-
-    return NextResponse.json({ planId: plan.id, totalAmount: total }, { status: 201 });
+      return NextResponse.json({ planId: plan.id, totalAmount: total }, { status: 201 });
+    } catch (err) {
+      if (heldHotelBookingId) {
+        try {
+          await bookingService.cancelAndRelease(heldHotelBookingId, {
+            actor: "SYSTEM",
+            reason: "TRAVEL_PLAN_CREATE_FAILED",
+          });
+        } catch {
+          /* best-effort release */
+        }
+      }
+      throw err;
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    if (e instanceof InsufficientInventoryError) {
+      return NextResponse.json({ message: "Hotel availability yetarli emas" }, { status: 409 });
     }
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }

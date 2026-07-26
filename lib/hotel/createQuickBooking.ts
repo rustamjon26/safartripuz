@@ -1,5 +1,8 @@
 import type { BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { bookingService } from "@/src/modules/booking";
+import { InsufficientInventoryError } from "@/src/modules/inventory";
+import { ratesService } from "@/src/modules/rates";
 
 export class QuickBookingError extends Error {
   constructor(
@@ -78,7 +81,7 @@ export async function createQuickBooking(input: QuickBookingInput) {
       status: "ACTIVE",
       checkInDate: { lt: checkOutDate },
       checkOutDate: { gt: checkInDate },
-      booking: { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+      booking: { status: { notIn: ["CANCELLED", "NO_SHOW", "EXPIRED"] } },
     },
   });
 
@@ -86,11 +89,15 @@ export async function createQuickBooking(input: QuickBookingInput) {
     throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
   }
 
-  const nights = Math.max(
-    1,
-    Math.round((checkOutDate.getTime() - checkInDate.getTime()) / 86400000),
-  );
-  const totalAmount = Number(room.roomType.basePrice) * nights;
+  const quote = await ratesService.quoteHotel({
+    roomTypeId: room.roomTypeId,
+    checkIn: checkInDate,
+    checkOut: checkOutDate,
+    roomCount: 1,
+    adults: input.adults,
+    children: input.children,
+  });
+  const totalAmount = quote.totalSom;
   const paidAmount = input.paymentMethod === "CASH" ? totalAmount : 0;
 
   const noteParts: string[] = [];
@@ -102,47 +109,49 @@ export async function createQuickBooking(input: QuickBookingInput) {
   }
   const note = noteParts.length > 0 ? noteParts.join("\n") : null;
 
-  return prisma.$transaction(async (tx) => {
-    const booking = await tx.hotelBooking.create({
-      data: {
-        hotelId: input.hotelId,
-        roomTypeId: room.roomTypeId,
-        guestName: input.guestName,
-        guestPhone: input.guestPhone,
-        checkInDate,
-        checkOutDate,
-        roomCount: 1,
-        totalAmount,
-        paidAmount,
-        status: input.status,
-        source: "RECEPTION",
-        note,
-        guests: {
-          create: [{ firstName: input.guestName, lastName: "" }],
-        },
-      },
+  let booking;
+  try {
+    booking = await bookingService.createConfirmedHotelBooking({
+      hotelId: input.hotelId,
+      roomTypeId: room.roomTypeId,
+      guestName: input.guestName,
+      guestPhone: input.guestPhone,
+      checkInDate,
+      checkOutDate,
+      roomCount: 1,
+      totalAmount,
+      paidAmount,
+      source: "RECEPTION",
+      note,
+      pricingSnapshot: quote.snapshot,
+      guests: [{ firstName: input.guestName, lastName: "" }],
     });
+  } catch (err) {
+    if (err instanceof InsufficientInventoryError) {
+      throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
+    }
+    throw err;
+  }
 
-    await tx.bookingRoomAssignment.create({
-      data: {
-        bookingId: booking.id,
-        physicalRoomId: input.roomId,
-        checkInDate,
-        checkOutDate,
-        status: "ACTIVE",
-      },
-    });
-
-    await tx.hotelPayment.create({
-      data: {
-        bookingId: booking.id,
-        hotelId: input.hotelId,
-        amount: totalAmount,
-        method: input.paymentMethod,
-        status: input.paymentMethod === "CASH" ? "COMPLETED" : "PENDING",
-      },
-    });
-
-    return booking;
+  await prisma.bookingRoomAssignment.create({
+    data: {
+      bookingId: booking.id,
+      physicalRoomId: input.roomId,
+      checkInDate,
+      checkOutDate,
+      status: "ACTIVE",
+    },
   });
+
+  await prisma.hotelPayment.create({
+    data: {
+      bookingId: booking.id,
+      hotelId: input.hotelId,
+      amount: totalAmount,
+      method: input.paymentMethod,
+      status: input.paymentMethod === "CASH" ? "COMPLETED" : "PENDING",
+    },
+  });
+
+  return booking;
 }

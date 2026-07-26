@@ -1,8 +1,8 @@
 import { requireUser } from "@/lib/authz";
-import { notifyDriverOrderCancelled } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
+import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { fail, handleApiError, ok } from "../../_utils";
 
 type CancelInput = {
@@ -97,6 +97,21 @@ export async function PATCH(
         },
       });
 
+      if (next.driverId) {
+        await outboxService.enqueueInTx(tx, {
+          aggregateType: "TaxiOrder",
+          aggregateId: next.id,
+          eventType: OutboxEventType.PUSH_DRIVER_ORDER_CANCELLED,
+          payload: {
+            userId: next.driverId,
+            title: "Buyurtma bekor qilindi",
+            body: "Mijoz buyurtmani bekor qildi",
+            data: { type: "taxi_order_cancelled", orderId: next.id },
+            dedupeKey: `push.driver_order_cancelled:${next.id}`,
+          },
+        });
+      }
+
       return next;
     });
 
@@ -104,10 +119,6 @@ export async function PATCH(
       orderId: updated.id,
       status: "CANCELLED",
     });
-
-    if (updated.driverId) {
-      void notifyDriverOrderCancelled(updated.driverId, updated.id);
-    }
 
     return ok(updated);
   } catch (error) {

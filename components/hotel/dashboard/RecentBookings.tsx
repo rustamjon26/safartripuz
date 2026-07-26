@@ -24,11 +24,14 @@ type RecentBookingsProps = {
 const STATUS_STYLES: Record<string, string> = {
   CONFIRMED: "bg-blue-50 text-blue-700 border-blue-100",
   CHECKED_IN: "bg-green-50 text-green-700 border-green-100",
-  CHECKED_OUT: "bg-slate-100 text-slate-600 border-slate-200",
   CANCELLED: "bg-red-50 text-red-600 border-red-100",
   PENDING: "bg-amber-50 text-amber-700 border-amber-100",
+  HELD: "bg-yellow-50 text-yellow-700 border-yellow-100",
+  PAID: "bg-teal-50 text-teal-700 border-teal-100",
   COMPLETED: "bg-slate-100 text-slate-600 border-slate-200",
+  REFUNDED: "bg-orange-50 text-orange-700 border-orange-100",
   NO_SHOW: "bg-orange-50 text-orange-700 border-orange-100",
+  EXPIRED: "bg-slate-50 text-slate-500 border-slate-100",
 };
 
 function TableSkeleton() {

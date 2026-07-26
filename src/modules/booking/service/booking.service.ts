@@ -1,0 +1,780 @@
+import type {
+  BookingEventActor,
+  BookingSource,
+  BookingStatus as PrismaBookingStatus,
+  HotelBooking,
+  Prisma,
+} from "@prisma/client";
+import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
+import { splitBookingCommission } from "@/src/modules/ledger/domain/commission";
+import { ledgerService } from "@/src/modules/ledger/service/ledger.service";
+import { OutboxEventType, outboxService } from "@/src/modules/outbox";
+import { Money } from "@/src/shared/money";
+import {
+  assertTransition,
+  holdsInventory,
+  IllegalTransitionError,
+  isPaidStatus,
+  type BookingStatus,
+} from "../domain/booking.state";
+import {
+  computeRefund,
+  DEFAULT_FLEXIBLE_RULES,
+  type CancellationRuleSnapshot,
+  type RefundBreakdown,
+} from "../domain/refund";
+import { bookingEventRepository } from "../repository/booking-event.repository";
+import { bookingRepository, type Tx } from "../repository/booking.repository";
+
+function asStatus(s: PrismaBookingStatus | string): BookingStatus {
+  return s as BookingStatus;
+}
+
+export type TransitionCtx = {
+  actor: BookingEventActor;
+  reason?: string;
+  metadata?: Prisma.InputJsonValue;
+  /** When true, release inventory if leaving a holding status for CANCELLED/EXPIRED/REFUNDED. */
+  restoreInventory?: boolean;
+  /** Extra HotelBooking fields updated with the status write (e.g. paidAmount, note). */
+  extra?: Prisma.HotelBookingUpdateInput;
+};
+
+export type CreateHeldHotelBookingInput = {
+  hotelId: string;
+  roomTypeId: string;
+  guestName: string;
+  guestPhone?: string | null;
+  checkInDate: Date;
+  checkOutDate: Date;
+  roomCount: number;
+  totalAmount: number;
+  source?: BookingSource;
+  note?: string | null;
+  pricingSnapshot?: Prisma.InputJsonValue;
+  /** Snapshot at book time; resolved from RoomType when omitted. */
+  cancellationPolicyId?: string | null;
+  /** Guest user id for outbox booking.confirmed (optional for walk-in). */
+  guestUserId?: string | null;
+  guests?: Prisma.BookingGuestCreateWithoutBookingInput[];
+};
+
+export type CancelWithPolicyResult = {
+  booking: HotelBooking;
+  refund: RefundBreakdown;
+};
+
+async function applyRoomSideEffects(
+  tx: Tx,
+  bookingId: string,
+  toStatus: BookingStatus,
+): Promise<void> {
+  const assignments = await tx.bookingRoomAssignment.findMany({
+    where: { bookingId, status: "ACTIVE" },
+    select: { id: true, physicalRoomId: true },
+  });
+  const roomIds = assignments.map((a) => a.physicalRoomId);
+
+  if (toStatus === "CHECKED_IN" && roomIds.length) {
+    await tx.physicalRoom.updateMany({
+      where: { id: { in: roomIds } },
+      data: { status: "OCCUPIED" },
+    });
+  }
+
+  if (toStatus === "COMPLETED" && assignments.length) {
+    await tx.bookingRoomAssignment.updateMany({
+      where: { bookingId, status: "ACTIVE" },
+      data: { status: "RELEASED" },
+    });
+    if (roomIds.length) {
+      await tx.physicalRoom.updateMany({
+        where: { id: { in: roomIds } },
+        data: { status: "CLEANING" },
+      });
+    }
+  }
+
+  if (
+    (toStatus === "CANCELLED" ||
+      toStatus === "NO_SHOW" ||
+      toStatus === "REFUNDED") &&
+    assignments.length
+  ) {
+    await tx.bookingRoomAssignment.updateMany({
+      where: { bookingId, status: "ACTIVE" },
+      data: { status: "CANCELLED" },
+    });
+    if (roomIds.length) {
+      await tx.physicalRoom.updateMany({
+        where: { id: { in: roomIds } },
+        data: { status: "AVAILABLE" },
+      });
+    }
+  }
+}
+
+export class BookingService {
+  /**
+   * Load booking (locked), assertTransition, update status, insert BookingEvent,
+   * apply room assignment side effects. Optionally joins an outer transaction.
+   */
+  async transition(
+    bookingId: string,
+    toStatus: BookingStatus,
+    ctx: TransitionCtx,
+    outerTx?: Tx,
+  ): Promise<HotelBooking> {
+    const run = async (tx: Tx) => {
+      const booking = await bookingRepository.lockByIdForUpdate(bookingId, tx);
+      if (!booking) {
+        throw new Error(`Booking not found: ${bookingId}`);
+      }
+
+      const fromStatus = asStatus(booking.status);
+      assertTransition(fromStatus, asStatus(toStatus));
+
+      const shouldRestore =
+        ctx.restoreInventory === true ||
+        toStatus === "EXPIRED" ||
+        toStatus === "CANCELLED" ||
+        toStatus === "REFUNDED";
+
+      const holdingBefore = holdsInventory(fromStatus);
+
+      const holdExpiresAtPatch: Prisma.HotelBookingUpdateInput = {};
+      if (toStatus === "HELD") {
+        holdExpiresAtPatch.holdExpiresAt = new Date(Date.now() + HOLD_TTL_MS);
+      } else if (
+        toStatus === "CONFIRMED" ||
+        toStatus === "PAID" ||
+        toStatus === "EXPIRED" ||
+        toStatus === "CANCELLED" ||
+        toStatus === "REFUNDED" ||
+        toStatus === "COMPLETED"
+      ) {
+        holdExpiresAtPatch.holdExpiresAt = null;
+      }
+
+      const updated = await bookingRepository.updateStatus(
+        bookingId,
+        toStatus,
+        {
+          ...holdExpiresAtPatch,
+          ...ctx.extra,
+        },
+        tx,
+      );
+
+      await bookingEventRepository.create(
+        {
+          bookingId,
+          fromStatus: booking.status,
+          toStatus,
+          reason: ctx.reason,
+          actor: ctx.actor,
+          metadata: ctx.metadata,
+        },
+        tx,
+      );
+
+      await applyRoomSideEffects(tx, bookingId, toStatus);
+
+      if (
+        shouldRestore &&
+        holdingBefore &&
+        (toStatus === "EXPIRED" ||
+          toStatus === "CANCELLED" ||
+          toStatus === "REFUNDED") &&
+        booking.roomTypeId
+      ) {
+        await inventoryService.releaseRoomNightsInTx(
+          {
+            roomTypeId: booking.roomTypeId,
+            checkIn: booking.checkInDate,
+            checkOut: booking.checkOutDate,
+            roomCount: booking.roomCount,
+          },
+          tx,
+        );
+        await bookingEventRepository.create(
+          {
+            bookingId,
+            fromStatus: toStatus,
+            toStatus,
+            reason: "INVENTORY_RESTORED",
+            actor: "SYSTEM",
+            metadata: { restoredFrom: booking.status },
+          },
+          tx,
+        );
+      }
+
+      return updated;
+    };
+
+    if (outerTx) return run(outerTx);
+    return inventoryService.withSerializableRetry(run);
+  }
+
+  /**
+   * Reserve inventory + create HotelBooking as HELD with 15m TTL.
+   * Initial create — not a transition (no prior status).
+   */
+  async createHeldHotelBooking(
+    input: CreateHeldHotelBookingInput,
+  ): Promise<HotelBooking> {
+    return inventoryService.withSerializableRetry(async (tx) => {
+      await inventoryService.reserveRoomNightsInTx(
+        {
+          roomTypeId: input.roomTypeId,
+          checkIn: input.checkInDate,
+          checkOut: input.checkOutDate,
+          roomCount: input.roomCount,
+        },
+        tx,
+      );
+
+      const holdExpiresAt = new Date(Date.now() + HOLD_TTL_MS);
+      const policyId =
+        input.cancellationPolicyId !== undefined
+          ? input.cancellationPolicyId
+          : (
+              await tx.roomType.findUnique({
+                where: { id: input.roomTypeId },
+                select: { cancellationPolicyId: true },
+              })
+            )?.cancellationPolicyId ?? null;
+
+      const booking = await bookingRepository.create(
+        {
+          hotel: { connect: { id: input.hotelId } },
+          roomType: { connect: { id: input.roomTypeId } },
+          guestName: input.guestName,
+          guestPhone: input.guestPhone ?? null,
+          checkInDate: input.checkInDate,
+          checkOutDate: input.checkOutDate,
+          roomCount: input.roomCount,
+          totalAmount: input.totalAmount,
+          paidAmount: 0,
+          status: "HELD",
+          holdExpiresAt,
+          source: input.source ?? "SAFARTRIP",
+          note: input.note ?? null,
+          ...(input.pricingSnapshot !== undefined
+            ? { pricingSnapshot: input.pricingSnapshot }
+            : {}),
+          ...(policyId
+            ? { cancellationPolicy: { connect: { id: policyId } } }
+            : {}),
+          guests: input.guests?.length ? { create: input.guests } : undefined,
+        } as Prisma.HotelBookingCreateInput,
+        tx,
+      );
+
+      await bookingEventRepository.create(
+        {
+          bookingId: booking.id,
+          fromStatus: "HELD",
+          toStatus: "HELD",
+          reason: "HOLD_CREATED",
+          actor: "SYSTEM",
+          metadata: { holdExpiresAt: holdExpiresAt.toISOString() },
+        },
+        tx,
+      );
+
+      return booking;
+    });
+  }
+
+  /**
+   * Staff/walk-in: decrement inventory and create CONFIRMED (no payment hold).
+   * Initial create — not a transition.
+   */
+  async createConfirmedHotelBooking(
+    input: CreateHeldHotelBookingInput & {
+      paidAmount?: number;
+      status?: "CONFIRMED";
+    },
+  ): Promise<HotelBooking> {
+    return inventoryService.withSerializableRetry(async (tx) => {
+      await inventoryService.reserveRoomNightsInTx(
+        {
+          roomTypeId: input.roomTypeId,
+          checkIn: input.checkInDate,
+          checkOut: input.checkOutDate,
+          roomCount: input.roomCount,
+        },
+        tx,
+      );
+
+      const policyId =
+        input.cancellationPolicyId !== undefined
+          ? input.cancellationPolicyId
+          : (
+              await tx.roomType.findUnique({
+                where: { id: input.roomTypeId },
+                select: { cancellationPolicyId: true },
+              })
+            )?.cancellationPolicyId ?? null;
+
+      const booking = await bookingRepository.create(
+        {
+          hotel: { connect: { id: input.hotelId } },
+          roomType: { connect: { id: input.roomTypeId } },
+          guestName: input.guestName,
+          guestPhone: input.guestPhone ?? null,
+          checkInDate: input.checkInDate,
+          checkOutDate: input.checkOutDate,
+          roomCount: input.roomCount,
+          totalAmount: input.totalAmount,
+          paidAmount: input.paidAmount ?? 0,
+          status: "CONFIRMED",
+          holdExpiresAt: null,
+          source: input.source ?? "RECEPTION",
+          note: input.note ?? null,
+          ...(input.pricingSnapshot !== undefined
+            ? { pricingSnapshot: input.pricingSnapshot }
+            : {}),
+          ...(policyId
+            ? { cancellationPolicy: { connect: { id: policyId } } }
+            : {}),
+          guests: input.guests?.length ? { create: input.guests } : undefined,
+        } as Prisma.HotelBookingCreateInput,
+        tx,
+      );
+
+      await bookingEventRepository.create(
+        {
+          bookingId: booking.id,
+          fromStatus: "CONFIRMED",
+          toStatus: "CONFIRMED",
+          reason: "STAFF_CREATE",
+          actor: "PARTNER",
+        },
+        tx,
+      );
+
+      if (input.guestUserId) {
+        await outboxService.enqueueInTx(tx, {
+          aggregateType: "HotelBooking",
+          aggregateId: booking.id,
+          eventType: OutboxEventType.BOOKING_CONFIRMED,
+          payload: {
+            bookingId: booking.id,
+            bookingKind: "HOTEL",
+            userId: input.guestUserId,
+            dedupeKey: `booking.confirmed:HOTEL:${booking.id}`,
+            title: "Mehmonxona bron tasdiqlandi",
+            body: "Broningiz tasdiqlandi",
+          },
+        });
+      }
+
+      const hotel = await tx.hotel.findUnique({
+        where: { id: input.hotelId },
+        select: { partner: { select: { userId: true } } },
+      });
+      if (hotel?.partner?.userId) {
+        await outboxService.enqueueInTx(tx, {
+          aggregateType: "HotelBooking",
+          aggregateId: booking.id,
+          eventType: OutboxEventType.PARTNER_NOTIFY,
+          payload: {
+            partnerUserId: hotel.partner.userId,
+            bookingId: booking.id,
+            bookingKind: "HOTEL",
+            dedupeKey: `partner.notify:HOTEL:${booking.id}:create`,
+            title: "Yangi mehmonxona bron",
+            body: `${input.guestName} — yangi bron`,
+          },
+        });
+      }
+
+      return booking;
+    });
+  }
+
+  /**
+   * Idempotent hold expiry for hotel + homestay. Safe to run concurrently.
+   */
+  async expireHolds(limit = 100): Promise<{ hotel: number; homestay: number }> {
+    const hotelHolds = await bookingRepository.findExpiredHolds(limit);
+    let hotel = 0;
+
+    for (const hold of hotelHolds) {
+      try {
+        const expired = await inventoryService.withSerializableRetry(async (tx) => {
+          const n = await bookingRepository.expireHeldIfDue(hold.id, tx);
+          if (n === 0) return false;
+
+          await bookingEventRepository.create(
+            {
+              bookingId: hold.id,
+              fromStatus: "HELD",
+              toStatus: "EXPIRED",
+              reason: "HOLD_TTL_EXPIRED",
+              actor: "SYSTEM",
+            },
+            tx,
+          );
+
+          if (hold.roomTypeId) {
+            await inventoryService.releaseRoomNightsInTx(
+              {
+                roomTypeId: hold.roomTypeId,
+                checkIn: hold.checkInDate,
+                checkOut: hold.checkOutDate,
+                roomCount: hold.roomCount,
+              },
+              tx,
+            );
+            await bookingEventRepository.create(
+              {
+                bookingId: hold.id,
+                fromStatus: "EXPIRED",
+                toStatus: "EXPIRED",
+                reason: "INVENTORY_RESTORED",
+                actor: "SYSTEM",
+              },
+              tx,
+            );
+          }
+          return true;
+        });
+        if (expired) hotel += 1;
+      } catch (err) {
+        console.error("[expireHolds] hotel failed", hold.id, err);
+      }
+    }
+
+    const homestayHolds = await bookingRepository.findExpiredHomestayHolds(limit);
+    let homestay = 0;
+
+    for (const hold of homestayHolds) {
+      try {
+        const ok = await inventoryService.withSerializableRetry(async (tx) => {
+          const result = await tx.$executeRawUnsafe(
+            `UPDATE HomeStayBooking
+             SET status = 'CANCELLED', holdExpiresAt = NULL, updatedAt = NOW(3),
+                 cancellationReason = 'HOLD_EXPIRED'
+             WHERE id = ? AND status = 'PENDING' AND holdExpiresAt IS NOT NULL AND holdExpiresAt < NOW(3)`,
+            hold.id,
+          );
+          if (Number(result) === 0) return false;
+
+          await tx.homeStayAvailability.deleteMany({
+            where: { bookingId: hold.id },
+          });
+          return true;
+        });
+        if (ok) homestay += 1;
+      } catch (err) {
+        console.error("[expireHolds] homestay failed", hold.id, err);
+      }
+    }
+
+    return { hotel, homestay };
+  }
+
+  async cancelAndRelease(
+    bookingId: string,
+    ctx: Omit<TransitionCtx, "restoreInventory">,
+  ): Promise<HotelBooking> {
+    const { booking } = await this.cancelWithPolicy(bookingId, ctx);
+    return booking;
+  }
+
+  /**
+   * Policy-driven cancel: computeRefund → CANCELLED or REFUNDED → inventory restore
+   * → ledger REFUND compensation + PartnerEarning reverse (proportional).
+   */
+  async cancelWithPolicy(
+    bookingId: string,
+    ctx: Omit<TransitionCtx, "restoreInventory">,
+    outerTx?: Tx,
+  ): Promise<CancelWithPolicyResult> {
+    const run = async (tx: Tx): Promise<CancelWithPolicyResult> => {
+      const locked = await bookingRepository.lockByIdForUpdate(bookingId, tx);
+      if (!locked) throw new Error(`Booking not found: ${bookingId}`);
+
+      const rules = await this.resolveCancellationRules(locked, tx);
+      const fromStatus = asStatus(locked.status);
+      const paidSom = Number(locked.paidAmount);
+      const isPaid =
+        isPaidStatus(fromStatus) || paidSom > 0;
+      const grossPaidTiyin = isPaid
+        ? Money.fromSomNumber(
+            paidSom > 0 ? paidSom : Number(locked.totalAmount),
+          ).toTiyin()
+        : 0n;
+
+      const cancelledAt = new Date();
+      const refund = computeRefund({
+        checkInAt: locked.checkInDate,
+        bookedAt: locked.createdAt,
+        cancelledAt,
+        grossPaidTiyin,
+        policy: { rules },
+      });
+
+      const toStatus: BookingStatus =
+        isPaid && refund.refundTiyin > 0n ? "REFUNDED" : "CANCELLED";
+
+      const booking = await this.transition(
+        bookingId,
+        toStatus,
+        {
+          ...ctx,
+          restoreInventory: true,
+          metadata: {
+            ...(typeof ctx.metadata === "object" &&
+            ctx.metadata !== null &&
+            !Array.isArray(ctx.metadata)
+              ? (ctx.metadata as Record<string, unknown>)
+              : {}),
+            refund: {
+              refundPercent: refund.refundPercent,
+              refundTiyin: refund.refundTiyin.toString(),
+              retainedTiyin: refund.retainedTiyin.toString(),
+              matchedRuleId: refund.matchedRuleId,
+              hoursBeforeCheckIn: refund.hoursBeforeCheckIn,
+            },
+          } as Prisma.InputJsonValue,
+        },
+        tx,
+      );
+
+      if (refund.refundTiyin > 0n) {
+        const hotel = await tx.hotel.findUnique({
+          where: { id: locked.hotelId },
+          select: {
+            partner: { select: { userId: true } },
+          },
+        });
+        const partnerUserId = hotel?.partner?.userId ?? null;
+        const { platformTotal } = splitBookingCommission(grossPaidTiyin);
+
+        await ledgerService.postRefundCompensation(
+          {
+            idempotencyKey: `refund:${bookingId}:${refund.refundPercent}`,
+            bookingId,
+            refundTiyin: refund.refundTiyin,
+            refundPercent: refund.refundPercent,
+            originalCommissionTiyin: platformTotal,
+            partnerUserId,
+          },
+          tx,
+        );
+
+        await this.reversePartnerEarning(
+          tx,
+          bookingId,
+          refund.refundPercent,
+        );
+      }
+
+      return { booking, refund };
+    };
+
+    if (outerTx) return run(outerTx);
+    return inventoryService.withSerializableRetry(run);
+  }
+
+  private async resolveCancellationRules(
+    booking: HotelBooking,
+    tx: Tx,
+  ): Promise<CancellationRuleSnapshot[]> {
+    const policyId =
+      booking.cancellationPolicyId ??
+      (booking.roomTypeId
+        ? (
+            await tx.roomType.findUnique({
+              where: { id: booking.roomTypeId },
+              select: { cancellationPolicyId: true },
+            })
+          )?.cancellationPolicyId
+        : null);
+
+    if (!policyId) return DEFAULT_FLEXIBLE_RULES;
+
+    try {
+      const policy = await tx.cancellationPolicy.findUnique({
+        where: { id: policyId },
+        include: { rules: true },
+      });
+      if (!policy?.rules?.length) return DEFAULT_FLEXIBLE_RULES;
+      return policy.rules.map((r) => ({
+        id: r.id,
+        hoursBeforeCheckIn: r.hoursBeforeCheckIn,
+        refundPercent: r.refundPercent,
+        conditions: (r.conditions as {
+          maxHoursSinceBooking?: number;
+          minHoursBeforeCheckIn?: number;
+        } | null) ?? null,
+      }));
+    } catch {
+      return DEFAULT_FLEXIBLE_RULES;
+    }
+  }
+
+  private async reversePartnerEarning(
+    tx: Tx,
+    bookingId: string,
+    refundPercent: number,
+  ): Promise<void> {
+    try {
+      const earning = await tx.partnerEarning.findUnique({
+        where: {
+          bookingType_bookingId: { bookingType: "HOTEL", bookingId },
+        },
+      });
+      if (!earning || earning.status === "CANCELLED") return;
+
+      if (refundPercent >= 100) {
+        await tx.partnerEarning.update({
+          where: { id: earning.id },
+          data: { status: "CANCELLED" },
+        });
+        return;
+      }
+
+      const remain = 100 - refundPercent;
+      const gross = Money.fromSomNumber(Number(earning.grossAmount)).toTiyin();
+      const fee = Money.fromSomNumber(Number(earning.commissionFee)).toTiyin();
+      const net = Money.fromSomNumber(Number(earning.netAmount)).toTiyin();
+      const nextGross = (gross * BigInt(remain)) / 100n;
+      const nextFee = (fee * BigInt(remain)) / 100n;
+      const nextNet = (net * BigInt(remain)) / 100n;
+
+      await tx.partnerEarning.update({
+        where: { id: earning.id },
+        data: {
+          grossAmount: Money.fromTiyin(nextGross).toSomNumber(),
+          commissionFee: Money.fromTiyin(nextFee).toSomNumber(),
+          netAmount: Money.fromTiyin(nextNet).toSomNumber(),
+        },
+      });
+    } catch {
+      // PartnerEarning table may be unavailable in partial schemas
+    }
+  }
+
+  /**
+   * Payment success: legal chain only.
+   * PENDING → HELD → PAID → CONFIRMED
+   * HELD → PAID → CONFIRMED
+   * Already PAID/CONFIRMED → idempotent ok
+   * EXPIRED/CANCELLED → MANUAL_REVIEW (EXPIRED is terminal; no illegal bypass)
+   */
+  async confirmPaymentForHotelBooking(
+    bookingId: string,
+    actor: BookingEventActor,
+    outerTx?: Tx,
+  ): Promise<{ ok: true; booking: HotelBooking } | { ok: false; reason: "MANUAL_REVIEW" }> {
+    const run = async (tx: Tx) => {
+      const booking = await bookingRepository.lockByIdForUpdate(bookingId, tx);
+      if (!booking) throw new Error(`Booking not found: ${bookingId}`);
+
+      if (booking.status === "CONFIRMED" || booking.status === "PAID") {
+        if (booking.status === "PAID") {
+          const confirmed = await this.transition(
+            bookingId,
+            "CONFIRMED",
+            {
+              actor,
+              reason: "PAYMENT_SUCCESS",
+              extra: { paidAmount: booking.totalAmount },
+            },
+            tx,
+          );
+          return { ok: true as const, booking: confirmed };
+        }
+        return { ok: true as const, booking };
+      }
+
+      if (booking.status === "EXPIRED" || booking.status === "CANCELLED") {
+        console.error("ALERT payment_after_terminal_status", {
+          bookingId,
+          status: booking.status,
+        });
+        await tx.auditLog.create({
+          data: {
+            action: "PAYMENT_AFTER_EXPIRED_MANUAL_REVIEW",
+            entity: "HotelBooking",
+            entityId: bookingId,
+            newData: { reason: "TERMINAL_STATUS", status: booking.status },
+          },
+        });
+        return { ok: false as const, reason: "MANUAL_REVIEW" as const };
+      }
+
+      if (booking.status === "PENDING") {
+        await this.transition(
+          bookingId,
+          "HELD",
+          { actor, reason: "PAYMENT_SUCCESS" },
+          tx,
+        );
+        await this.transition(
+          bookingId,
+          "PAID",
+          { actor, reason: "PAYMENT_SUCCESS" },
+          tx,
+        );
+        const confirmed = await this.transition(
+          bookingId,
+          "CONFIRMED",
+          {
+            actor,
+            reason: "PAYMENT_SUCCESS",
+            extra: { paidAmount: booking.totalAmount },
+          },
+          tx,
+        );
+        return { ok: true as const, booking: confirmed };
+      }
+
+      if (booking.status === "HELD") {
+        await this.transition(
+          bookingId,
+          "PAID",
+          { actor, reason: "PAYMENT_SUCCESS" },
+          tx,
+        );
+        const confirmed = await this.transition(
+          bookingId,
+          "CONFIRMED",
+          {
+            actor,
+            reason: "PAYMENT_SUCCESS",
+            extra: { paidAmount: booking.totalAmount },
+          },
+          tx,
+        );
+        return { ok: true as const, booking: confirmed };
+      }
+
+      console.error("ALERT payment_unexpected_status", {
+        bookingId,
+        status: booking.status,
+      });
+      await tx.auditLog.create({
+        data: {
+          action: "PAYMENT_AFTER_EXPIRED_MANUAL_REVIEW",
+          entity: "HotelBooking",
+          entityId: bookingId,
+          newData: { reason: "UNEXPECTED_STATUS", status: booking.status },
+        },
+      });
+      return { ok: false as const, reason: "MANUAL_REVIEW" as const };
+    };
+
+    if (outerTx) return run(outerTx);
+    return inventoryService.withSerializableRetry(run);
+  }
+}
+
+export const bookingService = new BookingService();
+export { IllegalTransitionError };

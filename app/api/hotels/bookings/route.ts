@@ -1,6 +1,12 @@
 import { requireUserWithProfile } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { fail, handleApiError, ok } from "../_utils";
+import { bookingService } from "@/src/modules/booking";
+import {
+  InsufficientInventoryError,
+  InventoryLockError,
+} from "@/src/modules/inventory";
+import { ratesService } from "@/src/modules/rates";
 
 type Body = {
   hotelId?: string;
@@ -18,29 +24,6 @@ type Body = {
 function calcNights(start: Date, end: Date) {
   const diff = end.getTime() - start.getTime();
   return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
-
-async function availableRoomCount(
-  hotelId: string,
-  roomTypeId: string,
-  checkIn: Date,
-  checkOut: Date,
-): Promise<number> {
-  const total = await prisma.physicalRoom.count({
-    where: { hotelId, roomTypeId, isActive: true },
-  });
-  const busy = await prisma.hotelBooking.findMany({
-    where: {
-      hotelId,
-      roomTypeId,
-      status: { notIn: ["CANCELLED", "NO_SHOW"] },
-      checkInDate: { lt: checkOut },
-      checkOutDate: { gt: checkIn },
-    },
-    select: { roomCount: true },
-  });
-  const used = busy.reduce((s, b) => s + b.roomCount, 0);
-  return Math.max(0, total - used);
 }
 
 export async function POST(req: Request) {
@@ -75,7 +58,14 @@ export async function POST(req: Request) {
 
     const roomType = await prisma.roomType.findFirst({
       where: { id: body.roomTypeId, hotelId: body.hotelId, isActive: true },
-      select: { id: true, basePrice: true, hotelId: true, name: true, capacityAdults: true, capacityChildren: true },
+      select: {
+        id: true,
+        basePrice: true,
+        hotelId: true,
+        name: true,
+        capacityAdults: true,
+        capacityChildren: true,
+      },
     });
     if (!roomType) return fail("Xona turi topilmadi", 404);
     if (roomType.hotelId !== body.hotelId) return fail("Xona turi bu mehmonxonaga tegishli emas", 400);
@@ -85,14 +75,17 @@ export async function POST(req: Request) {
       return fail("Mehmonlar soni xona sig'imidan oshmasligi kerak", 400);
     }
 
-    const avail = await availableRoomCount(hotel.id, roomType.id, checkIn, checkOut);
-    if (avail < roomCount) {
-      return fail("Tanlangan sanalarda bo'sh xonalar yetarli emas", 409);
-    }
-
     const nights = calcNights(checkIn, checkOut);
-    const unit = Number(roomType.basePrice);
-    const totalAmount = unit * nights * roomCount;
+    const quote = await ratesService.quoteHotel({
+      roomTypeId: roomType.id,
+      checkIn,
+      checkOut,
+      roomCount,
+      adults: guestCount,
+      children: 0,
+    });
+    const totalAmount = quote.totalSom;
+    const unit = nights > 0 ? totalAmount / nights / roomCount : totalAmount;
 
     const guestName =
       body.guestName?.trim() ||
@@ -101,8 +94,46 @@ export async function POST(req: Request) {
 
     const destination = hotel.city?.trim() || hotel.name;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const plan = await tx.travelPlan.create({
+    // Critical section: inventory lock + HELD booking (no payment network calls).
+    // Payme auto-cancels unconfirmed txs after 12h; our hold is 15 minutes.
+    let booking;
+    try {
+      booking = await bookingService.createHeldHotelBooking({
+        hotelId: hotel.id,
+        roomTypeId: roomType.id,
+        guestName,
+        guestPhone: body.guestPhone?.trim() || actor.phone || null,
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+        roomCount,
+        totalAmount,
+        source: "SAFARTRIP",
+        note: body.note?.trim() || null,
+        pricingSnapshot: quote.snapshot,
+        guests: [
+          {
+            firstName: actor.first_name,
+            lastName: actor.last_name,
+          },
+        ],
+      });
+      const { setMoneyPathContext } = await import(
+        "@/src/shared/observability/sentry"
+      );
+      setMoneyPathContext({ bookingId: booking.id });
+    } catch (err) {
+      if (err instanceof InsufficientInventoryError) {
+        return fail("Tanlangan sanalarda bo'sh xonalar yetarli emas", 409);
+      }
+      if (err instanceof InventoryLockError) {
+        return fail("Vaqtinchalik bandlik; qayta urinib ko'ring", 503);
+      }
+      throw err;
+    }
+
+    // Payment / travel plan OUTSIDE the inventory transaction
+    try {
+      const plan = await prisma.travelPlan.create({
         data: {
           userId: actor.id,
           destination,
@@ -115,7 +146,7 @@ export async function POST(req: Request) {
         },
       });
 
-      await tx.travelPlanItem.create({
+      await prisma.travelPlanItem.create({
         data: {
           travelPlanId: plan.id,
           type: "HOTEL",
@@ -128,32 +159,12 @@ export async function POST(req: Request) {
         },
       });
 
-      const booking = await tx.hotelBooking.create({
-        data: {
-          hotelId: hotel.id,
-          roomTypeId: roomType.id,
-          guestName,
-          guestPhone: body.guestPhone?.trim() || actor.phone || null,
-          checkInDate: checkIn,
-          checkOutDate: checkOut,
-          roomCount,
-          totalAmount,
-          paidAmount: 0,
-          status: "PENDING",
-          source: "SAFARTRIP",
-          note: `TravelPlan: ${plan.id}`,
-          guests: {
-            create: [
-              {
-                firstName: actor.first_name,
-                lastName: actor.last_name,
-              },
-            ],
-          },
-        },
+      await prisma.hotelBooking.update({
+        where: { id: booking.id },
+        data: { note: `TravelPlan: ${plan.id}` },
       });
 
-      const payment = await tx.payment.create({
+      const payment = await prisma.payment.create({
         data: {
           travelPlanId: plan.id,
           provider,
@@ -163,7 +174,7 @@ export async function POST(req: Request) {
         },
       });
 
-      await tx.auditLog.create({
+      await prisma.auditLog.create({
         data: {
           actorId: actor.id,
           action: "HOTEL_BOOKING_CREATED",
@@ -173,31 +184,40 @@ export async function POST(req: Request) {
             planId: plan.id,
             paymentId: payment.id,
             totalAmount,
+            status: "HELD",
           },
         },
       });
 
-      return { plan, booking, payment };
-    });
+      const paymentUrl =
+        provider === "MOCK"
+          ? `/payments/mock/${payment.id}`
+          : provider === "MANUAL"
+            ? `/payments/manual/${payment.id}`
+            : `/payments/checkout/${plan.id}`;
 
-    const paymentUrl =
-      provider === "MOCK"
-        ? `/payments/mock/${result.payment.id}`
-        : provider === "MANUAL"
-          ? `/payments/manual/${result.payment.id}`
-          : `/payments/checkout/${result.plan.id}`;
-
-    return ok(
-      {
-        bookingId: result.booking.id,
-        planId: result.plan.id,
-        paymentId: result.payment.id,
-        totalAmount,
-        paymentUrl,
-        status: "PENDING_PAYMENT",
-      },
-      201,
-    );
+      return ok(
+        {
+          bookingId: booking.id,
+          planId: plan.id,
+          paymentId: payment.id,
+          totalAmount,
+          paymentUrl,
+          status: "PENDING_PAYMENT",
+        },
+        201,
+      );
+    } catch (err) {
+      try {
+        await bookingService.cancelAndRelease(booking.id, {
+          actor: "SYSTEM",
+          reason: "PAYMENT_SETUP_FAILED",
+        });
+      } catch {
+        /* best-effort */
+      }
+      throw err;
+    }
   } catch (error) {
     return handleApiError(error);
   }

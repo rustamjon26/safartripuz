@@ -1,9 +1,9 @@
 import { Prisma, type TaxiOrderStatus } from "@prisma/client";
 import { requireUser } from "@/lib/authz";
-import { notifyDriverNewOrder } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { emitToDriver } from "@/lib/socket";
 import { haversineDistanceKm } from "@/lib/taxi/haversine";
+import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { fail, handleApiError, ok } from "../_utils";
 
 const TAXI_ORDER_STATUSES: TaxiOrderStatus[] = [
@@ -153,42 +153,55 @@ export async function POST(req: Request) {
         },
       });
 
-      return order;
-    });
-
-    const onlineDrivers = await prisma.driverProfile.findMany({
-      where: {
-        isOnline: true,
-        isVerified: true,
-        driver: {
-          isBlocked: false,
-          taxiVehicles: { some: { isActive: true } },
+      const onlineDrivers = await tx.driverProfile.findMany({
+        where: {
+          isOnline: true,
+          isVerified: true,
+          driver: {
+            isBlocked: false,
+            taxiVehicles: { some: { isActive: true } },
+          },
         },
-      },
-      select: { driverId: true },
+        select: { driverId: true },
+      });
+
+      const priceNum =
+        order.estimatedPrice != null ? Number(order.estimatedPrice) : 0;
+      for (const driver of onlineDrivers) {
+        await outboxService.enqueueInTx(tx, {
+          aggregateType: "TaxiOrder",
+          aggregateId: order.id,
+          eventType: OutboxEventType.PUSH_DRIVER_NEW_ORDER,
+          payload: {
+            userId: driver.driverId,
+            title: "Yangi buyurtma",
+            body: `${order.pickupAddress} — ${priceNum.toLocaleString("uz-UZ")} so'm`,
+            data: {
+              type: "taxi_order_new",
+              orderId: order.id,
+              pickupAddress: order.pickupAddress,
+              estimatedPrice: priceNum,
+            },
+            dedupeKey: `push.driver_new_order:${order.id}:${driver.driverId}`,
+          },
+        });
+      }
+
+      return { order, onlineDrivers };
     });
 
-    for (const driver of onlineDrivers) {
+    for (const driver of created.onlineDrivers) {
       emitToDriver(driver.driverId, "order:new", {
-        id: created.id,
-        pickupAddress: created.pickupAddress,
-        dropoffAddress: created.dropoffAddress,
-        estimatedPrice: Number(created.estimatedPrice),
+        id: created.order.id,
+        pickupAddress: created.order.pickupAddress,
+        dropoffAddress: created.order.dropoffAddress,
+        estimatedPrice: Number(created.order.estimatedPrice),
         serviceType: service.serviceType,
-        createdAt: created.createdAt,
+        createdAt: created.order.createdAt,
       });
     }
 
-    for (const driver of onlineDrivers) {
-      void notifyDriverNewOrder(
-        driver.driverId,
-        created.id,
-        created.pickupAddress,
-        created.estimatedPrice != null ? Number(created.estimatedPrice) : 0,
-      );
-    }
-
-    return ok(created, 201);
+    return ok(created.order, 201);
   } catch (error) {
     return handleApiError(error);
   }

@@ -21,14 +21,17 @@ const MONTHS_UZ = [
   "dekabr",
 ] as const;
 
-const STATUS_UZ: Record<BookingStatus, string> = {
+const STATUS_UZ: Record<string, string> = {
   PENDING: "Kutilmoqda",
+  HELD: "Band (hold)",
+  PAID: "To'langan",
   CONFIRMED: "Tasdiqlangan",
   CHECKED_IN: "Joylashgan",
-  CHECKED_OUT: "Chiqib ketgan",
   CANCELLED: "Bekor qilingan",
   COMPLETED: "Yakunlangan",
+  REFUNDED: "Qaytarilgan",
   NO_SHOW: "Kelmadi",
+  EXPIRED: "Muddati o'tgan",
 };
 
 const PAYMENT_UZ: Record<string, string> = {

@@ -1,5 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { ratesService } from "@/src/modules/rates";
+
+function guideTotalSom(pricePerHour: unknown, hours: number): number {
+  return ratesService.quoteGuide({
+    pricePerHourSom: Number(pricePerHour),
+    hours,
+  }).totalSom;
+}
 
 type CheckGuideSlotInput = {
   guideId: string;
@@ -59,7 +67,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
       reason: GUIDE_ERRORS.GROUP_SIZE_EXCEEDED,
       listing,
       hours,
-      totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+      totalPrice: guideTotalSom(listing.pricePerHour, hours),
     };
   }
 
@@ -69,7 +77,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
       reason: GUIDE_ERRORS.MIN_HOURS_NOT_MET,
       listing,
       hours,
-      totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+      totalPrice: guideTotalSom(listing.pricePerHour, hours),
     };
   }
 
@@ -88,7 +96,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
       reason: GUIDE_ERRORS.SLOT_UNAVAILABLE,
       listing,
       hours,
-      totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+      totalPrice: guideTotalSom(listing.pricePerHour, hours),
     };
   }
   if (
@@ -100,7 +108,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
       reason: GUIDE_ERRORS.SLOT_UNAVAILABLE,
       listing,
       hours,
-      totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+      totalPrice: guideTotalSom(listing.pricePerHour, hours),
     };
   }
 
@@ -124,7 +132,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
         reason: GUIDE_ERRORS.SLOT_UNAVAILABLE,
         listing,
         hours,
-        totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+        totalPrice: guideTotalSom(listing.pricePerHour, hours),
       };
     }
     if (overlaps(input.startTime, input.endTime, slot.startTime, slot.endTime)) {
@@ -133,7 +141,7 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
         reason: GUIDE_ERRORS.SLOT_UNAVAILABLE,
         listing,
         hours,
-        totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+        totalPrice: guideTotalSom(listing.pricePerHour, hours),
       };
     }
   }
@@ -153,12 +161,12 @@ export async function checkGuideSlot(input: CheckGuideSlotInput) {
         reason: GUIDE_ERRORS.SLOT_UNAVAILABLE,
         listing,
         hours,
-        totalPrice: Number((hours * Number(listing.pricePerHour)).toFixed(2)),
+        totalPrice: guideTotalSom(listing.pricePerHour, hours),
       };
     }
   }
 
-  const totalPrice = Number((hours * Number(listing.pricePerHour)).toFixed(2));
+  const totalPrice = guideTotalSom(listing.pricePerHour, hours);
 
   return {
     available: true,
