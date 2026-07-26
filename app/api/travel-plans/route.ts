@@ -326,7 +326,8 @@ export async function POST(req: Request) {
           roomCount: input.hotel.roomCount,
           totalAmount: verifiedHotelTotal,
           source: "SAFARTRIP",
-          pricingSnapshot: hotelPricingSnapshot ?? undefined,
+          pricingSnapshot:
+            (hotelPricingSnapshot as Prisma.InputJsonValue | null) ?? undefined,
         });
         heldHotelBookingId = held.id;
       } catch (err) {
