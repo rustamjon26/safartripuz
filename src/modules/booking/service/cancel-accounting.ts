@@ -8,6 +8,8 @@ import type { RefundBreakdown } from "../domain/refund";
 
 type Tx = Prisma.TransactionClient;
 
+type CancelEarningType = Exclude<PartnerEarningType, "TAXI">;
+
 /**
  * Post refund ledger + reverse PartnerEarning inside an existing transaction.
  * Provider HTTP refund stays outside the caller.
@@ -15,7 +17,7 @@ type Tx = Prisma.TransactionClient;
 export async function postCancelAccountingInTx(
   tx: Tx,
   opts: {
-    bookingType: PartnerEarningType;
+    bookingType: CancelEarningType;
     bookingId: string;
     partnerUserId: string | null;
     refund: RefundBreakdown;
