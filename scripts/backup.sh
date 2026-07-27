@@ -59,7 +59,7 @@ export DUMP_TS
 echo "[backup] DUMP_TS=${DUMP_TS}"
 
 echo "[backup] dumping ${MYSQL_DATABASE}@${MYSQL_HOST}:${MYSQL_PORT} → ${OUT_DAILY}"
-mysqldump --single-transaction --routines --triggers \
+mysqldump --single-transaction --routines --triggers --no-tablespaces \
   -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" \
   "$MYSQL_DATABASE" | gzip > "$OUT_TMP"
 

@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "safartrip",
-      script: "node_modules/.bin/ts-node",
-      args: "--project tsconfig.server.json server.ts",
+      script: "node_modules/.bin/tsx",
+      args: "server.ts",
       cwd: "/var/www/safar",
       instances: 1,
       exec_mode: "fork",
@@ -11,8 +11,8 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 3000,
       },
-      error_file: "/root/.pm2/logs/safartrip-error.log",
-      out_file: "/root/.pm2/logs/safartrip-out.log",
+      error_file: "/var/www/safar/logs/safartrip-error.log",
+      out_file: "/var/www/safar/logs/safartrip-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       restart_delay: 3000,
       max_restarts: 10,
@@ -27,8 +27,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
       },
-      error_file: "/root/.pm2/logs/safartrip-expire-holds-error.log",
-      out_file: "/root/.pm2/logs/safartrip-expire-holds-out.log",
+      error_file: "/var/www/safar/logs/safartrip-expire-holds-error.log",
+      out_file: "/var/www/safar/logs/safartrip-expire-holds-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
     },
     {
@@ -45,8 +45,8 @@ module.exports = {
         OUTBOX_BATCH: 20,
         OUTBOX_MAX_ATTEMPTS: 8,
       },
-      error_file: "/root/.pm2/logs/safartrip-outbox-error.log",
-      out_file: "/root/.pm2/logs/safartrip-outbox-out.log",
+      error_file: "/var/www/safar/logs/safartrip-outbox-error.log",
+      out_file: "/var/www/safar/logs/safartrip-outbox-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       restart_delay: 3000,
       max_restarts: 20,
