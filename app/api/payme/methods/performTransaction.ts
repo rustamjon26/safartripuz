@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { MissingPartnerError, ledgerService } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
   autoCancelExpiredTransaction,
@@ -49,44 +50,63 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
+  const partnerUserId = await prisma.hotel
+    .findUnique({
+      where: { id: transaction.booking.hotelId },
+      select: { partner: { select: { userId: true } } },
+    })
+    .then((h) => h?.partner?.userId);
+
+  if (!partnerUserId) {
+    console.error("ALERT payme_legacy_missing_partner", {
+      paymeId,
+      bookingId: expired.bookingId,
+    });
+    return paymeRpcError(id, PAYME_ERRORS.SYSTEM_ERROR);
+  }
+
   const performTime = BigInt(Date.now());
 
-  const { ledgerService } = await import("@/src/modules/ledger");
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const performed = await tx.paymeTransaction.update({
+        where: { id: expired.id },
+        data: {
+          state: 2,
+          performTime,
+        },
+      });
 
-  const updated = await prisma.$transaction(async (tx) => {
-    const performed = await tx.paymeTransaction.update({
-      where: { id: expired.id },
-      data: {
+      await tx.booking.update({
+        where: { id: expired.bookingId },
+        data: { status: "PAID" },
+      });
+
+      await ledgerService.record(
+        {
+          idempotencyKey: `payme:${paymeId}`,
+          bookingId: expired.bookingId,
+          grossTiyin: BigInt(expired.amount),
+          partnerUserId,
+        },
+        tx,
+      );
+
+      return performed;
+    });
+
+    return paymeRpcSuccess(
+      id,
+      toPerformTransactionResult({
+        id: updated.id,
+        performTime: updated.performTime,
         state: 2,
-        performTime,
-      },
-    });
-
-    await tx.booking.update({
-      where: { id: expired.bookingId },
-      data: { status: "PAID" },
-    });
-
-    // Minimal ledger post (tiyin). Legacy Booking has no HotelBooking SM wiring.
-    await ledgerService.record(
-      {
-        idempotencyKey: `payme:${paymeId}`,
-        bookingId: expired.bookingId,
-        grossTiyin: BigInt(expired.amount),
-        partnerUserId: null,
-      },
-      tx,
+      }),
     );
-
-    return performed;
-  });
-
-  return paymeRpcSuccess(
-    id,
-    toPerformTransactionResult({
-      id: updated.id,
-      performTime: updated.performTime,
-      state: 2,
-    }),
-  );
+  } catch (err) {
+    if (err instanceof MissingPartnerError) {
+      return paymeRpcError(id, PAYME_ERRORS.SYSTEM_ERROR);
+    }
+    throw err;
+  }
 }

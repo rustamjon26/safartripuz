@@ -272,7 +272,7 @@ export async function clickHttpHandler(req: Request) {
         previousPaymentStatus: payment.status,
       });
 
-      // Ledger posted inside completeSuccessfulPaymentInTx (idempotent key payment:{id}:success)
+      // Ledger posted inside completeSuccessfulPaymentInTx (per-booking keys payment:{id}:booking:{bookingId}:success)
 
       if (prepareId) {
         await paymentRepository.updatePaymentTransaction(

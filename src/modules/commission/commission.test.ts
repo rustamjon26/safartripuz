@@ -1,19 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { calcCommission, calcCommissionTiyin } from "@/lib/getCommissionRates";
+import {
+  calcPlatformCommissionTiyin,
+  splitBookingCommission,
+} from "@/src/modules/ledger/domain/commission";
 
-describe("commission float compat (calcCommission)", () => {
-  it("10% of 100000 → fee 10000 net 90000", () => {
-    const r = calcCommission(100000, 10);
-    expect(r.commissionFee).toBe(10000);
-    expect(r.netAmount).toBe(90000);
-  });
-
-  it("edge 0% and 100%", () => {
-    expect(calcCommission(500, 0)).toEqual({ commissionFee: 0, netAmount: 500 });
-    expect(calcCommission(500, 100)).toEqual({
-      commissionFee: 500,
-      netAmount: 0,
-    });
+describe("calcCommission float removed", () => {
+  it("throws directing callers to tiyin API", () => {
+    expect(() => calcCommission(100000, 10)).toThrow(/calcCommissionTiyin/);
   });
 });
 
@@ -38,5 +32,21 @@ describe("commission tiyin (calcCommissionTiyin)", () => {
   it("rejects invalid rate", () => {
     expect(() => calcCommissionTiyin(100n, -1)).toThrow();
     expect(() => calcCommissionTiyin(100n, 101)).toThrow();
+  });
+
+  it("matches calcPlatformCommissionTiyin", () => {
+    const a = calcCommissionTiyin(1_000_000n, 15);
+    const b = calcPlatformCommissionTiyin(1_000_000n, 15);
+    expect(a.commissionFee).toBe(b.platformTotal);
+    expect(a.netAmount).toBe(b.partnerNet);
+  });
+});
+
+describe("splitBookingCommission", () => {
+  it("10% platform with 5+5 legs", () => {
+    const r = splitBookingCommission(1_000_000n);
+    expect(r.platformTotal).toBe(100_000n);
+    expect(r.bookingFee + r.hmsFee).toBe(r.platformTotal);
+    expect(r.partnerNet).toBe(900_000n);
   });
 });

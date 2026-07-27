@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
+import { computeGuestCancelRefund } from "@/src/modules/booking/domain/guest-cancel";
+import { postCancelAccountingInTx } from "@/src/modules/booking";
+import { Money } from "@/src/shared/money";
 import { fail, handleApiError, hasActiveListing, ok, onboardingResponse, requireGuidePartner } from "../../_utils";
 import type { GuideBookingStatus } from "@prisma/client";
 
@@ -160,6 +164,21 @@ export async function PATCH(
           note: body.note ?? null,
         },
       });
+
+      if (body.status === "CANCELLED") {
+        const refund = computeGuestCancelRefund({
+          checkInAt: new Date(booking.date),
+          bookedAt: booking.createdAt,
+          grossPaidTiyin: Money.fromSomNumber(booking.totalPrice.toString()).toTiyin(),
+        });
+        await postCancelAccountingInTx(tx, {
+          bookingType: "GUIDE",
+          bookingId: booking.id,
+          partnerUserId: booking.guideId,
+          refund,
+          ratePercent: DEFAULT_COMMISSION_RATES.GUIDE,
+        });
+      }
 
       if (body.status === "COMPLETED") {
         await tx.guideListing.update({

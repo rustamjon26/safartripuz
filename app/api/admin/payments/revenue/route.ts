@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { travelPlanPrimaryRevenueCategory, type RevenueCategory } from "@/lib/payments/travelPlanBookingTypes";
 import { getCommissionRates } from "@/lib/getCommissionRates";
+import { prisma } from "@/lib/prisma";
+import { ledgerService } from "@/src/modules/ledger";
+import { Money } from "@/src/shared/money";
 
 function parseDay(value: string | null, endOfDay: boolean) {
   if (!value) return null;
@@ -23,7 +25,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "startDate va endDate kerak (YYYY-MM-DD)" }, { status: 400 });
     }
 
-    const [payments, earningsStats, rates] = await Promise.all([
+    const [payments, rates, platformRevenueTiyin] = await Promise.all([
       prisma.payment.findMany({
         where: {
           status: "SUCCESS",
@@ -49,17 +51,8 @@ export async function GET(req: Request) {
           },
         },
       }),
-      prisma.partnerEarning.groupBy({
-        by: ["bookingType"],
-        where: { createdAt: { gte: start, lte: end } },
-        _sum: {
-          grossAmount: true,
-          commissionFee: true,
-          netAmount: true,
-        },
-        _count: { id: true },
-      }),
       getCommissionRates(),
+      ledgerService.sumPlatformRevenueTiyin({ from: start, to: end }),
     ]);
 
     const buckets: Record<
@@ -77,58 +70,39 @@ export async function GET(req: Request) {
       const plan = p.travelPlan;
       if (!plan) {
         buckets.OTHER.count += 1;
-        buckets.OTHER.total += Number(p.amount);
+        buckets.OTHER.total += Money.fromSomNumber(p.amount.toString()).toSomNumber();
         continue;
       }
       const cat = travelPlanPrimaryRevenueCategory(plan);
-      const amt = Number(p.amount);
+      const amt = Money.fromSomNumber(p.amount.toString()).toSomNumber();
       buckets[cat].count += 1;
       buckets[cat].total += amt;
     }
 
-    const earningTypeToCategory: Record<string, RevenueCategory> = {
-      HOTEL: "HOTEL",
-      HOMESTAY: "HOMESTAY",
-      GUIDE: "GUIDE",
-      TAXI: "TAXI",
-    };
-
-    for (const row of earningsStats) {
-      const cat = earningTypeToCategory[row.bookingType];
-      if (!cat) continue;
-      buckets[cat].platformFee += Number(row._sum.commissionFee ?? 0);
-    }
+    // Platform fee SoT = ledger REVENUE balance in range (not PartnerEarning).
+    const totalPlatformCommission = Money.fromTiyin(
+      platformRevenueTiyin < 0n ? 0n : platformRevenueTiyin,
+    ).toSomNumber();
 
     const breakdown = (["HOTEL", "HOMESTAY", "TAXI", "GUIDE", "OTHER"] as const).map((type) => ({
       type,
       count: buckets[type].count,
       total: buckets[type].total,
-      platformFee: buckets[type].platformFee,
-    }));
-
-    const commissionSummary = earningsStats.map((e) => ({
-      type: e.bookingType,
-      totalGross: Number(e._sum.grossAmount ?? 0),
-      totalCommission: Number(e._sum.commissionFee ?? 0),
-      totalNet: Number(e._sum.netAmount ?? 0),
-      count: e._count.id,
+      platformFee: type === "OTHER" ? 0 : undefined,
     }));
 
     const grandTotal = breakdown.reduce((s, b) => s + b.total, 0);
-    const totalPlatformCommission = commissionSummary.reduce(
-      (sum, e) => sum + e.totalCommission,
-      0,
-    );
 
     return NextResponse.json(
       {
         startDate: start.toISOString(),
         endDate: end.toISOString(),
+        source: "ledger",
         breakdown,
         grandTotal,
         totalPlatformFee: totalPlatformCommission,
         totalPlatformCommission,
-        commissionSummary,
+        platformRevenueTiyin: platformRevenueTiyin.toString(),
         commissionRates: rates,
       },
       { status: 200 },

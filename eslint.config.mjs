@@ -87,6 +87,42 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+
+  /**
+   * Float money ban on money-critical paths (tiyin BigInt only).
+   */
+  {
+    files: [
+      "src/modules/ledger/**/*.{ts,tsx}",
+      "src/modules/booking/**/*.{ts,tsx}",
+      "src/modules/payment/**/*.{ts,tsx}",
+      "src/modules/commission/**/*.{ts,tsx}",
+      "lib/payments/**/*.{ts,tsx}",
+      "lib/getCommissionRates.ts",
+      "app/api/taxi/driver/orders/**/*.{ts,tsx}",
+    ],
+    ignores: ["**/*.test.ts", "**/*.integration.test.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='toFixed']",
+          message: "Float money banned — use tiyin BigInt / Money (no toFixed).",
+        },
+        {
+          selector:
+            "BinaryExpression[operator='*'] > Literal[value=0.15]",
+          message: "Hardcoded 0.15 float commission banned — use calcCommissionTiyin.",
+        },
+        {
+          selector:
+            "BinaryExpression[operator='*'] > Literal[raw=/^0\\.\\d+$/]",
+          message: "Float literal money math banned — use tiyin BigInt.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

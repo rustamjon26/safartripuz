@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
+import { prisma } from "@/lib/prisma";
+import { ledgerService } from "@/src/modules/ledger";
+import { Money } from "@/src/shared/money";
 
 export async function GET() {
   try {
@@ -20,6 +22,8 @@ export async function GET() {
       return NextResponse.json({ message: "Partner not found" }, { status: 404 });
     }
 
+    // Ledger is source of truth for balances; PartnerEarning kept as dual-write history.
+    const payableTiyin = await ledgerService.getPartnerPayableTiyin(ownerUserId);
     const earnings = await prisma.partnerEarning.findMany({
       where: {
         partnerId: ownerUserId,
@@ -30,12 +34,12 @@ export async function GET() {
     });
 
     const summary = {
-      totalGross: earnings.reduce((s, e) => s + Number(e.grossAmount), 0),
-      totalCommission: earnings.reduce((s, e) => s + Number(e.commissionFee), 0),
-      totalNet: earnings.reduce((s, e) => s + Number(e.netAmount), 0),
-      pendingNet: earnings
-        .filter((e) => e.status === "PENDING")
-        .reduce((s, e) => s + Number(e.netAmount), 0),
+      source: "ledger" as const,
+      payableTiyin: payableTiyin.toString(),
+      payableSom: Money.fromTiyin(payableTiyin < 0n ? 0n : payableTiyin).toSomNumber(),
+      totalNet: Money.fromTiyin(payableTiyin < 0n ? 0n : payableTiyin).toSomNumber(),
+      // Dual-write PE still listed for line items (not SoT for totals).
+      pendingCount: earnings.filter((e) => e.status === "PENDING").length,
     };
 
     return NextResponse.json({ earnings, summary });

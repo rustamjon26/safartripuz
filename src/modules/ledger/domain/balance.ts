@@ -5,12 +5,13 @@ export type LedgerLine = {
 
 export class UnbalancedLedgerError extends Error {
   readonly code = "UNBALANCED_LEDGER" as const;
-  constructor(
-    public readonly debitTotal: bigint,
-    public readonly creditTotal: bigint,
-  ) {
+  readonly debitTotal: bigint;
+  readonly creditTotal: bigint;
+  constructor(debitTotal: bigint, creditTotal: bigint) {
     super(`Ledger unbalanced: debit=${debitTotal} credit=${creditTotal}`);
     this.name = "UnbalancedLedgerError";
+    this.debitTotal = debitTotal;
+    this.creditTotal = creditTotal;
   }
 }
 

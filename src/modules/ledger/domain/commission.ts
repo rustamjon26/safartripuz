@@ -1,10 +1,26 @@
-import { asTiyin, type Tiyin } from "@/src/shared/money";
+import { asTiyin, type Tiyin } from "../../../shared/money";
 
 /**
- * Pure commission split in tiyin (branded).
- * Hotel/Homestay: 5% + 5% = 10% platform; partner net = gross - platform.
- * Remainder from integer division goes to platform booking fee leg.
- * SINGLE source for platform 10% split used by ledger posts.
+ * ONE pure commission function (tiyin BigInt). Floor division.
+ * `ratePercent` is integer 0..100.
+ */
+export function calcPlatformCommissionTiyin(
+  grossTiyin: bigint | Tiyin,
+  ratePercent: number,
+): { platformTotal: Tiyin; partnerNet: Tiyin } {
+  if (grossTiyin < 0n) throw new Error("grossTiyin must be >= 0");
+  if (!Number.isFinite(ratePercent) || ratePercent < 0 || ratePercent > 100) {
+    throw new Error("ratePercent must be 0..100");
+  }
+  const gross = asTiyin(BigInt(grossTiyin));
+  const rate = BigInt(Math.floor(ratePercent));
+  const platformTotal = asTiyin((gross * rate) / 100n);
+  return { platformTotal, partnerNet: asTiyin(gross - platformTotal) };
+}
+
+/**
+ * Hotel/Homestay default: 5% + 5% = 10% platform; partner net = gross - platform.
+ * Remainder from integer division stays on bookingFee leg via platformTotal - hmsFee.
  */
 export function splitBookingCommission(grossTiyin: bigint | Tiyin): {
   bookingFee: Tiyin;
@@ -12,11 +28,9 @@ export function splitBookingCommission(grossTiyin: bigint | Tiyin): {
   platformTotal: Tiyin;
   partnerNet: Tiyin;
 } {
-  if (grossTiyin < 0n) throw new Error("grossTiyin must be >= 0");
+  const { platformTotal, partnerNet } = calcPlatformCommissionTiyin(grossTiyin, 10);
   const gross = asTiyin(BigInt(grossTiyin));
-  const platformTotal = asTiyin((gross * 10n) / 100n);
   const bookingFee = asTiyin((gross * 5n) / 100n);
   const hmsFee = asTiyin(platformTotal - bookingFee);
-  const partnerNet = asTiyin(gross - platformTotal);
   return { bookingFee, hmsFee, platformTotal, partnerNet };
 }

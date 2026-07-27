@@ -564,12 +564,14 @@ export class BookingService {
             refundPercent: refund.refundPercent,
             originalCommissionTiyin: platformTotal,
             partnerUserId,
+            allowUnattributed: !partnerUserId,
           },
           tx,
         );
 
         await this.reversePartnerEarning(
           tx,
+          "HOTEL",
           bookingId,
           refund.refundPercent,
         );
@@ -619,46 +621,43 @@ export class BookingService {
     }
   }
 
-  private async reversePartnerEarning(
+  async reversePartnerEarning(
     tx: Tx,
+    bookingType: "HOTEL" | "HOMESTAY" | "GUIDE",
     bookingId: string,
     refundPercent: number,
   ): Promise<void> {
-    try {
-      const earning = await tx.partnerEarning.findUnique({
-        where: {
-          bookingType_bookingId: { bookingType: "HOTEL", bookingId },
-        },
-      });
-      if (!earning || earning.status === "CANCELLED") return;
+    const earning = await tx.partnerEarning.findUnique({
+      where: {
+        bookingType_bookingId: { bookingType, bookingId },
+      },
+    });
+    if (!earning || earning.status === "CANCELLED") return;
 
-      if (refundPercent >= 100) {
-        await tx.partnerEarning.update({
-          where: { id: earning.id },
-          data: { status: "CANCELLED" },
-        });
-        return;
-      }
-
-      const remain = 100 - refundPercent;
-      const gross = Money.fromSomNumber(Number(earning.grossAmount)).toTiyin();
-      const fee = Money.fromSomNumber(Number(earning.commissionFee)).toTiyin();
-      const net = Money.fromSomNumber(Number(earning.netAmount)).toTiyin();
-      const nextGross = (gross * BigInt(remain)) / 100n;
-      const nextFee = (fee * BigInt(remain)) / 100n;
-      const nextNet = (net * BigInt(remain)) / 100n;
-
+    if (refundPercent >= 100) {
       await tx.partnerEarning.update({
         where: { id: earning.id },
-        data: {
-          grossAmount: Money.fromTiyin(nextGross).toSomNumber(),
-          commissionFee: Money.fromTiyin(nextFee).toSomNumber(),
-          netAmount: Money.fromTiyin(nextNet).toSomNumber(),
-        },
+        data: { status: "CANCELLED" },
       });
-    } catch {
-      // PartnerEarning table may be unavailable in partial schemas
+      return;
     }
+
+    const remain = 100 - refundPercent;
+    const gross = Money.fromSomNumber(earning.grossAmount.toString()).toTiyin();
+    const fee = Money.fromSomNumber(earning.commissionFee.toString()).toTiyin();
+    const net = Money.fromSomNumber(earning.netAmount.toString()).toTiyin();
+    const nextGross = (gross * BigInt(remain)) / 100n;
+    const nextFee = (fee * BigInt(remain)) / 100n;
+    const nextNet = (net * BigInt(remain)) / 100n;
+
+    await tx.partnerEarning.update({
+      where: { id: earning.id },
+      data: {
+        grossAmount: Money.fromTiyin(nextGross).toSomNumber(),
+        commissionFee: Money.fromTiyin(nextFee).toSomNumber(),
+        netAmount: Money.fromTiyin(nextNet).toSomNumber(),
+      },
+    });
   }
 
   /**

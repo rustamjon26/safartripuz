@@ -8,6 +8,7 @@ export type {
   CreateHeldHotelBookingInput,
   CancelWithPolicyResult,
 } from "./service/booking.service";
+export { postCancelAccountingInTx } from "./service/cancel-accounting";
 export {
   TRANSITIONS,
   assertTransition,

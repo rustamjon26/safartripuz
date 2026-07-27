@@ -1,10 +1,12 @@
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
 import {
   canGuestCancelStatus,
   computeGuestCancelRefund,
 } from "@/src/modules/booking/domain/guest-cancel";
+import { postCancelAccountingInTx } from "@/src/modules/booking";
 import { Money } from "@/src/shared/money";
 import { fail, handleApiError, ok } from "../../_utils";
 
@@ -83,6 +85,14 @@ export async function PATCH(
           cancelledBy: "CUSTOMER",
           cancellationReason: body.cancellationReason ?? "Cancelled by customer",
         },
+      });
+
+      await postCancelAccountingInTx(tx, {
+        bookingType: "GUIDE",
+        bookingId: existing.id,
+        partnerUserId: existing.guideId,
+        refund,
+        ratePercent: DEFAULT_COMMISSION_RATES.GUIDE,
       });
 
       const linkedBlockedSlot = await tx.guideBlockedSlot.findFirst({

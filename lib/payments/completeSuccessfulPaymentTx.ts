@@ -1,7 +1,10 @@
 import type { PartnerEarningType, Prisma } from "@prisma/client";
-import { calcCommission, getCommissionRates } from "@/lib/getCommissionRates";
+import {
+  calcCommissionTiyin,
+  getCommissionRates,
+} from "@/lib/getCommissionRates";
 import { bookingService } from "@/src/modules/booking";
-import { ledgerService } from "@/src/modules/ledger";
+import { ledgerService, MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { Money } from "@/src/shared/money";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
@@ -50,7 +53,6 @@ export async function completeSuccessfulPaymentInTx(
   });
 
   for (const booking of pendingHotelBookings) {
-    // Legal chain: PENDING→HELD→PAID→CONFIRMED (or HELD→PAID→CONFIRMED)
     const result = await bookingService.confirmPaymentForHotelBooking(
       booking.id,
       "SYSTEM",
@@ -58,7 +60,6 @@ export async function completeSuccessfulPaymentInTx(
     );
 
     if (!result.ok) {
-      // Payment marked SUCCESS but booking needs manual review — keep payment, flag in audit
       console.error("ALERT hotel_booking_manual_review_after_payment", {
         bookingId: booking.id,
         paymentId,
@@ -72,15 +73,32 @@ export async function completeSuccessfulPaymentInTx(
       select: { partner: { select: { userId: true } } },
     });
     const partnerUserId = hotel?.partner?.userId;
-    if (partnerUserId) {
-      await createPartnerEarningIfMissing(tx, {
-        partnerId: partnerUserId,
-        bookingType: "HOTEL",
-        bookingId: booking.id,
-        grossAmount: Number(booking.totalAmount),
-        rate: rates.HOTEL,
-      });
+    if (!partnerUserId) {
+      throw new MissingPartnerError(
+        `Hotel partner missing for booking ${booking.id}`,
+      );
     }
+
+    const grossTiyin = Money.fromSomNumber(
+      booking.totalAmount.toString(),
+    ).toTiyin();
+    await createPartnerEarningIfMissing(tx, {
+      partnerId: partnerUserId,
+      bookingType: "HOTEL",
+      bookingId: booking.id,
+      grossTiyin,
+      rate: rates.HOTEL,
+    });
+    await ledgerService.record(
+      {
+        idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+        bookingId: booking.id,
+        grossTiyin,
+        partnerUserId,
+        ratePercent: rates.HOTEL,
+      },
+      tx,
+    );
   }
 
   const pendingHomeStayBookings = await tx.homeStayBooking.findMany({
@@ -110,16 +128,32 @@ export async function completeSuccessfulPaymentInTx(
         where: { id: booking.listingId },
         select: { hostId: true },
       });
-
-      if (listing?.hostId) {
-        await createPartnerEarningIfMissing(tx, {
-          partnerId: listing.hostId,
-          bookingType: "HOMESTAY",
-          bookingId: booking.id,
-          grossAmount: Number(booking.totalPrice),
-          rate: rates.HOMESTAY,
-        });
+      if (!listing?.hostId) {
+        throw new MissingPartnerError(
+          `Homestay host missing for booking ${booking.id}`,
+        );
       }
+
+      const grossTiyin = Money.fromSomNumber(
+        booking.totalPrice.toString(),
+      ).toTiyin();
+      await createPartnerEarningIfMissing(tx, {
+        partnerId: listing.hostId,
+        bookingType: "HOMESTAY",
+        bookingId: booking.id,
+        grossTiyin,
+        rate: rates.HOMESTAY,
+      });
+      await ledgerService.record(
+        {
+          idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+          bookingId: booking.id,
+          grossTiyin,
+          partnerUserId: listing.hostId,
+          ratePercent: rates.HOMESTAY,
+        },
+        tx,
+      );
 
       const existingAvailability = await tx.homeStayAvailability.findFirst({
         where: {
@@ -171,13 +205,31 @@ export async function completeSuccessfulPaymentInTx(
     });
 
     for (const booking of pendingGuideBookings) {
+      if (!booking.guideId) {
+        throw new MissingPartnerError(
+          `Guide id missing for booking ${booking.id}`,
+        );
+      }
+      const grossTiyin = Money.fromSomNumber(
+        booking.totalPrice.toString(),
+      ).toTiyin();
       await createPartnerEarningIfMissing(tx, {
         partnerId: booking.guideId,
         bookingType: "GUIDE",
         bookingId: booking.id,
-        grossAmount: Number(booking.totalPrice),
+        grossTiyin,
         rate: rates.GUIDE,
       });
+      await ledgerService.record(
+        {
+          idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+          bookingId: booking.id,
+          grossTiyin,
+          partnerUserId: booking.guideId,
+          ratePercent: rates.GUIDE,
+        },
+        tx,
+      );
     }
 
     await tx.guideBookingLog.createMany({
@@ -199,23 +251,15 @@ export async function completeSuccessfulPaymentInTx(
       entity: "Payment",
       entityId: updatedPayment.id,
       oldData: { status: previousPaymentStatus },
-      newData: { status: updatedPayment.status, travelPlanStatus: updatedPlan.status },
+      newData: {
+        status: updatedPayment.status,
+        travelPlanStatus: updatedPlan.status,
+      },
     },
   });
 
-  // Additional ledger post (idempotent). PartnerEarning dual-write unchanged above.
-  const grossTiyin = Money.fromSomNumber(Number(updatedPayment.amount)).toTiyin();
-  await ledgerService.record(
-    {
-      idempotencyKey: `payment:${paymentId}:success`,
-      bookingId: pendingHotelBookings[0]?.id ?? null,
-      grossTiyin,
-      partnerUserId: null,
-    },
-    tx,
-  );
+  const paymentSom = Money.fromSomNumber(updatedPayment.amount.toString());
 
-  // Side effects via outbox (same tx) — relay dispatches after commit.
   await outboxService.enqueueInTx(tx, {
     aggregateType: "Payment",
     aggregateId: paymentId,
@@ -233,10 +277,10 @@ export async function completeSuccessfulPaymentInTx(
     payload: {
       paymentId,
       userId: actorId,
-      amount: Number(updatedPayment.amount),
+      amount: paymentSom.toSomNumber(),
       dedupeKey: `payment.receipt:${paymentId}`,
       title: "To'lov qabul qilindi",
-      body: `To'lov ${Number(updatedPayment.amount).toLocaleString("uz-UZ")} so'm muvaffaqiyatli`,
+      body: `To'lov ${paymentSom.toSomNumber().toLocaleString("uz-UZ")} so'm muvaffaqiyatli`,
     },
   });
 
@@ -349,7 +393,7 @@ async function createPartnerEarningIfMissing(
     partnerId: string;
     bookingType: PartnerEarningType;
     bookingId: string;
-    grossAmount: number;
+    grossTiyin: bigint;
     rate: number;
   },
 ) {
@@ -364,17 +408,20 @@ async function createPartnerEarningIfMissing(
   });
   if (existing) return;
 
-  const { commissionFee, netAmount } = calcCommission(opts.grossAmount, opts.rate);
+  const { commissionFee, netAmount } = calcCommissionTiyin(
+    opts.grossTiyin,
+    opts.rate,
+  );
 
   await tx.partnerEarning.create({
     data: {
       partnerId: opts.partnerId,
       bookingType: opts.bookingType,
       bookingId: opts.bookingId,
-      grossAmount: opts.grossAmount,
+      grossAmount: Money.fromTiyin(opts.grossTiyin).toSomNumber(),
       commissionRate: opts.rate,
-      commissionFee,
-      netAmount,
+      commissionFee: Money.fromTiyin(commissionFee).toSomNumber(),
+      netAmount: Money.fromTiyin(netAmount).toSomNumber(),
       status: "PENDING",
     },
   });

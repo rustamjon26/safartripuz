@@ -2,10 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { logBookingStatus } from "@/lib/homestay/logBookingStatus";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
+import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
 import {
   canGuestCancelStatus,
   computeGuestCancelRefund,
 } from "@/src/modules/booking/domain/guest-cancel";
+import { postCancelAccountingInTx } from "@/src/modules/booking";
 import { Money } from "@/src/shared/money";
 import { fail, handleApiError, ok } from "../../host/_utils";
 
@@ -109,6 +111,19 @@ export async function PATCH(
           status: "CANCELLED",
           cancellationReason: body.cancellationReason ?? "Cancelled by guest",
         },
+      });
+
+      const listing = await tx.homeStayListing.findUnique({
+        where: { id: booking.listingId },
+        select: { hostId: true },
+      });
+
+      await postCancelAccountingInTx(tx, {
+        bookingType: "HOMESTAY",
+        bookingId: booking.id,
+        partnerUserId: listing?.hostId ?? null,
+        refund,
+        ratePercent: DEFAULT_COMMISSION_RATES.HOMESTAY,
       });
 
       const linkedAvailability = await tx.homeStayAvailability.findFirst({

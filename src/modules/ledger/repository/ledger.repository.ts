@@ -31,7 +31,7 @@ export class LedgerRepository {
         },
       },
       create: {
-        type: input.type,
+        type: input.type as AccountType,
         ownerType: input.ownerType,
         ownerId: input.ownerId,
         currency,
@@ -64,6 +64,76 @@ export class LedgerRepository {
       },
       include: { entries: true },
     });
+  }
+
+  /**
+   * LIABILITY / REVENUE style: CREDIT − DEBIT (tiyin).
+   * ASSET style callers should negate if needed.
+   */
+  async getAccountSignedBalanceTiyin(
+    accountId: string,
+    client: DbClient = db,
+  ): Promise<bigint> {
+    const rows = await client.ledgerEntry.groupBy({
+      by: ["direction"],
+      where: { accountId },
+      _sum: { amount: true },
+    });
+    let credit = 0n;
+    let debit = 0n;
+    for (const row of rows) {
+      const sum = BigInt(row._sum.amount?.toString() ?? "0");
+      if (row.direction === "CREDIT") credit = sum;
+      if (row.direction === "DEBIT") debit = sum;
+    }
+    return credit - debit;
+  }
+
+  async sumPlatformRevenueTiyin(
+    opts: { from?: Date; to?: Date } = {},
+    client: DbClient = db,
+  ): Promise<bigint> {
+    const revenue = await this.ensureAccount(
+      { type: "REVENUE", ownerType: "PLATFORM", ownerId: "" },
+      client,
+    );
+    const entries = await client.ledgerEntry.findMany({
+      where: {
+        accountId: revenue.id,
+        ...(opts.from || opts.to
+          ? {
+              transaction: {
+                createdAt: {
+                  ...(opts.from ? { gte: opts.from } : {}),
+                  ...(opts.to ? { lte: opts.to } : {}),
+                },
+              },
+            }
+          : {}),
+      },
+      select: { amount: true, direction: true },
+    });
+    let bal = 0n;
+    for (const e of entries) {
+      const amt = BigInt(e.amount.toString());
+      bal += e.direction === "CREDIT" ? amt : -amt;
+    }
+    return bal;
+  }
+
+  async getPartnerPayableTiyin(
+    partnerUserId: string,
+    client: DbClient = db,
+  ): Promise<bigint> {
+    const payable = await this.ensureAccount(
+      {
+        type: "LIABILITY",
+        ownerType: "PARTNER",
+        ownerId: partnerUserId,
+      },
+      client,
+    );
+    return this.getAccountSignedBalanceTiyin(payable.id, client);
   }
 }
 

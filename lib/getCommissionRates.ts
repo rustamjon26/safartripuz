@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { calcPlatformCommissionTiyin } from "@/src/modules/ledger/domain/commission";
 
 export type CommissionRates = {
   HOTEL: number;
@@ -44,28 +45,26 @@ export async function getCommissionRates(
   }
 }
 
-export function calcCommission(
-  grossAmount: number,
-  rate: number,
-): { commissionFee: number; netAmount: number } {
-  const commissionFee = Number((grossAmount * rate / 100).toFixed(2));
-  const netAmount = Number((grossAmount - commissionFee).toFixed(2));
-  return { commissionFee, netAmount };
+/**
+ * @deprecated Float money path removed. Use calcCommissionTiyin / calcPlatformCommissionTiyin.
+ */
+export function calcCommission(_grossAmount: number, _rate: number): never {
+  throw new Error(
+    "calcCommission (float) is removed — use calcCommissionTiyin / calcPlatformCommissionTiyin",
+  );
 }
 
 /**
- * Pure BigInt commission in tiyin (floor division). Prefer for money-path tests + ledger.
+ * Pure BigInt commission in tiyin (floor division).
  * `ratePercent` is 0..100 integer percent.
  */
 export function calcCommissionTiyin(
   grossTiyin: bigint,
   ratePercent: number,
 ): { commissionFee: bigint; netAmount: bigint } {
-  if (grossTiyin < 0n) throw new Error("grossTiyin must be >= 0");
-  if (!Number.isFinite(ratePercent) || ratePercent < 0 || ratePercent > 100) {
-    throw new Error("ratePercent must be 0..100");
-  }
-  const rate = BigInt(Math.floor(ratePercent));
-  const commissionFee = (grossTiyin * rate) / 100n;
-  return { commissionFee, netAmount: grossTiyin - commissionFee };
+  const { platformTotal, partnerNet } = calcPlatformCommissionTiyin(
+    grossTiyin,
+    ratePercent,
+  );
+  return { commissionFee: platformTotal, netAmount: partnerNet };
 }

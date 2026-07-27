@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
+import {
+  calcCommissionTiyin,
+  DEFAULT_COMMISSION_RATES,
+  getCommissionRates,
+} from "@/lib/getCommissionRates";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
+import { Money } from "@/src/shared/money";
 import { fail, handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../../_utils";
 
 type UpdateOrderInput = {
@@ -157,17 +163,20 @@ export async function PATCH(
       });
 
       if (targetStatus === "COMPLETED") {
-        const finalPrice = Number(body.finalPrice);
-        const platformFee = Number((finalPrice * 0.15).toFixed(2));
-        const netAmount = Number((finalPrice - platformFee).toFixed(2));
+        const rates = await getCommissionRates(tx);
+        const grossTiyin = Money.fromSomNumber(Number(body.finalPrice)).toTiyin();
+        const { commissionFee, netAmount } = calcCommissionTiyin(
+          grossTiyin,
+          rates.TAXI ?? DEFAULT_COMMISSION_RATES.TAXI,
+        );
 
         await tx.driverEarning.create({
           data: {
             driverId: actor.id,
             orderId: updated.id,
-            grossAmount: finalPrice,
-            platformFee,
-            netAmount,
+            grossAmount: Money.fromTiyin(grossTiyin).toSomNumber(),
+            platformFee: Money.fromTiyin(commissionFee).toSomNumber(),
+            netAmount: Money.fromTiyin(netAmount).toSomNumber(),
             status: "PENDING",
           },
         });
