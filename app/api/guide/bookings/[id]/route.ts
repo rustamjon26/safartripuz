@@ -53,9 +53,12 @@ export async function PATCH(
       where: { id, guestId: actor.id },
       select: {
         id: true,
+        guideId: true,
+        listingId: true,
         status: true,
         date: true,
         startTime: true,
+        endTime: true,
         totalPrice: true,
         createdAt: true,
       },
