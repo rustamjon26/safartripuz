@@ -1549,3 +1549,181 @@ model OutboxProcessedKey {
 
   @@unique([consumer, key])
 }
+
+// ---------------------------------------------------------------------------
+// Knowledge base (SafarAI / trip builder / guide accuracy) — NEW MODELS ONLY
+// Locked names: Site, ClaimLevel, deriveClaimLevel, Source, ClaimSource
+// ---------------------------------------------------------------------------
+
+enum SiteCategory {
+  OBIDA
+  MADRASA
+  MASJID
+  MAQBARA
+  MUZEY
+  ARXEOLOGIYA
+  TABIAT
+  BOZOR
+  ZIYORATGOH
+  BOSHQA
+}
+
+enum SiteStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ClaimKind {
+  TARIX
+  ARXITEKTURA
+  AMALIY
+  NARX
+  RIVOYAT
+}
+
+enum ClaimLevel {
+  TASDIQLANGAN
+  ILMIY_MANBA
+  NIZOLI
+  OGZAKI_RIVOYAT
+  TASDIQLANMAGAN
+}
+
+enum SourceTier {
+  A_RASMIY
+  B_ILMIY
+  C_ENSIKLOPEDIK
+  D_IKKILAMCHI
+}
+
+/// Place of interest for the knowledge base (not booking inventory).
+model Site {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  name         String
+  nameRu       String?
+  nameEn       String?
+  regionCode   String
+  districtCode String?
+  category     SiteCategory
+  lat          Float?
+  lng          Float?
+  /// Machine-readable hours only — never a display string.
+  /// Shape: {
+  ///   "weekly": { "mon": [["09:00","19:00"]], "tue": [...], "sun": [] },
+  ///   "closedDates": ["2026-09-01"],
+  ///   "seasonal": [{ "from": "11-01", "to": "03-01",
+  ///                  "weekly": { "mon": [["09:00","17:00"]] } }]
+  /// }
+  openingHours Json?
+  status       SiteStatus   @default(DRAFT)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  claims  Claim[]
+  reports AccuracyReport[]
+
+  @@index([regionCode, districtCode, status])
+}
+
+model Claim {
+  id              String     @id @default(cuid())
+  siteId          String
+  site            Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  text            String     @db.Text
+  kind            ClaimKind
+  /// DERIVED via deriveClaimLevel unless levelLockedBy is set.
+  level           ClaimLevel @default(TASDIQLANMAGAN)
+  levelLockedBy   String?
+  levelLockedNote String?    @db.Text
+  version         Int        @default(1)
+  checkedAt       DateTime?
+  recheckAfter    DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sources   ClaimSource[]
+  positions ClaimPosition[]
+  reports   AccuracyReport[]
+
+  @@index([siteId, level])
+  @@index([recheckAfter])
+}
+
+/// Canonical open-source citation. Reused across many claims via ClaimSource.
+model Source {
+  id           String     @id @default(cuid())
+  tier         SourceTier
+  publisher    String
+  /// Normalized publisher for independence checks (see normalizePublisherKey).
+  publisherKey String
+  title        String
+  url          String?
+  citation     String     @db.Text
+  retrievedAt  DateTime
+  deadSince    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  claims ClaimSource[]
+
+  @@index([publisherKey, tier])
+}
+
+model ClaimPosition {
+  id        String   @id @default(cuid())
+  claimId   String
+  claim     Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sources ClaimSource[] @relation("ClaimPositionSources")
+
+  @@index([claimId])
+}
+
+model ClaimSource {
+  id                 String         @id @default(cuid())
+  claimId            String
+  claim              Claim          @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  sourceId           String
+  source             Source         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  quote              String?        @db.Text
+  supportsPositionId String?
+  position           ClaimPosition? @relation("ClaimPositionSources", fields: [supportsPositionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime       @default(now())
+
+  @@unique([claimId, sourceId])
+  @@index([sourceId])
+  @@index([claimId])
+}
+
+/// Tourist / guide accuracy complaint → knowledge-base intake queue.
+model AccuracyReport {
+  id             String    @id @default(cuid())
+  /// OPEN | IN_REVIEW | LINKED | NEW_CLAIM | DISMISSED
+  status         String    @default("OPEN")
+  message        String    @db.Text
+  /// Guide person (GuideListing.hostId), not a listing.
+  guideUserId    String?
+  regionCode     String?
+  siteId         String?
+  site           Site?     @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  claimId        String?
+  claim          Claim?    @relation(fields: [claimId], references: [id], onDelete: SetNull)
+  reporterUserId String?
+  /// null = not reviewed; true = upheld; false = rejected.
+  upheld         Boolean?
+  reviewNote     String?   @db.Text
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([guideUserId, upheld])
+  @@index([regionCode])
+}
