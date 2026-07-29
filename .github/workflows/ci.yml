@@ -57,8 +57,12 @@ jobs:
       # Lint intentionally removed 2026-07-29 (standalone/ noise + separate eslint ignore PR).
       # Restore after eslint.config.mjs ignores standalone/ and the suite is green again.
 
-      - name: Migrate test DB
-        run: npx prisma migrate deploy
+      # 2026-07-29: migration history starts mid-project (earliest migration
+      # ALTERs Payment, which no migration creates), so an empty DB can never
+      # be built via migrate deploy. db push builds the test DB straight from
+      # schema.prisma. Restore migrate deploy once a baseline 0_init exists.
+      - name: Sync test DB schema
+        run: npx prisma db push --skip-generate
 
       - name: Vitest
         run: npx vitest run
