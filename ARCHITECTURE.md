@@ -117,3 +117,33 @@ UI today reads PartnerEarning (not ledger). Still audit any external “revenue�
 ### Backup compare (no race)
 
 `backup.sh` writes `DUMP_TS=NOW(6)` **before** `mysqldump --single-transaction` into `*.meta`. `restore-test.sh` compares `COUNT(*) … WHERE createdAt <= DUMP_TS` on prod vs scratch — post-dump traffic excluded.
+
+## Knowledge base (Site / Claim / Source)
+
+Factual backbone for the trip builder (no invented places/prices) and guide accuracy intake. Module: `src/modules/knowledge/`. **Does not touch money, ledger, or booking payment paths.**
+
+### Locked names (do not invent aliases)
+
+| Concept | Name |
+|---------|------|
+| Place model | `Site` |
+| Confidence enum | `ClaimLevel` |
+| Derive function | `deriveClaimLevel` |
+| Citation model | `Source` |
+| Join model | `ClaimSource` |
+
+Also: `ClaimPosition` (disputes), `AccuracyReport` (intake; `guideUserId` not listing id).
+
+### Trust model
+
+- LLM never invents places, prices, dates, or historical facts — candidates come from `PUBLISHED` sites/claims; narrative is connective prose only (`src/modules/tripai`, later).
+- `ClaimLevel` is **derived** by pure `deriveClaimLevel` unless an admin locks it (`levelLockedBy` + required `levelLockedNote`).
+- Independence for `TASDIQLANGAN`: **≥ 2 distinct `Source.publisherKey`** at `A_RASMIY` (normalize via `normalizePublisherKey`), not ClaimSource row count.
+- `NIZOLI`: keep **all** positions; never pick a winner in UI or API.
+- Seed / import: status **`DRAFT`** until sources are attached — never bulk-`PUBLISHED` from `tourism_data.json`.
+- `AccuracyReport.upheld`: `null` unreviewed, `true` upheld, `false` rejected — transparency pages show received vs upheld separately.
+- Opening hours: machine-readable JSON only (`isOpenAt` / `nextOpenSlot`); never free-text hours.
+
+### Migration
+
+`prisma/migrations/20260729180000_knowledge_base/` — apply only via deploy (`scripts/deploy-safe.sh`), not ad-hoc against remote DBs from a laptop.
