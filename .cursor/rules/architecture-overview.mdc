@@ -1,0 +1,44 @@
+---
+description: SafarTrip stack, domain modules, key invariants, booking lifecycle, revenue
+alwaysApply: true
+---
+
+# SafarTrip Architecture Overview
+
+## Stack
+
+Next.js + Prisma + MySQL on Hetzner VPS (PM2 + Nginx). PWA.  
+Payments: Payme (Merchant API, JSON-RPC 2.0), Click (SHOP API, 2-phase).  
+Invoicing: Didox EDO.
+
+## Domain modules
+
+| Module | Responsibility |
+|--------|----------------|
+| inventory | room types, physical units, per-date availability |
+| rates | rate plans, seasonal overrides, LOS/occupancy, pricing pipeline |
+| booking | reservation lifecycle + state machine |
+| payment | Payme/Click adapters, idempotency, webhook dedup |
+| ledger | double-entry, commissions, partner payouts, reconciliation |
+| guest | profiles, CRM, booking history |
+| catalog | properties, dachas/homestays, guides, taxi, attractions |
+| channel | *(planned)* OTA sync via OpenTravel XML — do not implement yet |
+
+## Key invariants
+
+1. A room-night is never sold twice — DB row locks in a serializable transaction + unique constraints.
+2. Sum of ledger DEBIT amounts == sum of ledger CREDIT amounts, always.
+3. Booking moves only along allowed state transitions.
+4. Payment webhook processed twice → exactly one effect (idempotency).
+5. No external call inside a DB transaction.
+
+## Booking lifecycle
+
+```
+PENDING → HELD → PAID → CONFIRMED → CHECKED_IN → COMPLETED
+Side branches: CANCELLED, REFUNDED, NO_SHOW, EXPIRED
+```
+
+## Revenue model
+
+5% + 5% booking commission + HMS SaaS subscription for partner properties.

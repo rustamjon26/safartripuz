@@ -1,0 +1,31 @@
+---
+description: Modular monolith layering — route/page → service → repository → prisma
+alwaysApply: true
+---
+
+# Architecture (MANDATORY)
+
+This is a **MODULAR MONOLITH**. Never introduce microservices.
+
+## Layering (strict)
+
+```
+route/page  →  service  →  repository  →  prisma
+```
+
+- `prisma` may ONLY be imported in `src/modules/*/repository/*.ts` and `src/shared/db/prisma.ts`. Never in routes, services, components, or utils.
+- Modules communicate ONLY through each other's `index.ts`. Never import another module's internal folders.
+- Never write cross-module Prisma joins. Compose in the service layer.
+
+## Module layout
+
+```
+src/modules/<name>/
+  domain/       pure business logic, types — no I/O, prisma, or fetch
+  repository/   all prisma access for this module
+  service/      use-cases, transactions, calls repositories
+  index.ts      public API — ONLY file other modules may import
+```
+
+Existing: inventory, rates, booking, payment, ledger, guest, catalog  
+Planned: channel (OTA sync) — leave room; do not implement yet.

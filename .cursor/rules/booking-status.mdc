@@ -1,0 +1,11 @@
+---
+description: Booking status transitions must go through assertTransition()
+globs: src/modules/booking/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Booking status
+
+- Status changes MUST go through `assertTransition()` in `src/modules/booking/domain/booking.state.ts`.
+- Never set `booking.status` directly with a Prisma update outside the booking service.
+- Never use boolean flags (`isPaid`, `isCancelled`) to represent booking lifecycle.

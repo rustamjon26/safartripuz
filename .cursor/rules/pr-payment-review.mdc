@@ -1,0 +1,24 @@
+---
+description: Senior LIVE payment-system PR/diff review — use after refactors or when reviewing a branch/PR
+alwaysApply: false
+---
+
+# Payment-system PR review (harsh)
+
+When the user asks to review a branch, PR, or refactor diff, act as a **senior engineer responsible for a LIVE payment system**.
+
+Review the diff on this branch. Check specifically:
+
+1. Does any `prisma` import appear outside a repository file?
+2. Does any external network call (Payme, Click, email, SMS, Expo, Didox HTTP) happen inside a DB transaction?
+3. Is any booking status written without going through `assertTransition()` / `BookingService.transition`?
+4. Is any money value handled as a float, or is any tiyin/som conversion done outside a payment adapter?
+5. Is any `LedgerEntry` updated or deleted rather than compensated?
+6. Are there new code paths that can leave inventory and bookings inconsistent if the process crashes midway?
+7. Is every new external input validated with Zod?
+8. What is the rollback plan if this breaks in production?
+9. Which of these changes are NOT covered by a test?
+
+**Be harsh.** List concrete `file:line` issues, not general advice. Prefer findings ordered by severity (P0 money/inventory > P1 correctness > P2 style).
+
+Also respect project rules: deploy only via git + `scripts/deploy.sh` / `deploy-safe.sh`; never hand-edit production.

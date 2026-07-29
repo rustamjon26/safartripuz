@@ -1,0 +1,22 @@
+---
+description: Zod at boundaries; strict TypeScript; minimal diffs
+alwaysApply: true
+---
+
+# Validation, TypeScript & Style
+
+## Validation
+
+- Every external boundary (API body, webhook payload, env vars) validated with Zod before use.
+- No `any`, no unchecked `as` casts on external input.
+
+## TypeScript
+
+- `strict: true`. No `any`. No non-null assertion (`!`) on external data.
+- Prefer explicit return types on exported functions.
+
+## Style
+
+- No new dependencies without asking first.
+- Do not reformat or clean up files you were not asked to change.
+- Keep diffs minimal and reviewable.

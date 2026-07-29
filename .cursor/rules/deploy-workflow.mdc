@@ -1,0 +1,36 @@
+---
+description: Deploy only via local changes → git push → server pull. Never edit server directly.
+alwaysApply: true
+---
+
+# Deploy workflow (mandatory)
+
+**Never modify production directly.** Do not use `scp`, SSH file edits, or manual patches on the server.
+
+## Required flow for every change
+
+1. **Local** — edit code, run tests/build if needed
+2. **Git** — commit and push to `origin/main` (or the target branch)
+3. **Server** — deploy only from git:
+   ```bash
+   cd /var/www/safar
+   git pull
+   bash scripts/deploy.sh
+   ```
+
+If the server has drifted (local edits, conflicts), reset to remote then deploy:
+```bash
+git fetch origin && git reset --hard origin/main && bash scripts/deploy.sh
+```
+
+## Forbidden on server
+
+- Copying files with `scp` / `rsync` (except deploy script output like `standalone/`)
+- Editing source files under `/var/www/safar` by hand
+- Running `npm run build` without a matching `git pull` first
+
+## Production host
+
+- Server: `89.167.49.150`, path: `/var/www/safar`
+- PM2 app: `safartrip`
+- Deploy script: `scripts/deploy.sh`

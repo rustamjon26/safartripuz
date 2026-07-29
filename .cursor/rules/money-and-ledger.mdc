@@ -1,0 +1,19 @@
+---
+description: Money as BigInt tiyin; immutable ledger; no network calls in DB transactions
+alwaysApply: true
+---
+
+# Money & Ledger
+
+## Money
+
+- ALL monetary amounts stored and computed as **BigInt in TIYIN** (1 som = 100 tiyin).
+- Never use float/`Number` for money. Never use Prisma `Decimal` for money in new code.
+- Use the `Money` value object from `src/shared/money.ts`.
+- Payme expects TIYIN (integer). Click expects SOM (float). Conversion ONLY inside payment provider adapters.
+
+## Ledger & money-touching code
+
+- Code that writes to the ledger, changes availability, or calls a payment provider MUST have a test before the PR is done.
+- Ledger entries are **IMMUTABLE**. Never UPDATE or DELETE a `LedgerEntry`. Corrections = new compensating transactions.
+- External network calls (Payme, Click, email, SMS) MUST NOT happen inside a database transaction.
