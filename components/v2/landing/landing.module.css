@@ -1,0 +1,322 @@
+.coffeeOnce {
+  top: 160px;
+  left: -40px;
+}
+
+.hero {
+  position: relative;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: end;
+}
+
+@media (min-width: 1024px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  }
+}
+
+.indexCard {
+  position: relative;
+  background: color-mix(in srgb, var(--paper) 70%, var(--white));
+  border: 1px solid var(--ink);
+  padding: 20px 16px 24px;
+}
+
+@media (min-width: 768px) {
+  .indexCard {
+    padding: 28px 24px 32px;
+  }
+}
+
+.paperclip {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%) rotate(12deg);
+  color: rgba(46, 44, 40, 0.45);
+  z-index: 3;
+}
+
+.catBadge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 8px;
+  margin-bottom: 16px;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.squareSlot {
+  aspect-ratio: 1 / 1;
+  min-height: 200px;
+}
+
+.journeyGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+@media (min-width: 768px) {
+  .journeyGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .journeyGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.journeyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.journeySlot {
+  min-height: 220px;
+  aspect-ratio: 4 / 5;
+}
+
+.catalogueHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 8px;
+  margin-bottom: 28px;
+}
+
+.catalogueGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 16px;
+  row-gap: 28px;
+}
+
+@media (min-width: 768px) {
+  .catalogueGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 36px;
+  }
+}
+
+.catalogueEntry {
+  border-left: 2px solid var(--ink);
+  padding: 8px 0 8px 12px;
+}
+
+.live:hover h3 {
+  text-decoration: underline;
+}
+
+.soon {
+  border-left-color: rgba(46, 44, 40, 0.28);
+  opacity: 0.55;
+}
+
+.verifySection {
+  position: relative;
+}
+
+.verifyIntro {
+  margin-bottom: 24px;
+  max-width: 36rem;
+}
+
+.verifyIcon {
+  color: var(--archive);
+  margin-bottom: 12px;
+}
+
+.verifyGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .verifyGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+}
+
+.claimCard {
+  border: 1px solid var(--ink);
+  background: var(--white);
+  padding: 20px 16px;
+}
+
+@media (min-width: 768px) {
+  .claimCard {
+    padding: 24px;
+  }
+}
+
+.claimHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.diamond {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+.diamond svg {
+  transform: rotate(-45deg);
+}
+
+.partnerBlock {
+  position: relative;
+  border: 1px solid var(--ink);
+  background: color-mix(in srgb, var(--paper) 85%, var(--white));
+  padding: 24px 16px;
+}
+
+@media (min-width: 768px) {
+  .partnerBlock {
+    padding: 40px 48px;
+  }
+}
+
+.partnerClip {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  color: rgba(46, 44, 40, 0.4);
+}
+
+.partnerTop {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (min-width: 768px) {
+  .partnerTop {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.stampBox {
+  width: 88px;
+  height: 88px;
+  border: 4px double rgba(46, 44, 40, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.partnerBody {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 28rem;
+}
+
+.afzalliklar {
+  border: 1px solid rgba(46, 44, 40, 0.25);
+  background: var(--white);
+  padding: 20px 16px;
+}
+
+.afzList {
+  list-style: none;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.partnerCta {
+  width: 100%;
+  text-align: center;
+}
+
+.footerBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 22rem;
+}
+
+.footerMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+@media (min-width: 768px) {
+  .footerMeta {
+    align-items: flex-end;
+  }
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.liveLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e7d4f;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
