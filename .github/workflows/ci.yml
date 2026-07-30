@@ -54,6 +54,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Production build
+        run: npm run build
+
       # Lint intentionally removed 2026-07-29 (standalone/ noise + separate eslint ignore PR).
       # Restore after eslint.config.mjs ignores standalone/ and the suite is green again.
 
@@ -66,7 +69,3 @@ jobs:
 
       - name: Vitest
         run: npx vitest run
-
-      # build gate intentionally removed 2026-07-29; restore after it passes on a
-      # runner with enough memory. Without this comment the gate gets forgotten
-      # (see --webpack history).
