@@ -82,6 +82,8 @@ export class KnowledgeRepository {
       lat?: number | null;
       lng?: number | null;
       openingHours?: Prisma.InputJsonValue | null;
+      dining?: Prisma.InputJsonValue | null;
+      sourceUrl?: string | null;
       status?: SiteStatus;
     },
     client: DbClient = prisma,
@@ -98,6 +100,8 @@ export class KnowledgeRepository {
         lat: data.lat ?? null,
         lng: data.lng ?? null,
         openingHours: data.openingHours ?? undefined,
+        dining: data.dining ?? undefined,
+        sourceUrl: data.sourceUrl ?? null,
         status: data.status ?? "DRAFT",
       },
     });

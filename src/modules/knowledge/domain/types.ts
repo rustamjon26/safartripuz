@@ -10,7 +10,10 @@ export type SiteCategory =
   | "TABIAT"
   | "BOZOR"
   | "ZIYORATGOH"
-  | "BOSHQA";
+  | "BOSHQA"
+  | "RESTORAN"
+  | "CHAYXONA"
+  | "KAFE";
 
 export type SiteStatus = "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED";
 

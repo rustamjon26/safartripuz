@@ -9,6 +9,22 @@ export {
   isInSeasonalWindow,
 } from "./domain/openingHours";
 export type { NextOpenSlot } from "./domain/openingHours";
+export {
+  diningSchema,
+  mealTypeSchema,
+  priceBandSchema,
+  parseDining,
+} from "./domain/dining";
+export type { DiningInfo, MealType, PriceBand } from "./domain/dining";
+export { slugify } from "./domain/slugify";
+export { parseOpenHours } from "./domain/parseOpenHours";
+export type { StoredOpeningHours } from "./domain/parseOpenHours";
+export {
+  tourismDataSchema,
+  tourismSiteSchema,
+  DINING_CATEGORIES,
+} from "./domain/tourismData";
+export type { TourismSiteInput, TourismDataFile } from "./domain/tourismData";
 export type {
   SiteCategory,
   SiteStatus,
@@ -23,6 +39,14 @@ export type {
   DeriveClaimLevelInput,
   DeriveClaimLevelSource,
 } from "./domain/types";
+export {
+  seedKnowledgeSites,
+  resolveSiteSlug,
+} from "./service/seedKnowledge";
+export type {
+  SeedKnowledgeReport,
+  SeedSiteClient,
+} from "./service/seedKnowledge";
 export {
   knowledgeRepository,
   KnowledgeRepository,
