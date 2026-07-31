@@ -3,7 +3,7 @@ import {
   claimKindsForInterests,
 } from "../domain/interests";
 import { normalizeRegion } from "../domain/normalize";
-import { scheduleDays } from "../domain/schedule";
+import { dataCoverageFromDays, scheduleDays } from "../domain/schedule";
 import type { PlanResult, SurfacedClaim, TripLang } from "../domain/types";
 import { candidatesRepository } from "../repository/candidates.repository";
 import { narrateSchedule } from "./narrate";
@@ -91,6 +91,9 @@ export class PlannerService {
     const days = schedule.days.map((day) => ({
       ...day,
       slots: day.slots.map((slot) => {
+        if (slot.status !== "PLACED" || slot.siteId == null) {
+          return { ...slot, claims: [] as SurfacedClaim[] };
+        }
         const site = byId.get(slot.siteId);
         return {
           ...slot,
@@ -103,6 +106,7 @@ export class PlannerService {
     const seenClaim = new Set<string>();
     for (const day of days) {
       for (const slot of day.slots) {
+        if (slot.status !== "PLACED") continue;
         for (const claim of slot.claims) {
           if (seenClaim.has(claim.id)) continue;
           seenClaim.add(claim.id);
@@ -122,14 +126,6 @@ export class PlannerService {
       missing.push("narration_llm_unavailable_or_rejected");
     }
 
-    const dataCoverage =
-      candidates.length > 0 &&
-      schedule.placedSiteIds.length > 0 &&
-      schedule.missing.length === 0 &&
-      !missing.includes(`no_published_sites:${regionCode}`)
-        ? "full"
-        : "partial";
-
     return {
       regionCode,
       regionDisplay: display,
@@ -138,7 +134,7 @@ export class PlannerService {
       narration: narration.text,
       claims: allClaims,
       meta: {
-        dataCoverage,
+        dataCoverage: dataCoverageFromDays(days),
         missing: [...new Set(missing)],
         narrationSource: narration.source,
       },

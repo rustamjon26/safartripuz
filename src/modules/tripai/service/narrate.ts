@@ -21,9 +21,58 @@ export function buildNarrationSystemPrompt(): string {
     "- Do NOT introduce any place, attraction, price, date, or historical fact",
     "  that is not explicitly present in the user JSON.",
     "- Do NOT invent restaurants, hotels, or transport options.",
-    "- You may only name sites listed in the schedule.",
+    "- You may only name sites listed in the schedule stops.",
+    "- Days with an empty stops array (or fewer stops than other days) mean we",
+    "  lack verified places for those slots. Do NOT invent filler attractions,",
+    "  markets, or \"free time\" destinations. You may briefly note a lighter day",
+    "  using only the stops that are listed.",
     "- Output plain text paragraphs, no markdown tables, no JSON.",
   ].join("\n");
+}
+
+/** LLM / template input: NO_DATA slots are stripped (never null site names). */
+export function buildNarrationLlmPayload(input: {
+  regionDisplay: string;
+  lang: TripLang;
+  days: DaySchedule[];
+}): {
+  region: string;
+  language: string;
+  schedule: Array<{
+    day: number;
+    date: string;
+    stops: Array<{
+      time: string;
+      site: string;
+      claims: unknown[];
+    }>;
+  }>;
+} {
+  return {
+    region: input.regionDisplay,
+    language: LANG_LABEL[input.lang],
+    schedule: input.days.map((d) => ({
+      day: d.day,
+      date: d.date,
+      stops: d.slots
+        .filter((s) => s.status === "PLACED" && s.siteName != null)
+        .map((s) => ({
+          time: `${s.startTime}-${s.endTime}`,
+          site: s.siteName as string,
+          claims: s.claims
+            .filter((c) => c.established || c.folklore || c.level === "NIZOLI")
+            .map((c) => ({
+              level: c.level,
+              text: c.text,
+              folklore: c.folklore,
+              positions: c.positions?.map((p) => ({
+                label: p.label,
+                text: p.text,
+              })),
+            })),
+        })),
+    })),
+  };
 }
 
 export async function narrateSchedule(input: {
@@ -32,8 +81,13 @@ export async function narrateSchedule(input: {
   days: DaySchedule[];
   catalogNames: string[];
 }): Promise<{ text: string; source: "llm" | "template" }> {
-  const allowed = input.days.flatMap((d) => d.slots.map((s) => s.siteName));
-  const catalog = [...new Set([...input.catalogNames, ...LANDMARK_ALIASES, ...allowed])];
+  const placedSlots = input.days.flatMap((d) =>
+    d.slots.filter((s) => s.status === "PLACED" && s.siteName != null),
+  );
+  const allowed = placedSlots.map((s) => s.siteName as string);
+  const catalog = [
+    ...new Set([...input.catalogNames, ...LANDMARK_ALIASES, ...allowed]),
+  ];
 
   const template = () =>
     buildTemplateNarration({
@@ -41,36 +95,20 @@ export async function narrateSchedule(input: {
       lang: input.lang,
       days: input.days.map((d) => ({
         day: d.day,
-        slots: d.slots.map((s) => ({
-          siteName: s.siteName,
-          startTime: s.startTime,
-        })),
+        slots: d.slots
+          .filter((s) => s.status === "PLACED" && s.siteName != null)
+          .map((s) => ({
+            siteName: s.siteName as string,
+            startTime: s.startTime,
+          })),
       })),
     });
 
-  const payload = {
-    region: input.regionDisplay,
-    language: LANG_LABEL[input.lang],
-    schedule: input.days.map((d) => ({
-      day: d.day,
-      date: d.date,
-      stops: d.slots.map((s) => ({
-        time: `${s.startTime}-${s.endTime}`,
-        site: s.siteName,
-        claims: s.claims
-          .filter((c) => c.established || c.folklore || c.level === "NIZOLI")
-          .map((c) => ({
-            level: c.level,
-            text: c.text,
-            folklore: c.folklore,
-            positions: c.positions?.map((p) => ({
-              label: p.label,
-              text: p.text,
-            })),
-          })),
-      })),
-    })),
-  };
+  const payload = buildNarrationLlmPayload({
+    regionDisplay: input.regionDisplay,
+    lang: input.lang,
+    days: input.days,
+  });
 
   const attempt = async (): Promise<string | null> => {
     const raw = await chatCompletions(

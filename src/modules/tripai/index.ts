@@ -3,9 +3,17 @@ export type { NormalizedRegion } from "./domain/normalize";
 export { haversineKm, travelMinutesBetween } from "./domain/distance";
 export {
   scheduleDays,
+  dataCoverageFromDays,
+  evenSlotTargets,
   isOpenOnDay,
   hasAnyOpenDayInRange,
+  SLOTS_PER_DAY,
 } from "./domain/schedule";
+export {
+  narrateSchedule,
+  buildNarrationSystemPrompt,
+  buildNarrationLlmPayload,
+} from "./service/narrate";
 export {
   narrationIsValid,
   findDisallowedMentions,
@@ -20,13 +28,14 @@ export {
 } from "./repository/candidates.repository";
 export { plannerService, PlannerService } from "./service/planner.service";
 export type { CreatePlanInput } from "./service/planner.service";
-export { narrateSchedule, buildNarrationSystemPrompt } from "./service/narrate";
 export { chatCompletions, loadTripaiLlmConfig } from "./service/llm.client";
 export type {
   PlanResult,
   PlanMeta,
+  DataCoverage,
   DaySchedule,
   ScheduleSlot,
+  ScheduleSlotStatus,
   SurfacedClaim,
   CandidateSite,
   TripLang,
