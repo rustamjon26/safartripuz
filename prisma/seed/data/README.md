@@ -33,7 +33,7 @@ If the file is missing, the script exits with code `1` and an error message.
 
 \* One of `regionCode` or `city` is required.
 
-### `open_hours` (free text → stored as `{ raw, parsed }`)
+### `open_hours` (free text → stored as `OpeningHours` / `{ weekly, … }`)
 
 Supported forms:
 

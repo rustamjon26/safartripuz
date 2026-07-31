@@ -23,8 +23,46 @@ export type SeedSiteClient = {
   };
 };
 
+/** Deep equality for JSON values — key order must not matter (MySQL reorders object keys). */
 function sameJson(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => sameJson(v, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    if (Array.isArray(a) || Array.isArray(b)) return false;
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    const keys = new Set([...Object.keys(ao), ...Object.keys(bo)]);
+    for (const k of keys) {
+      if (!sameJson(ao[k], bo[k])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Normalize dining for write/compare: Places null facets → [] (MySQL/Prisma round-trip). */
+function normalizeDiningValue(
+  dining: {
+    cuisine: string[] | null;
+    mealTypes: string[] | null;
+    mustTry: string[] | null;
+    priceBand?: string | null;
+    note?: string | null;
+  } | null,
+): Record<string, unknown> | null {
+  if (dining == null) return null;
+  return {
+    cuisine: dining.cuisine ?? [],
+    mealTypes: dining.mealTypes ?? [],
+    mustTry: dining.mustTry ?? [],
+    ...(dining.priceBand != null ? { priceBand: dining.priceBand } : {}),
+    ...(dining.note != null && dining.note !== "" ? { note: dining.note } : {}),
+  };
 }
 
 type SitePayload = {
@@ -108,29 +146,12 @@ export async function seedKnowledgeSites(
       throw new Error(`Site "${slug}" (${site.category}) requires dining`);
     }
 
+    // Column contract is OpeningHours (weekly at top level) — never store display raw.
     const hours = parseOpenHours(site.open_hours ?? null);
-    const openingHoursValue =
-      hours.raw == null && hours.parsed == null
-        ? null
-        : ({
-            raw: hours.raw,
-            parsed: hours.parsed,
-          } satisfies Record<string, unknown>);
+    const openingHoursValue = hours.parsed;
 
     const diningValue =
-      isDining && site.dining != null
-        ? ({
-            cuisine: site.dining.cuisine,
-            mealTypes: site.dining.mealTypes,
-            mustTry: site.dining.mustTry,
-            ...(site.dining.priceBand != null
-              ? { priceBand: site.dining.priceBand }
-              : {}),
-            ...(site.dining.note != null && site.dining.note !== ""
-              ? { note: site.dining.note }
-              : {}),
-          } satisfies Record<string, unknown>)
-        : null;
+      isDining && site.dining != null ? normalizeDiningValue(site.dining) : null;
 
     const payload: SitePayload = {
       name: site.name,
