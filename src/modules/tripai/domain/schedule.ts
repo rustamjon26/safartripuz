@@ -4,7 +4,8 @@ import {
   parseHmm,
   type OpeningHours,
 } from "@/src/modules/knowledge";
-import { travelMinutesBetween } from "./distance";
+import { haversine, travelMinutesBetween } from "./distance";
+import { compareByProminence } from "./prominence";
 import type {
   DataCoverage,
   DaySchedule,
@@ -15,6 +16,17 @@ import type {
 
 /** Target stops per calendar day. Unfilled slots become NO_DATA. */
 export const SLOTS_PER_DAY = 3;
+
+/**
+ * Max haversine km between consecutive PLACED stops on the same day
+ * (slots 2+). Longer legs are refused → NO_DATA pad for remaining day slots.
+ * Far sites can still open a day as slot 1 via prominence.
+ *
+ * Tuned for Samarqand old-city cluster (~Imom is outside). Tashkent’s
+ * published spread is wider (~25 km across); Buxoro/Xiva will need their own
+ * budget — prefer a per-`regionCode` map before those regions go live.
+ */
+export const MAX_INTRA_DAY_LEG_KM = 12;
 
 const DEFAULT_VISIT_MINUTES = 90;
 const DEFAULT_GAP_MINUTES = 10;
@@ -135,10 +147,111 @@ export function evenSlotTargets(
   return targets;
 }
 
+function distanceKm(
+  a: ScheduleCandidateInput,
+  b: ScheduleCandidateInput,
+): number {
+  if (
+    a.lat == null ||
+    a.lng == null ||
+    b.lat == null ||
+    b.lng == null ||
+    !Number.isFinite(a.lat) ||
+    !Number.isFinite(a.lng) ||
+    !Number.isFinite(b.lat) ||
+    !Number.isFinite(b.lng)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return haversine(a.lat, a.lng, b.lat, b.lng);
+}
+
+/**
+ * Order remaining candidates for the next slot.
+ *
+ * Slot 1 (no `last`): prominence first, then name — same as catalog sort.
+ *
+ * Slots 2+: distance is a **filter** ({@link MAX_INTRA_DAY_LEG_KM} from
+ * `last`), prominence is the **choice** among survivors (then nearer, then
+ * name). Keeps Imom from sandwiching the old city without letting dense
+ * OPTIONAL neighbours (museum ~100 m from Registon) crowd out PRIMARY.
+ */
+export function orderCandidatesForSlot(
+  remaining: ScheduleCandidateInput[],
+  last: ScheduleCandidateInput | null,
+): ScheduleCandidateInput[] {
+  if (!last) {
+    return [...remaining].sort(compareByProminence);
+  }
+  return [...remaining]
+    .filter((c) => distanceKm(last, c) <= MAX_INTRA_DAY_LEG_KM)
+    .sort((a, b) => {
+      const byProminence = compareByProminence(a, b);
+      if (byProminence !== 0) return byProminence;
+      return distanceKm(last, a) - distanceKm(last, b);
+    });
+}
+
+type PlaceAttempt = {
+  candidate: ScheduleCandidateInput;
+  startAt: Date;
+  end: Date;
+};
+
+function tryScheduleCandidate(
+  candidate: ScheduleCandidateInput,
+  dayDate: Date,
+  dayOpen: Date,
+  dayClose: Date,
+  cursor: Date,
+  last: ScheduleCandidateInput | null,
+): PlaceAttempt | null {
+  const travel = last ? travelMinutesBetween(last, candidate) : 0;
+  const arrive = addMinutes(cursor, travel);
+
+  if (
+    arrive.getTime() + candidate.visitMinutes * 60_000 >
+    dayClose.getTime()
+  ) {
+    return null;
+  }
+
+  let startAt = arrive;
+  if (candidate.openingHours && !isOpenAt(candidate.openingHours, arrive)) {
+    let found: Date | null = null;
+    for (
+      let t = Math.max(arrive.getTime(), dayOpen.getTime());
+      t + candidate.visitMinutes * 60_000 <= dayClose.getTime();
+      t += 30 * 60_000
+    ) {
+      const probe = new Date(t);
+      if (isOpenAt(candidate.openingHours, probe)) {
+        found = probe;
+        break;
+      }
+    }
+    if (!found) return null;
+    startAt = found;
+  }
+
+  if (candidate.openingHours && !isOpenAt(candidate.openingHours, startAt)) {
+    return null;
+  }
+
+  return {
+    candidate,
+    startAt,
+    end: addMinutes(startAt, candidate.visitMinutes),
+  };
+}
+
 /**
  * Pure scheduler. Never places a site on a day when it is closed.
  * Each site is used at most once per plan. Sites are spread evenly across
  * days; remaining capacity → NO_DATA (days keep SLOTS_PER_DAY slots).
+ *
+ * Within a day: slot 1 by prominence; later slots by nearest to the last
+ * placed site (see {@link orderCandidatesForSlot}).
  */
 export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
   const dayDates = buildDayDates(input.startDate, input.dayCount);
@@ -156,7 +269,6 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
   const targets = evenSlotTargets(usable.length, dayDates.length);
   const placed = new Set<string>();
   const days: DaySchedule[] = [];
-  let cursorIdx = 0;
 
   for (let i = 0; i < dayDates.length; i++) {
     const dayDate = dayDates[i]!;
@@ -169,89 +281,49 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
     let placedToday = 0;
 
     while (placedToday < dayTarget) {
-      if (usable.every((c) => placed.has(c.id))) {
+      const remaining = usable.filter(
+        (c) => !placed.has(c.id) && isOpenOnDay(c.openingHours, dayDate),
+      );
+      if (remaining.length === 0) break;
+
+      const ordered = orderCandidatesForSlot(remaining, last);
+      if (ordered.length === 0) {
+        // No candidate within MAX_INTRA_DAY_LEG_KM of last — stop this day.
         break;
       }
 
-      let placedOne = false;
-      for (let attempt = 0; attempt < usable.length; attempt++) {
-        if (cursorIdx >= usable.length) cursorIdx = 0;
-        const candidate = usable[cursorIdx]!;
-        cursorIdx += 1;
-
-        // Trip-wide dedup: never reuse a site in this plan.
-        if (placed.has(candidate.id)) {
-          continue;
-        }
-
-        // Core invariant: never place on a closed day.
-        if (!isOpenOnDay(candidate.openingHours, dayDate)) {
-          continue;
-        }
-
-        const travel = last ? travelMinutesBetween(last, candidate) : 0;
-        const arrive = addMinutes(cursor, travel);
-
-        if (
-          arrive.getTime() + candidate.visitMinutes * 60_000 >
-          dayClose.getTime()
-        ) {
-          continue;
-        }
-
-        let startAt = arrive;
-        if (
-          candidate.openingHours &&
-          !isOpenAt(candidate.openingHours, arrive)
-        ) {
-          let found: Date | null = null;
-          for (
-            let t = Math.max(arrive.getTime(), dayOpen.getTime());
-            t + candidate.visitMinutes * 60_000 <= dayClose.getTime();
-            t += 30 * 60_000
-          ) {
-            const probe = new Date(t);
-            if (isOpenAt(candidate.openingHours, probe)) {
-              found = probe;
-              break;
-            }
-          }
-          if (!found) continue;
-          startAt = found;
-        }
-
-        if (
-          candidate.openingHours &&
-          !isOpenAt(candidate.openingHours, startAt)
-        ) {
-          continue;
-        }
-
-        const end = addMinutes(startAt, candidate.visitMinutes);
-        const startMin = startAt.getHours() * 60 + startAt.getMinutes();
-        const endMin = end.getHours() * 60 + end.getMinutes();
-
-        slots.push({
-          day: i + 1,
-          date: dateStr,
-          startTime: minutesToHmm(startMin),
-          endTime: minutesToHmm(endMin),
-          status: "PLACED",
-          siteId: candidate.id,
-          siteName: candidate.name,
-          claims: [],
-        });
-        placed.add(candidate.id);
-        last = candidate;
-        cursor = end;
-        placedToday += 1;
-        placedOne = true;
-        break;
+      let attempt: PlaceAttempt | null = null;
+      for (const candidate of ordered) {
+        attempt = tryScheduleCandidate(
+          candidate,
+          dayDate,
+          dayOpen,
+          dayClose,
+          cursor,
+          last,
+        );
+        if (attempt) break;
       }
+      if (!attempt) break;
 
-      if (!placedOne) {
-        break;
-      }
+      const { candidate, startAt, end } = attempt;
+      const startMin = startAt.getHours() * 60 + startAt.getMinutes();
+      const endMin = end.getHours() * 60 + end.getMinutes();
+
+      slots.push({
+        day: i + 1,
+        date: dateStr,
+        startTime: minutesToHmm(startMin),
+        endTime: minutesToHmm(endMin),
+        status: "PLACED",
+        siteId: candidate.id,
+        siteName: candidate.name,
+        claims: [],
+      });
+      placed.add(candidate.id);
+      last = candidate;
+      cursor = end;
+      placedToday += 1;
     }
 
     while (slots.length < SLOTS_PER_DAY) {

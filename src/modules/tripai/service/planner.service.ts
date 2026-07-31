@@ -76,6 +76,7 @@ export class PlannerService {
       candidates: candidates.map((c) => ({
         id: c.id,
         name: c.name,
+        prominence: c.prominence,
         lat: c.lat,
         lng: c.lng,
         openingHours: c.openingHours,
