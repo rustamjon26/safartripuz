@@ -1,3 +1,4 @@
+import type { SiteProminence } from "@prisma/client";
 import type {
   ClaimKind,
   ClaimLevel,
@@ -49,6 +50,8 @@ export type CandidateSite = {
   nameEn: string | null;
   regionCode: string;
   category: SiteCategory;
+  /** Null ⇒ treated as OPTIONAL when sorting. */
+  prominence: SiteProminence | null;
   lat: number | null;
   lng: number | null;
   openingHours: OpeningHours | null;

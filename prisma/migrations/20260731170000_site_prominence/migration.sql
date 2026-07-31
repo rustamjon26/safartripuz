@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Site` ADD COLUMN `prominence` ENUM('PRIMARY', 'SECONDARY', 'OPTIONAL') NULL;

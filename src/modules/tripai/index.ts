@@ -10,6 +10,11 @@ export {
   SLOTS_PER_DAY,
 } from "./domain/schedule";
 export {
+  prominenceRank,
+  compareByProminence,
+  sortByProminence,
+} from "./domain/prominence";
+export {
   narrateSchedule,
   buildNarrationSystemPrompt,
   buildNarrationLlmPayload,
