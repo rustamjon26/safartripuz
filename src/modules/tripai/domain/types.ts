@@ -99,6 +99,8 @@ export type PlanResult = {
 export type ScheduleCandidateInput = {
   id: string;
   name: string;
+  /** Used for day slot-1 ranking; null ⇒ lowest (OPTIONAL). */
+  prominence?: SiteProminence | null;
   lat: number | null;
   lng: number | null;
   openingHours: OpeningHours | null;

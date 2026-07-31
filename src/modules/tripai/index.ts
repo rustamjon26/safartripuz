@@ -1,6 +1,6 @@
 export { normalizeRegion } from "./domain/normalize";
 export type { NormalizedRegion } from "./domain/normalize";
-export { haversineKm, travelMinutesBetween } from "./domain/distance";
+export { haversine, haversineKm, travelMinutesBetween } from "./domain/distance";
 export {
   scheduleDays,
   dataCoverageFromDays,
@@ -8,6 +8,7 @@ export {
   isOpenOnDay,
   hasAnyOpenDayInRange,
   SLOTS_PER_DAY,
+  MAX_INTRA_DAY_LEG_KM,
 } from "./domain/schedule";
 export {
   prominenceRank,
