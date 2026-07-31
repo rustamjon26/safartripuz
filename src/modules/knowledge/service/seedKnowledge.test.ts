@@ -111,18 +111,31 @@ describe("seedKnowledgeSites idempotency", () => {
     ).rejects.toThrow(/requires dining/);
   });
 
-  it("re-seed does not demote an existing PUBLISHED site", async () => {
+  it("creates new rows as DRAFT", async () => {
     const client = makeMemoryClient();
-    const sites = fixtureSites();
-    await seedKnowledgeSites(sites, client);
+    await seedKnowledgeSites(fixtureSites(), client);
+
+    expect(client.rows.get("gori-amir")?.status).toBe("DRAFT");
+    expect(client.rows.get("test-oshxona")?.status).toBe("DRAFT");
+  });
+
+  it("update path does not demote PUBLISHED when other fields change", async () => {
+    const client = makeMemoryClient();
+    await seedKnowledgeSites(fixtureSites(), client);
 
     const row = client.rows.get("gori-amir");
     expect(row).toBeTruthy();
     row!.status = "PUBLISHED";
 
+    // Force an update (not the unchanged short-circuit) while status is PUBLISHED.
+    const sites = fixtureSites();
+    sites[0] = { ...sites[0]!, nameEn: "Gur-e-Amir (updated)" };
+
     const second = await seedKnowledgeSites(sites, client);
-    expect(second.unchanged).toBe(2);
+    expect(second.updated).toBe(1);
+    expect(second.unchanged).toBe(1);
     expect(client.rows.get("gori-amir")?.status).toBe("PUBLISHED");
+    expect(client.rows.get("gori-amir")?.nameEn).toBe("Gur-e-Amir (updated)");
   });
 
   it("stores open_hours raw alongside weekly", async () => {
