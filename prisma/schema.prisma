@@ -1613,9 +1613,10 @@ model Site {
   category     SiteCategory
   lat          Float?
   lng          Float?
-  /// Machine-readable hours only — never a display string.
+  /// Opening hours for planners + optional intake provenance.
   /// Shape: {
   ///   "weekly": { "mon": [["09:00","19:00"]], "tue": [...], "sun": [] },
+  ///   "raw": "Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00",
   ///   "closedDates": ["2026-09-01"],
   ///   "seasonal": [{ "from": "11-01", "to": "03-01",
   ///                  "weekly": { "mon": [["09:00","17:00"]] } }]

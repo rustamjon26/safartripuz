@@ -44,10 +44,13 @@ export type SeasonalHours = {
 };
 
 /**
- * Machine-readable opening hours. Never store a free-text display string.
+ * Machine-readable opening hours (`weekly` is what planners read).
+ * Optional `raw` keeps the original free-text for DRAFT→PUBLISHED review.
  */
 export type OpeningHours = {
   weekly: WeeklyHours;
+  /** Original open_hours string from intake (moderation / provenance). */
+  raw?: string;
   /** YYYY-MM-DD full-day closures */
   closedDates?: string[];
   seasonal?: SeasonalHours[];

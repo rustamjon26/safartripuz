@@ -146,9 +146,15 @@ export async function seedKnowledgeSites(
       throw new Error(`Site "${slug}" (${site.category}) requires dining`);
     }
 
-    // Column contract is OpeningHours (weekly at top level) — never store display raw.
+    // weekly at top level for isOpenAt; raw kept for DRAFT→PUBLISHED review.
     const hours = parseOpenHours(site.open_hours ?? null);
-    const openingHoursValue = hours.parsed;
+    const openingHoursValue =
+      hours.parsed == null
+        ? null
+        : ({
+            ...hours.parsed,
+            ...(hours.raw != null ? { raw: hours.raw } : {}),
+          } satisfies Record<string, unknown>);
 
     const diningValue =
       isDining && site.dining != null ? normalizeDiningValue(site.dining) : null;

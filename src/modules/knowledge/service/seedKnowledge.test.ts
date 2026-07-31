@@ -111,6 +111,19 @@ describe("seedKnowledgeSites idempotency", () => {
     ).rejects.toThrow(/requires dining/);
   });
 
+  it("stores open_hours raw alongside weekly", async () => {
+    const client = makeMemoryClient();
+    await seedKnowledgeSites(fixtureSites(), client);
+
+    const row = client.rows.get("gori-amir");
+    expect(row?.openingHours).toMatchObject({
+      raw: "09:00 - 19:00",
+      weekly: expect.objectContaining({
+        mon: [["09:00", "19:00"]],
+      }),
+    });
+  });
+
   it("treats MySQL key-reordered openingHours as unchanged", async () => {
     const client = makeMemoryClient();
     const sites = fixtureSites();
@@ -120,6 +133,7 @@ describe("seedKnowledgeSites idempotency", () => {
     expect(row).toBeTruthy();
     // Simulate MySQL returning object keys alphabetically (fri before mon).
     row!.openingHours = {
+      raw: "09:00 - 19:00",
       weekly: {
         fri: [["09:00", "19:00"]],
         mon: [["09:00", "19:00"]],
