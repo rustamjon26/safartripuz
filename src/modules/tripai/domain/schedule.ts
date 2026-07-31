@@ -5,7 +5,7 @@ import {
   type OpeningHours,
 } from "@/src/modules/knowledge";
 import { haversine, travelMinutesBetween } from "./distance";
-import { compareByProminence } from "./prominence";
+import { compareByProminence, prominenceRank } from "./prominence";
 import type {
   DataCoverage,
   DaySchedule,
@@ -169,12 +169,12 @@ function distanceKm(
 /**
  * Order remaining candidates for the next slot.
  *
- * Slot 1 (no `last`): prominence first, then name — same as catalog sort.
+ * Slot 1 (no `last`): {@link compareByProminence} (prominence, then name).
  *
  * Slots 2+: distance is a **filter** ({@link MAX_INTRA_DAY_LEG_KM} from
- * `last`), prominence is the **choice** among survivors (then nearer, then
- * name). Keeps Imom from sandwiching the old city without letting dense
- * OPTIONAL neighbours (museum ~100 m from Registon) crowd out PRIMARY.
+ * `last`). Among survivors: {@link prominenceRank} → distance → name.
+ * Do **not** use `compareByProminence` here — its name tie-break runs before
+ * distance and recreates same-tier zigzags (Aqsaroy → Xizr instead of Ruxobod).
  */
 export function orderCandidatesForSlot(
   remaining: ScheduleCandidateInput[],
@@ -186,9 +186,12 @@ export function orderCandidatesForSlot(
   return [...remaining]
     .filter((c) => distanceKm(last, c) <= MAX_INTRA_DAY_LEG_KM)
     .sort((a, b) => {
-      const byProminence = compareByProminence(a, b);
-      if (byProminence !== 0) return byProminence;
-      return distanceKm(last, a) - distanceKm(last, b);
+      const byRank =
+        prominenceRank(a.prominence) - prominenceRank(b.prominence);
+      if (byRank !== 0) return byRank;
+      const byDist = distanceKm(last, a) - distanceKm(last, b);
+      if (byDist !== 0) return byDist;
+      return a.name.localeCompare(b.name, "en");
     });
 }
 

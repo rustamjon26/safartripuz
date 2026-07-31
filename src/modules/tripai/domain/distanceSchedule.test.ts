@@ -20,11 +20,14 @@ const weekdayOpen: OpeningHours = {
   },
 };
 
-/** Registon / Shohi-Zinda / Imom — real-ish coords from tourism_data.json */
+/** Real-ish coords from tourism_data.json */
 const REGISTON = { lat: 39.6546466, lng: 66.9757669 };
 const SHOHI = { lat: 39.6621368, lng: 66.9879377 };
 const GURI = { lat: 39.6485469, lng: 66.9692492 };
 const IMOM = { lat: 39.8151972, lng: 66.9445556 };
+const AQSAROY = { lat: 39.6479388, lng: 66.9698788 };
+const XIZR = { lat: 39.6634382, lng: 66.9832527 };
+const RUXOBOD = { lat: 39.6508246, lng: 66.9681957 };
 
 function site(
   partial: Omit<ScheduleCandidateInput, "openingHours" | "visitMinutes"> & {
@@ -240,6 +243,53 @@ describe("distance-aware scheduleDays", () => {
           s.status === "NO_DATA" || s.siteId === "near-imom",
       ),
     ).toBe(true);
+  });
+
+  it("same SECONDARY tier: nearer wins even when farther name sorts first", () => {
+    // Prod zigzag: Aqsaroy → Xizr (~2 km) instead of Ruxobod (~350 m).
+    // "Hazrati…" localeCompare before "Ruxobod…" — name must not beat distance.
+    expect(haversine(AQSAROY.lat, AQSAROY.lng, RUXOBOD.lat, RUXOBOD.lng)).toBeLessThan(
+      0.5,
+    );
+    expect(haversine(AQSAROY.lat, AQSAROY.lng, XIZR.lat, XIZR.lng)).toBeGreaterThan(1.5);
+    expect(
+      "Hazrati Xizr Masjidi".localeCompare("Ruxobod Maqbarasi", "en"),
+    ).toBeLessThan(0);
+
+    const candidates = [
+      site({
+        id: "aqsaroy",
+        name: "Aqsaroy Maqbarasi",
+        prominence: "SECONDARY",
+        ...AQSAROY,
+      }),
+      site({
+        id: "xizr",
+        name: "Hazrati Xizr Masjidi",
+        prominence: "SECONDARY",
+        ...XIZR,
+      }),
+      site({
+        id: "ruxobod",
+        name: "Ruxobod Maqbarasi",
+        prominence: "SECONDARY",
+        ...RUXOBOD,
+      }),
+    ];
+
+    const result = scheduleDays({
+      regionDisplay: "Samarqand",
+      startDate: new Date(2026, 6, 27),
+      dayCount: 1,
+      candidates,
+    });
+
+    const placed = result.days[0]!.slots
+      .filter((s) => s.status === "PLACED")
+      .map((s) => s.siteId);
+    expect(placed[0]).toBe("aqsaroy");
+    expect(placed[1]).toBe("ruxobod");
+    expect(placed.slice(0, 2)).not.toContain("xizr");
   });
 
   it("nearby OPTIONAL does not displace a farther PRIMARY within the leg cap", () => {
