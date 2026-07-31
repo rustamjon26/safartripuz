@@ -117,7 +117,20 @@ export async function seedKnowledgeSites(
             parsed: hours.parsed,
           } satisfies Record<string, unknown>);
 
-    const diningValue = isDining && site.dining != null ? site.dining : null;
+    const diningValue =
+      isDining && site.dining != null
+        ? ({
+            cuisine: site.dining.cuisine,
+            mealTypes: site.dining.mealTypes,
+            mustTry: site.dining.mustTry,
+            ...(site.dining.priceBand != null
+              ? { priceBand: site.dining.priceBand }
+              : {}),
+            ...(site.dining.note != null && site.dining.note !== ""
+              ? { note: site.dining.note }
+              : {}),
+          } satisfies Record<string, unknown>)
+        : null;
 
     const payload: SitePayload = {
       name: site.name,
