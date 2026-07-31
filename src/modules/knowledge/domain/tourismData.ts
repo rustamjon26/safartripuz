@@ -59,6 +59,11 @@ export const tourismSiteSchema = z
     /** Free-text hours; parsed by parseOpenHours. */
     open_hours: z.string().nullable().optional(),
     sourceUrl: z.string().url().optional().nullable(),
+    /**
+     * Planner ranking. Optional — omit/null ⇒ Site.prominence null ⇒ lowest tier.
+     * Do not invent values; fill from editorial review.
+     */
+    prominence: z.enum(["PRIMARY", "SECONDARY", "OPTIONAL"]).optional().nullable(),
     /** Optional Places fields — not persisted on Site yet. */
     address: z.string().nullable().optional(),
     phone: z.string().nullable().optional(),

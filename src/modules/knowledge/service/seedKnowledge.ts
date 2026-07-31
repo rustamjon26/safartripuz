@@ -1,4 +1,11 @@
-import { Prisma, type Prisma as PrismaNs, type Site, type SiteCategory, type SiteStatus } from "@prisma/client";
+import {
+  Prisma,
+  type Prisma as PrismaNs,
+  type Site,
+  type SiteCategory,
+  type SiteProminence,
+  type SiteStatus,
+} from "@prisma/client";
 import { parseOpenHours } from "../domain/parseOpenHours";
 import { slugify } from "../domain/slugify";
 import type { OpeningHours } from "../domain/types";
@@ -83,6 +90,7 @@ type SitePayload = {
   openingHours: PrismaNs.InputJsonValue | typeof Prisma.DbNull | null;
   dining: PrismaNs.InputJsonValue | typeof Prisma.DbNull | null;
   sourceUrl: string | null;
+  prominence: SiteProminence | null;
   status: SiteStatus;
 };
 
@@ -101,7 +109,8 @@ function isUnchanged(existing: Site, next: SitePayload): boolean {
     sameJson(existing.openingHours, nextHours) &&
     sameJson(existing.dining, nextDining) &&
     (existing.sourceUrl ?? null) === next.sourceUrl &&
-    existing.status === next.status
+    (existing.prominence ?? null) === next.prominence
+    // status intentionally ignored: seed never publishes and must not demote PUBLISHED
   );
 }
 
@@ -131,8 +140,9 @@ export function assertSeedWriteAllowed(
 }
 
 /**
- * Upsert Sites from validated tourism rows. Always writes DRAFT.
- * Never writes PUBLISHED from seed. Empty sourceUrl forces DRAFT.
+ * Upsert Sites from validated tourism rows.
+ * Create as DRAFT only. On update, never touch `status` (re-seed must not
+ * demote PUBLISHED). Never writes PUBLISHED from seed.
  */
 export async function seedKnowledgeSites(
   sites: TourismSiteInput[],
@@ -165,6 +175,8 @@ export async function seedKnowledgeSites(
     const diningValue =
       isDining && site.dining != null ? normalizeDiningValue(site.dining) : null;
 
+    const prominence: SiteProminence | null = site.prominence ?? null;
+
     const payload: SitePayload = {
       name: site.name,
       nameRu: site.nameRu ?? null,
@@ -177,6 +189,7 @@ export async function seedKnowledgeSites(
       openingHours: openingHoursValue,
       dining: diningValue,
       sourceUrl,
+      prominence,
       status,
     };
 
@@ -201,6 +214,7 @@ export async function seedKnowledgeSites(
         openingHours: openingHoursValue ?? undefined,
         dining: diningValue ?? undefined,
         sourceUrl: payload.sourceUrl,
+        prominence: payload.prominence,
         status: payload.status,
       },
       update: {
@@ -215,7 +229,8 @@ export async function seedKnowledgeSites(
         openingHours: openingHoursValue ?? Prisma.DbNull,
         dining: diningValue ?? Prisma.DbNull,
         sourceUrl: payload.sourceUrl,
-        status: payload.status,
+        prominence: payload.prominence,
+        // Do not set status on update — preserves PUBLISHED / REVIEW.
       },
     });
 

@@ -28,6 +28,7 @@ If the file is missing, the script exits with code `1` and an error message.
 | `lat` / `lng` | no | WGS84 |
 | `open_hours` | no | Free-text hours (see below) |
 | `sourceUrl` | no | Provenance URL (e.g. Google Maps). Empty ⇒ stays `DRAFT` |
+| `prominence` | no | `PRIMARY` \| `SECONDARY` \| `OPTIONAL`. Omit/null ⇒ lowest planner rank. **Do not invent** — editorial only |
 | `address` / `phone` | no | Places extras — **accepted but not persisted** on `Site` yet |
 | `dining` | conditional | **Required** object when `category` is `RESTORAN` / `CHAYXONA` / `KAFE`. Omit for other categories |
 

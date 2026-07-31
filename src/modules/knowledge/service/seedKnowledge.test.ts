@@ -56,6 +56,7 @@ function makeMemoryClient(): SeedSiteClient & { rows: Map<string, Site> } {
             openingHours: create.openingHours ?? null,
             dining: create.dining ?? null,
             sourceUrl: create.sourceUrl ?? null,
+            prominence: create.prominence ?? null,
             status: create.status ?? "DRAFT",
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -109,6 +110,29 @@ describe("seedKnowledgeSites idempotency", () => {
         client,
       ),
     ).rejects.toThrow(/requires dining/);
+  });
+
+  it("creates new rows as DRAFT", async () => {
+    const client = makeMemoryClient();
+    await seedKnowledgeSites(fixtureSites(), client);
+    expect(client.rows.get("gori-amir")?.status).toBe("DRAFT");
+    expect(client.rows.get("test-oshxona")?.status).toBe("DRAFT");
+  });
+
+  it("update path does not demote PUBLISHED when other fields change", async () => {
+    const client = makeMemoryClient();
+    await seedKnowledgeSites(fixtureSites(), client);
+    const row = client.rows.get("gori-amir");
+    expect(row).toBeTruthy();
+    row!.status = "PUBLISHED";
+
+    const sites = fixtureSites();
+    sites[0] = { ...sites[0]!, nameEn: "Gur-e-Amir (updated)" };
+
+    const second = await seedKnowledgeSites(sites, client);
+    expect(second.updated).toBe(1);
+    expect(client.rows.get("gori-amir")?.status).toBe("PUBLISHED");
+    expect(client.rows.get("gori-amir")?.nameEn).toBe("Gur-e-Amir (updated)");
   });
 
   it("stores open_hours raw alongside weekly", async () => {

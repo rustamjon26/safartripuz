@@ -3,6 +3,7 @@ import type {
   ClaimLevel,
   Prisma,
   SiteCategory,
+  SiteProminence,
   SiteStatus,
   SourceTier,
 } from "@prisma/client";
@@ -84,6 +85,7 @@ export class KnowledgeRepository {
       openingHours?: Prisma.InputJsonValue | null;
       dining?: Prisma.InputJsonValue | null;
       sourceUrl?: string | null;
+      prominence?: SiteProminence | null;
       status?: SiteStatus;
     },
     client: DbClient = prisma,
@@ -102,6 +104,7 @@ export class KnowledgeRepository {
         openingHours: data.openingHours ?? undefined,
         dining: data.dining ?? undefined,
         sourceUrl: data.sourceUrl ?? null,
+        prominence: data.prominence ?? null,
         status: data.status ?? "DRAFT",
       },
     });

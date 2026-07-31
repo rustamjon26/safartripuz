@@ -2,6 +2,7 @@ import type { ClaimKind, Prisma, SiteCategory } from "@prisma/client";
 import { prisma } from "@/src/shared/db/prisma";
 import type { OpeningHours } from "@/src/modules/knowledge";
 import { enrichClaims } from "../domain/enrich";
+import { sortByProminence } from "../domain/prominence";
 import type { CandidateSite } from "../domain/types";
 
 export type DbClient = Prisma.TransactionClient | typeof prisma;
@@ -43,10 +44,11 @@ export class CandidatesRepository {
           },
         },
       },
-      orderBy: { name: "asc" },
+      // Name order alone made plans alphabetical (Registon never reached).
+      // Prominence sort is applied in memory so nulls rank as OPTIONAL.
     });
 
-    return sites.map((site) => {
+    const mapped = sites.map((site) => {
       let claims = site.claims;
       if (input.claimKinds?.length) {
         const kindSet = new Set(input.claimKinds);
@@ -76,6 +78,7 @@ export class CandidatesRepository {
         nameEn: site.nameEn,
         regionCode: site.regionCode,
         category: site.category,
+        prominence: site.prominence,
         lat: site.lat,
         lng: site.lng,
         openingHours: asOpeningHours(site.openingHours),
@@ -83,6 +86,8 @@ export class CandidatesRepository {
         claims: surfaced,
       };
     });
+
+    return sortByProminence(mapped);
   }
 }
 

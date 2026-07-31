@@ -1578,6 +1578,13 @@ enum SiteStatus {
   ARCHIVED
 }
 
+/// Planner ranking: PRIMARY first, then SECONDARY, then OPTIONAL / null (lowest).
+enum SiteProminence {
+  PRIMARY
+  SECONDARY
+  OPTIONAL
+}
+
 enum ClaimKind {
   TARIX
   ARXITEKTURA
@@ -1634,6 +1641,8 @@ model Site {
   dining       Json?
   /// Provenance URL for the seed / intake row. Empty ⇒ must stay DRAFT.
   sourceUrl    String?
+  /// Trip-plan ranking. Null ⇒ treated as OPTIONAL (lowest).
+  prominence   SiteProminence?
   status       SiteStatus   @default(DRAFT)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -1642,6 +1651,7 @@ model Site {
   reports AccuracyReport[]
 
   @@index([regionCode, districtCode, status])
+  @@index([regionCode, status, prominence])
 }
 
 model Claim {
