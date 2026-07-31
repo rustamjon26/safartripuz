@@ -1,8 +1,14 @@
 import { Prisma, type Prisma as PrismaNs, type Site, type SiteCategory, type SiteStatus } from "@prisma/client";
 import { parseOpenHours } from "../domain/parseOpenHours";
 import { slugify } from "../domain/slugify";
+import type { OpeningHours } from "../domain/types";
 import type { TourismSiteInput } from "../domain/tourismData";
 import { DINING_CATEGORIES } from "../domain/tourismData";
+
+/** Built JSON payloads are JSON-serializable; Prisma's InputJsonValue is invariant. */
+function asInputJson(value: OpeningHours | Record<string, unknown>): PrismaNs.InputJsonValue {
+  return value as PrismaNs.InputJsonValue;
+}
 
 export type SeedKnowledgeReport = {
   created: number;
@@ -54,15 +60,15 @@ function normalizeDiningValue(
     priceBand?: string | null;
     note?: string | null;
   } | null,
-): Record<string, unknown> | null {
+): PrismaNs.InputJsonValue | null {
   if (dining == null) return null;
-  return {
+  return asInputJson({
     cuisine: dining.cuisine ?? [],
     mealTypes: dining.mealTypes ?? [],
     mustTry: dining.mustTry ?? [],
     ...(dining.priceBand != null ? { priceBand: dining.priceBand } : {}),
     ...(dining.note != null && dining.note !== "" ? { note: dining.note } : {}),
-  };
+  });
 }
 
 type SitePayload = {
@@ -148,13 +154,13 @@ export async function seedKnowledgeSites(
 
     // weekly at top level for isOpenAt; raw kept for DRAFT→PUBLISHED review.
     const hours = parseOpenHours(site.open_hours ?? null);
-    const openingHoursValue =
+    const openingHoursValue: PrismaNs.InputJsonValue | null =
       hours.parsed == null
         ? null
-        : ({
+        : asInputJson({
             ...hours.parsed,
             ...(hours.raw != null ? { raw: hours.raw } : {}),
-          } satisfies Record<string, unknown>);
+          });
 
     const diningValue =
       isDining && site.dining != null ? normalizeDiningValue(site.dining) : null;
