@@ -11,8 +11,8 @@ npm install
 echo "Generating Prisma client..."
 npx prisma generate
 
-echo "Pushing DB schema..."
-npm run db:push
+echo "Applying migrations (migrate deploy — never db push on production)..."
+npx prisma migrate deploy
 
 echo "Building..."
 npm run build
