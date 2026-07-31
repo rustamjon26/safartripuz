@@ -7,11 +7,21 @@ import type {
 
 export type TripLang = "uz" | "ru" | "en";
 
+/**
+ * Slot fill vs requested capacity (days × slotsPerDay).
+ * - full: every slot is PLACED
+ * - partial: some PLACED, some NO_DATA
+ * - none: zero PLACED (including 0 published sites)
+ */
+export type DataCoverage = "full" | "partial" | "none";
+
 export type PlanMeta = {
-  dataCoverage: "full" | "partial";
+  dataCoverage: DataCoverage;
   missing: string[];
   narrationSource: "llm" | "template";
 };
+
+export type ScheduleSlotStatus = "PLACED" | "NO_DATA";
 
 export type ClaimPositionView = {
   id: string;
@@ -52,8 +62,11 @@ export type ScheduleSlot = {
   date: string;
   startTime: string;
   endTime: string;
-  siteId: string;
-  siteName: string;
+  status: ScheduleSlotStatus;
+  /** Null when status is NO_DATA. */
+  siteId: string | null;
+  /** Null when status is NO_DATA. */
+  siteName: string | null;
   claims: SurfacedClaim[];
 };
 
