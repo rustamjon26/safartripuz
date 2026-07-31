@@ -65,6 +65,27 @@ describe("parseOpenHours", () => {
     expect(result.parsed?.weekly.sun).toEqual([]);
   });
 
+  it("parses a single-day spec plus a range (Du / Se-Ya)", () => {
+    const result = parseOpenHours("Du 08:00 - 18:00, Se-Ya 08:00 - 19:00");
+    expect(result.parsed?.weekly.mon).toEqual([["08:00", "18:00"]]);
+    expect(result.parsed?.weekly.tue).toEqual([["08:00", "19:00"]]);
+    expect(result.parsed?.weekly.sun).toEqual([["08:00", "19:00"]]);
+  });
+
+  it("closes Monday when marked dushanba yopiq (not only yakshanba)", () => {
+    const result = parseOpenHours("Se-Ya 07:00 - 19:00, dushanba yopiq");
+    expect(result.parsed?.weekly.mon).toEqual([]);
+    expect(result.parsed?.weekly.tue).toEqual([["07:00", "19:00"]]);
+    expect(result.parsed?.weekly.sun).toEqual([["07:00", "19:00"]]);
+  });
+
+  it("clears Monday from an all-week bare range when dushanba yopiq", () => {
+    const result = parseOpenHours("09:00 - 19:00, dushanba yopiq");
+    expect(result.parsed?.weekly.mon).toEqual([]);
+    expect(result.parsed?.weekly.tue).toEqual([["09:00", "19:00"]]);
+    expect(result.parsed?.weekly.sun).toEqual([["09:00", "19:00"]]);
+  });
+
   it("parses 24/7", () => {
     const result = parseOpenHours("24/7");
     expect(result.parsed?.weekly.mon).toEqual([["00:00", "23:59"]]);

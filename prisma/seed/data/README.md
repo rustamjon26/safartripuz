@@ -42,7 +42,8 @@ Supported forms:
 - Simple range (all week): `"08:00 - 20:00"`
 - Overnight / past midnight: `"09:00 - 00:00"`, `"11:00 - 02:00"`
 - Per weekday (Du Se Ch Pa Ju Sh Ya): `"Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00"`
-- Sunday closed: `"Du-Sh 09:00 - 18:00, yakshanba yopiq"`
+- Single day + range: `"Du 08:00 - 18:00, Se-Ya 08:00 - 19:00"`
+- Named closed day (any weekday): `"Se-Ya 07:00 - 19:00, dushanba yopiq"`, `"…, yakshanba yopiq"`
 - Weekends closed: `"09:00 - 18:00, dam olish kunlari yopiq"`
 - Always open: `"24/7"`
 - Empty / null: no hours stored

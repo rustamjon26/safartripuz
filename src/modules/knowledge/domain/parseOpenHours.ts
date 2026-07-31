@@ -20,8 +20,37 @@ const DAY_SPEC_RE = new RegExp(
 );
 const BARE_RANGE_RE = /(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})/;
 const CLOSED_WEEKENDS_RE = /dam\s*olish\s*kunlari\s*yopiq/i;
-const SUNDAY_CLOSED_RE = /\b(?:yakshanba|ya)\s+yopiq\b/i;
+/** Full Uzbek weekday + "yopiq" (e.g. "dushanba yopiq"). */
+const CLOSED_NAMED_DAY_RE =
+  /\b(dushanba|seshanba|chorshanba|payshanba|juma|shanba|yakshanba)\s+yopiq\b/gi;
+/** Short tokens + "yopiq" (e.g. "Ya yopiq"). */
+const CLOSED_SHORT_DAY_RE = /\b(du|se|ch|pa|ju|sh|ya)\s+yopiq\b/gi;
 const ALWAYS_OPEN_RE = /^(24\s*\/\s*7|24x7|kuniga\s*24\s*soat)$/i;
+
+const UZ_FULL_DAY_TO_WEEKDAY: Record<string, Weekday> = {
+  dushanba: "mon",
+  seshanba: "tue",
+  chorshanba: "wed",
+  payshanba: "thu",
+  juma: "fri",
+  shanba: "sat",
+  yakshanba: "sun",
+};
+
+function findClosedWeekdays(text: string): Set<Weekday> {
+  const out = new Set<Weekday>();
+  CLOSED_NAMED_DAY_RE.lastIndex = 0;
+  for (const m of text.matchAll(CLOSED_NAMED_DAY_RE)) {
+    const day = UZ_FULL_DAY_TO_WEEKDAY[(m[1] ?? "").toLowerCase()];
+    if (day) out.add(day);
+  }
+  CLOSED_SHORT_DAY_RE.lastIndex = 0;
+  for (const m of text.matchAll(CLOSED_SHORT_DAY_RE)) {
+    const day = DAY_TOKEN_TO_WEEKDAY[(m[1] ?? "").toLowerCase()];
+    if (day) out.add(day);
+  }
+  return out;
+}
 
 export type StoredOpeningHours = {
   raw: string | null;
@@ -126,8 +155,9 @@ export function expandDaySpec(spec: string): Weekday[] {
  * Supports:
  * - Simple range: "09:00 - 19:00" (all week)
  * - Overnight: "09:00 - 00:00", "11:00 - 02:00"
- * - Per-day: "Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00"
- * - Sunday closed: "Du-Sh 09:00 - 18:00, yakshanba yopiq"
+ * - Per-day / single day: "Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00",
+ *   "Du 08:00 - 18:00, Se-Ya 08:00 - 19:00"
+ * - Named closed day: "…, yakshanba yopiq", "…, dushanba yopiq"
  * - Weekends closed: "09:00 - 18:00, dam olish kunlari yopiq"
  * - 24/7
  */
@@ -167,13 +197,13 @@ export function parseOpenHours(raw: string | null | undefined): StoredOpeningHou
     placedRange = true;
   }
 
-  const sundayClosed = SUNDAY_CLOSED_RE.test(normalized);
+  const closedDays = findClosedWeekdays(normalized);
   const weekendsClosed = CLOSED_WEEKENDS_RE.test(normalized);
 
   if (!placedRange) {
     const bare = BARE_RANGE_RE.exec(normalized);
     if (!bare) {
-      if (weekendsClosed || sundayClosed) {
+      if (weekendsClosed || closedDays.size > 0) {
         throw new Error(
           `Open hours "${trimmed}" marks a closed day but has no time range (e.g. "09:00 - 19:00")`,
         );
@@ -184,8 +214,8 @@ export function parseOpenHours(raw: string | null | undefined): StoredOpeningHou
     const [open, close] = normalizeRange(trimmed, bare[1] ?? "", bare[2] ?? "");
     const days = weekendsClosed
       ? WEEKDAYS_WORK
-      : sundayClosed
-        ? WEEKDAYS_ALL.filter((d) => d !== "sun")
+      : closedDays.size > 0
+        ? WEEKDAYS_ALL.filter((d) => !closedDays.has(d))
         : WEEKDAYS_ALL;
     for (const day of days) {
       weekly[day] = [[open, close]];
@@ -196,8 +226,8 @@ export function parseOpenHours(raw: string | null | undefined): StoredOpeningHou
       weekly.sat = [];
       weekly.sun = [];
     }
-    if (sundayClosed) {
-      weekly.sun = [];
+    for (const day of closedDays) {
+      weekly[day] = [];
     }
   }
 
