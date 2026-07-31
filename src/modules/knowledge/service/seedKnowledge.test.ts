@@ -126,11 +126,13 @@ describe("seedKnowledgeSites idempotency", () => {
     expect(row).toBeTruthy();
     row!.status = "PUBLISHED";
 
+    // Force an update (not the unchanged short-circuit) while status is PUBLISHED.
     const sites = fixtureSites();
     sites[0] = { ...sites[0]!, nameEn: "Gur-e-Amir (updated)" };
 
     const second = await seedKnowledgeSites(sites, client);
     expect(second.updated).toBe(1);
+    expect(second.unchanged).toBe(1);
     expect(client.rows.get("gori-amir")?.status).toBe("PUBLISHED");
     expect(client.rows.get("gori-amir")?.nameEn).toBe("Gur-e-Amir (updated)");
   });
