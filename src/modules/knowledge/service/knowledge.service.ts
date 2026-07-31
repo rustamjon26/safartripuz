@@ -21,6 +21,8 @@ export type CreateSiteInput = {
   lat?: number | null;
   lng?: number | null;
   openingHours?: Prisma.InputJsonValue | null;
+  dining?: Prisma.InputJsonValue | null;
+  sourceUrl?: string | null;
   /** Seed / intake must stay DRAFT until sources exist. */
   status?: SiteStatus;
 };

@@ -1566,6 +1566,9 @@ enum SiteCategory {
   BOZOR
   ZIYORATGOH
   BOSHQA
+  RESTORAN
+  CHAYXONA
+  KAFE
 }
 
 enum SiteStatus {
@@ -1610,14 +1613,27 @@ model Site {
   category     SiteCategory
   lat          Float?
   lng          Float?
-  /// Machine-readable hours only — never a display string.
+  /// Opening hours for planners + optional intake provenance.
   /// Shape: {
   ///   "weekly": { "mon": [["09:00","19:00"]], "tue": [...], "sun": [] },
+  ///   "raw": "Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00",
   ///   "closedDates": ["2026-09-01"],
   ///   "seasonal": [{ "from": "11-01", "to": "03-01",
   ///                  "weekly": { "mon": [["09:00","17:00"]] } }]
   /// }
   openingHours Json?
+  /// Dining metadata for RESTORAN / CHAYXONA / KAFE — null for non-dining sites.
+  /// Do NOT store an average price as a number (goes stale; not the pricing system).
+  /// Shape: {
+  ///   "cuisine": ["uzbek","evropa"],
+  ///   "priceBand": "arzon" | "orta" | "qimmat",
+  ///   "mealTypes": ["nonushta","tushlik","kechki"],
+  ///   "mustTry": ["samarqand oshi","shashlik"],
+  ///   "note": "Palov tushda tayyorlanadi, 15:00 dan keyin tugaydi"
+  /// }
+  dining       Json?
+  /// Provenance URL for the seed / intake row. Empty ⇒ must stay DRAFT.
+  sourceUrl    String?
   status       SiteStatus   @default(DRAFT)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt

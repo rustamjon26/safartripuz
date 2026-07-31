@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "name": "Registon",
+      "nameEn": "Registan Square",
+      "regionCode": "samarqand",
+      "category": "OBIDA",
+      "lat": 39.6546466,
+      "lng": 66.9757669,
+      "address": "140101, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": "+998 66 235 70 52",
+      "open_hours": "08:00 - 20:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJN5PlwrcYTT8Rr5LMngOOLFM"
+    },
+    {
+      "name": "Shohi Zinda",
+      "nameEn": "Shah-i-Zinda necropolis",
+      "regionCode": "samarqand",
+      "category": "MAQBARA",
+      "lat": 39.6621368,
+      "lng": 66.9879377,
+      "address": "Shohi Zinda ko'chasi, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": "+998 71 233 53 82",
+      "open_hours": "07:00 - 22:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJtWrGxqQYTT8R7glw_6oUdmA"
+    },
+    {
+      "name": "Bibi-Xonim Masjidi",
+      "nameEn": "Bibi-Khanym Mosque",
+      "regionCode": "samarqand",
+      "category": "MASJID",
+      "lat": 39.6607343,
+      "lng": 66.9802003,
+      "address": "Bibixonim ko'chasi, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": "+998 97 793 46 75",
+      "open_hours": "Du-Ju 07:00 - 22:00, Sh-Ya 09:00 - 22:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJSYwab7kYTT8RnhlpOyOfDXE"
+    },
+    {
+      "name": "Afrosiyob Muzeyi",
+      "nameEn": "Afrasiyab Museum",
+      "regionCode": "samarqand",
+      "category": "MUZEY",
+      "lat": 39.669295,
+      "lng": 66.9933669,
+      "address": "Toshkent yo'li, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": null,
+      "open_hours": "Du-Sh 09:00 - 18:00, yakshanba yopiq",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJw0l0-qEYTT8RwBId8WMqbrU"
+    },
+    {
+      "name": "Ulug'bek Rasadxonasi",
+      "nameEn": "Ulugbek Observatory",
+      "regionCode": "samarqand",
+      "category": "OBIDA",
+      "lat": 39.6748099,
+      "lng": 67.0056372,
+      "address": "Toshkent yo'li, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": null,
+      "open_hours": "08:00 - 19:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJiUEPd3MiTT8RUiMLna4J_Gw"
+    },
+    {
+      "name": "Go'ri Amir",
+      "nameEn": "Gur-i Amir Complex",
+      "regionCode": "samarqand",
+      "category": "MAQBARA",
+      "lat": 39.6485469,
+      "lng": 66.9692492,
+      "address": "Bo'stonsaroy ko'chasi 1/4, Samarqand, Samarqand viloyati, Uzbekistan",
+      "phone": null,
+      "open_hours": "08:00 - 22:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJj_kfdswYTT8R-u0hvCKEIYo"
+    },
+    {
+      "name": "Besh Qozon",
+      "nameEn": "Besh Qozon",
+      "regionCode": "toshkent",
+      "category": "RESTORAN",
+      "lat": 41.3475558,
+      "lng": 69.2854895,
+      "address": "Iftixor ko'chasi 1, 100057, Toshkent, Uzbekistan",
+      "phone": "+998 71 200 94 44",
+      "open_hours": "09:00 - 00:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJt1PgiKqMrjgRIvaDBbdwLIA",
+      "dining": {
+        "mealTypes": null,
+        "cuisine": null,
+        "mustTry": null,
+        "priceBand": null
+      }
+    },
+    {
+      "name": "Caravan",
+      "nameEn": "Restaurant Caravan",
+      "regionCode": "toshkent",
+      "category": "RESTORAN",
+      "lat": 41.2851722,
+      "lng": 69.2575792,
+      "address": "Abdulla Qahhor ko'chasi 22, Toshkent, Uzbekistan",
+      "phone": "+998 78 150 66 06",
+      "open_hours": "11:00 - 02:00",
+      "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJ4cmBm-yKrjgRO2lp837XxFA",
+      "dining": {
+        "mealTypes": null,
+        "cuisine": null,
+        "mustTry": null,
+        "priceBand": null
+      }
+    }
+  ]
+}
