@@ -111,6 +111,20 @@ describe("seedKnowledgeSites idempotency", () => {
     ).rejects.toThrow(/requires dining/);
   });
 
+  it("re-seed does not demote an existing PUBLISHED site", async () => {
+    const client = makeMemoryClient();
+    const sites = fixtureSites();
+    await seedKnowledgeSites(sites, client);
+
+    const row = client.rows.get("gori-amir");
+    expect(row).toBeTruthy();
+    row!.status = "PUBLISHED";
+
+    const second = await seedKnowledgeSites(sites, client);
+    expect(second.unchanged).toBe(2);
+    expect(client.rows.get("gori-amir")?.status).toBe("PUBLISHED");
+  });
+
   it("stores open_hours raw alongside weekly", async () => {
     const client = makeMemoryClient();
     await seedKnowledgeSites(fixtureSites(), client);

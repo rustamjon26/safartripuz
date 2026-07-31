@@ -100,8 +100,8 @@ function isUnchanged(existing: Site, next: SitePayload): boolean {
     (existing.lng ?? null) === next.lng &&
     sameJson(existing.openingHours, nextHours) &&
     sameJson(existing.dining, nextDining) &&
-    (existing.sourceUrl ?? null) === next.sourceUrl &&
-    existing.status === next.status
+    (existing.sourceUrl ?? null) === next.sourceUrl
+    // status intentionally ignored: seed never publishes and must not demote PUBLISHED
   );
 }
 
@@ -131,8 +131,9 @@ export function assertSeedWriteAllowed(
 }
 
 /**
- * Upsert Sites from validated tourism rows. Always writes DRAFT.
- * Never writes PUBLISHED from seed. Empty sourceUrl forces DRAFT.
+ * Upsert Sites from validated tourism rows.
+ * Create as DRAFT only. On update, never touch `status` (re-seed must not
+ * demote PUBLISHED). Never writes PUBLISHED from seed.
  */
 export async function seedKnowledgeSites(
   sites: TourismSiteInput[],
@@ -215,7 +216,7 @@ export async function seedKnowledgeSites(
         openingHours: openingHoursValue ?? Prisma.DbNull,
         dining: diningValue ?? Prisma.DbNull,
         sourceUrl: payload.sourceUrl,
-        status: payload.status,
+        // Do not set status on update — preserves PUBLISHED / REVIEW.
       },
     });
 
