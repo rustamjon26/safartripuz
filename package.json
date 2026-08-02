@@ -36,6 +36,7 @@
     "test:unit": "vitest run --exclude \"**/*.integration.test.ts\"",
     "test:integration": "vitest run \"src/**/*.integration.test.ts\"",
     "test:p0-ledger": "node --experimental-strip-types scripts/p0-ledger-check.mts",
+    "db:reconcile-ledger": "tsx scripts/reconcile-ledger.ts",
     "test:db:up": "docker compose -f docker-compose.test.yml up -d",
     "test:db:down": "docker compose -f docker-compose.test.yml down",
     "test:db:reset": "tsx scripts/reset-test-db.ts",

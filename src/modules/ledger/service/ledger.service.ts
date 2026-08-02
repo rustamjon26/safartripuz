@@ -14,13 +14,21 @@ export class MissingPartnerError extends Error {
   }
 }
 
+/** Inventory/booking payout routing — mirrors Prisma `PayoutOwnerType`. */
+export type PayoutOwnerType = "PLATFORM" | "PARTNER";
+
 export type PostBookingPaymentInput = {
   idempotencyKey: string;
   bookingId?: string | null;
   grossTiyin: bigint;
-  /** Required for BOOKING_PAYMENT — no platform-eats-gross fallback. */
-  partnerUserId: string;
-  /** Platform commission percent (default 10). */
+  /**
+   * Required when payoutOwnerType is PARTNER (default).
+   * Ignored for PLATFORM (100% platform revenue, no payable / PE).
+   */
+  partnerUserId?: string | null;
+  /** PLATFORM = company-operated; PARTNER = split + PartnerEarning. Default PARTNER. */
+  payoutOwnerType?: PayoutOwnerType;
+  /** Platform commission percent (default 10). Unused when PLATFORM. */
   ratePercent?: number;
 };
 
@@ -33,6 +41,8 @@ export type PostRefundInput = {
   /** Prefer real partner; if null and allowUnattributed, posts to UNATTRIBUTED. */
   partnerUserId?: string | null;
   allowUnattributed?: boolean;
+  /** When PLATFORM, clawback is 100% from platform revenue (no partner payable). */
+  payoutOwnerType?: PayoutOwnerType;
   /** When true (e.g. payable already paid out), type = CLAWBACK. */
   afterPayout?: boolean;
   /** Override inferred REFUND / PARTIAL_REFUND / CLAWBACK. */
@@ -44,13 +54,16 @@ export class LedgerService {
    * Post a balanced booking payment:
    * DEBIT Platform Clearing (gross)
    * CREDIT Partner Payable (net) + Platform Revenue (commission)
-   * Idempotent on idempotencyKey. Partner REQUIRED.
+   *   — or, when payoutOwnerType=PLATFORM: CREDIT Platform Revenue (gross)
+   * Idempotent on idempotencyKey. Partner REQUIRED unless PLATFORM.
    */
   async postBookingPayment(
     input: PostBookingPaymentInput,
     outerTx?: Tx,
   ): Promise<{ alreadyExisted: boolean; transactionId: string }> {
-    if (!input.partnerUserId) {
+    const payoutOwnerType = input.payoutOwnerType ?? "PARTNER";
+    const partnerUserId = input.partnerUserId ?? null;
+    if (payoutOwnerType === "PARTNER" && !partnerUserId) {
       throw new MissingPartnerError();
     }
 
@@ -74,26 +87,12 @@ export class LedgerService {
         return { alreadyExisted: false, transactionId: created.id };
       }
 
-      const ratePercent = input.ratePercent ?? 10;
-      const { platformTotal, partnerNet } =
-        ratePercent === 10
-          ? splitBookingCommission(input.grossTiyin)
-          : calcPlatformCommissionTiyin(input.grossTiyin, ratePercent);
-
       const clearing = await ledgerRepository.ensureAccount(
         { type: "ASSET", ownerType: "PLATFORM", ownerId: "" },
         tx,
       );
       const revenue = await ledgerRepository.ensureAccount(
         { type: "REVENUE", ownerType: "PLATFORM", ownerId: "" },
-        tx,
-      );
-      const payable = await ledgerRepository.ensureAccount(
-        {
-          type: "LIABILITY",
-          ownerType: "PARTNER",
-          ownerId: input.partnerUserId,
-        },
         tx,
       );
 
@@ -104,19 +103,46 @@ export class LedgerService {
       }> = [
         { accountId: clearing.id, amount: input.grossTiyin, direction: "DEBIT" },
       ];
-      if (partnerNet > 0n) {
-        lines.push({
-          accountId: payable.id,
-          amount: partnerNet,
-          direction: "CREDIT",
-        });
-      }
-      if (platformTotal > 0n) {
+
+      if (payoutOwnerType === "PLATFORM") {
         lines.push({
           accountId: revenue.id,
-          amount: platformTotal,
+          amount: input.grossTiyin,
           direction: "CREDIT",
         });
+      } else {
+        if (!partnerUserId) {
+          throw new MissingPartnerError();
+        }
+        const ratePercent = input.ratePercent ?? 10;
+        const { platformTotal, partnerNet } =
+          ratePercent === 10
+            ? splitBookingCommission(input.grossTiyin)
+            : calcPlatformCommissionTiyin(input.grossTiyin, ratePercent);
+
+        const payable = await ledgerRepository.ensureAccount(
+          {
+            type: "LIABILITY",
+            ownerType: "PARTNER",
+            ownerId: partnerUserId,
+          },
+          tx,
+        );
+
+        if (partnerNet > 0n) {
+          lines.push({
+            accountId: payable.id,
+            amount: partnerNet,
+            direction: "CREDIT",
+          });
+        }
+        if (platformTotal > 0n) {
+          lines.push({
+            accountId: revenue.id,
+            amount: platformTotal,
+            direction: "CREDIT",
+          });
+        }
       }
 
       assertBalanced(lines);
@@ -184,42 +210,12 @@ export class LedgerService {
         return { alreadyExisted: false, transactionId: created.id };
       }
 
-      const commissionRefund =
-        (input.originalCommissionTiyin * BigInt(input.refundPercent)) / 100n;
-      const partnerClawback = input.refundTiyin - commissionRefund;
-
       const clearing = await ledgerRepository.ensureAccount(
         { type: "ASSET", ownerType: "PLATFORM", ownerId: "" },
         tx,
       );
       const revenue = await ledgerRepository.ensureAccount(
         { type: "REVENUE", ownerType: "PLATFORM", ownerId: "" },
-        tx,
-      );
-
-      let partnerOwnerType = "PARTNER";
-      let partnerOwnerId = input.partnerUserId ?? "";
-      if (!input.partnerUserId) {
-        if (!input.allowUnattributed) {
-          throw new MissingPartnerError(
-            "Partner required for refund ledger post (set allowUnattributed for UNATTRIBUTED)",
-          );
-        }
-        partnerOwnerType = UNATTRIBUTED_OWNER.ownerType;
-        partnerOwnerId = UNATTRIBUTED_OWNER.ownerId;
-        console.error("ALERT ledger_refund_unattributed", {
-          bookingId: input.bookingId,
-          idempotencyKey: input.idempotencyKey,
-          refundTiyin: input.refundTiyin.toString(),
-        });
-      }
-
-      const payable = await ledgerRepository.ensureAccount(
-        {
-          type: "LIABILITY",
-          ownerType: partnerOwnerType,
-          ownerId: partnerOwnerId,
-        },
         tx,
       );
 
@@ -231,19 +227,57 @@ export class LedgerService {
         { accountId: clearing.id, amount: input.refundTiyin, direction: "CREDIT" },
       ];
 
-      if (partnerClawback > 0n) {
-        lines.push({
-          accountId: payable.id,
-          amount: partnerClawback,
-          direction: "DEBIT",
-        });
-      }
-      if (commissionRefund > 0n) {
+      if (input.payoutOwnerType === "PLATFORM") {
         lines.push({
           accountId: revenue.id,
-          amount: commissionRefund,
+          amount: input.refundTiyin,
           direction: "DEBIT",
         });
+      } else {
+        const commissionRefund =
+          (input.originalCommissionTiyin * BigInt(input.refundPercent)) / 100n;
+        const partnerClawback = input.refundTiyin - commissionRefund;
+
+        let partnerOwnerType = "PARTNER";
+        let partnerOwnerId = input.partnerUserId ?? "";
+        if (!input.partnerUserId) {
+          if (!input.allowUnattributed) {
+            throw new MissingPartnerError(
+              "Partner required for refund ledger post (set allowUnattributed for UNATTRIBUTED)",
+            );
+          }
+          partnerOwnerType = UNATTRIBUTED_OWNER.ownerType;
+          partnerOwnerId = UNATTRIBUTED_OWNER.ownerId;
+          console.error("ALERT ledger_refund_unattributed", {
+            bookingId: input.bookingId,
+            idempotencyKey: input.idempotencyKey,
+            refundTiyin: input.refundTiyin.toString(),
+          });
+        }
+
+        const payable = await ledgerRepository.ensureAccount(
+          {
+            type: "LIABILITY",
+            ownerType: partnerOwnerType,
+            ownerId: partnerOwnerId,
+          },
+          tx,
+        );
+
+        if (partnerClawback > 0n) {
+          lines.push({
+            accountId: payable.id,
+            amount: partnerClawback,
+            direction: "DEBIT",
+          });
+        }
+        if (commissionRefund > 0n) {
+          lines.push({
+            accountId: revenue.id,
+            amount: commissionRefund,
+            direction: "DEBIT",
+          });
+        }
       }
 
       assertBalanced(lines);

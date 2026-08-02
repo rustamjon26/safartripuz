@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { calcCommission, calcCommissionTiyin } from "@/lib/getCommissionRates";
+import {
+  asRatePercent,
+  calcCommission,
+  calcCommissionTiyin,
+  calcCommissionTiyinFromBps,
+  ratePercentToBps,
+} from "@/lib/getCommissionRates";
 import {
   calcPlatformCommissionTiyin,
   splitBookingCommission,
@@ -50,3 +56,43 @@ describe("splitBookingCommission", () => {
     expect(r.partnerNet).toBe(900_000n);
   });
 });
+
+describe("integer rate parsing + bps (no float drift)", () => {
+  it("asRatePercent truncates and clamps", () => {
+    expect(asRatePercent(10.9, 10)).toBe(10);
+    expect(asRatePercent("15", 10)).toBe(15);
+    expect(asRatePercent(-1, 10)).toBe(10);
+    expect(asRatePercent(101, 10)).toBe(10);
+  });
+
+  it("bps path is deterministic across repeated runs", () => {
+    const cases: Array<{ gross: bigint; percent: number }> = [
+      { gross: 1n, percent: 10 },
+      { gross: 333n, percent: 10 },
+      { gross: 999_999n, percent: 15 },
+      { gross: 12_345_678n, percent: 10 },
+      { gross: 100_000_000n, percent: 15 },
+    ];
+    for (const c of cases) {
+      const bps = ratePercentToBps(c.percent);
+      const first = calcCommissionTiyinFromBps(c.gross, bps);
+      for (let i = 0; i < 50; i++) {
+        const again = calcCommissionTiyinFromBps(c.gross, bps);
+        expect(again).toEqual(first);
+        expect(again.commissionFee + again.netAmount).toBe(c.gross);
+      }
+    }
+  });
+
+  it("percent floor path also has zero drift", () => {
+    const gross = 12_345_678n;
+    const first = calcCommissionTiyin(gross, 10);
+    for (let i = 0; i < 50; i++) {
+      expect(calcCommissionTiyin(gross, 10)).toEqual(first);
+      expect(calcPlatformCommissionTiyin(gross, 10).platformTotal).toBe(
+        first.commissionFee,
+      );
+    }
+  });
+});
+

@@ -2,6 +2,7 @@ export { ledgerService, LedgerService, MissingPartnerError } from "./service/led
 export type {
   PostBookingPaymentInput,
   PostRefundInput,
+  PayoutOwnerType,
 } from "./service/ledger.service";
 export { assertBalanced, UnbalancedLedgerError } from "./domain/balance";
 export {

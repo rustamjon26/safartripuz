@@ -2,13 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { logBookingStatus } from "@/lib/homestay/logBookingStatus";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
-import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
 import {
+  bookingService,
   canGuestCancelStatus,
-  computeGuestCancelRefund,
-} from "@/src/modules/booking/domain/guest-cancel";
-import { postCancelAccountingInTx } from "@/src/modules/booking";
-import { Money } from "@/src/shared/money";
+} from "@/src/modules/booking";
 import { fail, handleApiError, ok } from "../../host/_utils";
 
 type CancelInput = {
@@ -49,7 +46,8 @@ export async function GET(
     if (!booking) return fail(HOMESTAY_ERRORS.BOOKING_NOT_FOUND, 404);
     const latestPayment = booking.travelPlan?.payments[0] ?? null;
     const pendingPayment =
-      latestPayment && (latestPayment.status === "INITIATED" || latestPayment.status === "PENDING")
+      latestPayment &&
+      (latestPayment.status === "INITIATED" || latestPayment.status === "PENDING")
         ? latestPayment
         : null;
     const paymentUrl = pendingPayment
@@ -81,88 +79,20 @@ export async function PATCH(
 
     const booking = await prisma.homeStayBooking.findFirst({
       where: { id, guestId: actor.id },
-      select: {
-        id: true,
-        listingId: true,
-        checkIn: true,
-        checkOut: true,
-        travelPlanId: true,
-        status: true,
-        cancellationReason: true,
-        totalPrice: true,
-        createdAt: true,
-      },
+      select: { id: true, status: true },
     });
     if (!booking) return fail(HOMESTAY_ERRORS.BOOKING_NOT_FOUND, 404);
     if (!canGuestCancelStatus(booking.status)) {
       return fail("This booking can no longer be cancelled", 400);
     }
 
-    const refund = computeGuestCancelRefund({
-      checkInAt: booking.checkIn,
-      bookedAt: booking.createdAt,
-      grossPaidTiyin: Money.fromSomNumber(Number(booking.totalPrice)).toTiyin(),
-    });
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const next = await tx.homeStayBooking.update({
-        where: { id: booking.id },
-        data: {
-          status: "CANCELLED",
-          cancellationReason: body.cancellationReason ?? "Cancelled by guest",
-        },
-      });
-
-      const listing = await tx.homeStayListing.findUnique({
-        where: { id: booking.listingId },
-        select: { hostId: true },
-      });
-
-      await postCancelAccountingInTx(tx, {
-        bookingType: "HOMESTAY",
+    // Funnel: cancelHomestayWithPolicy → postCancelAccountingInTx (same as hotel cancelWithPolicy).
+    const { booking: updated, refund } =
+      await bookingService.cancelHomestayWithPolicy({
         bookingId: booking.id,
-        partnerUserId: listing?.hostId ?? null,
-        refund,
-        ratePercent: DEFAULT_COMMISSION_RATES.HOMESTAY,
+        actorId: actor.id,
+        cancellationReason: body.cancellationReason ?? "Cancelled by guest",
       });
-
-      const linkedAvailability = await tx.homeStayAvailability.findFirst({
-        where: {
-          OR: [
-            { bookingId: booking.id },
-            {
-              listingId: booking.listingId,
-              startDate: booking.checkIn,
-              endDate: booking.checkOut,
-              reason: "BOOKED",
-            },
-          ],
-        },
-        select: { id: true },
-      });
-      if (linkedAvailability) {
-        await tx.homeStayAvailability.delete({ where: { id: linkedAvailability.id } });
-      }
-
-      if (booking.travelPlanId) {
-        const otherLinkedCount = await tx.homeStayBooking.count({
-          where: {
-            travelPlanId: booking.travelPlanId,
-            id: { not: booking.id },
-            status: { not: "CANCELLED" },
-          },
-        });
-
-        if (otherLinkedCount === 0) {
-          await tx.travelPlan.update({
-            where: { id: booking.travelPlanId },
-            data: { status: "DRAFT" },
-          });
-        }
-      }
-
-      return next;
-    });
 
     await logBookingStatus({
       bookingId: booking.id,

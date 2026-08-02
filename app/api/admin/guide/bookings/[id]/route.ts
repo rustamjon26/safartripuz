@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { GuideBookingStatus } from "@prisma/client";
+import { bookingService } from "@/src/modules/booking";
 import { requireGuideAdmin, unauthorizedResponse } from "../../_utils";
 
 type PatchInput = {
@@ -65,36 +66,54 @@ export async function PATCH(
       if (existing.status !== "DISPUTE") {
         return NextResponse.json({ message: "Booking is not in dispute" }, { status: 400 });
       }
-      const nextStatus: GuideBookingStatus = body.resolution === "RELEASE" ? "COMPLETED" : "CANCELLED";
-      const updated = await prisma.$transaction(async (tx) => {
-        const next = await tx.guideBooking.update({
-          where: { id: existing.id },
-          data: {
-            status: nextStatus,
-            cancellationReason:
-              nextStatus === "CANCELLED" ? (body.note ?? "Resolved by admin") : null,
-            guideNote: body.note ?? existing.guideNote,
-          },
+      if (body.resolution === "RELEASE") {
+        const updated = await prisma.$transaction(async (tx) => {
+          const next = await tx.guideBooking.update({
+            where: { id: existing.id },
+            data: {
+              status: "COMPLETED",
+              guideNote: body.note ?? existing.guideNote,
+            },
+          });
+          await tx.guideBookingLog.create({
+            data: {
+              bookingId: next.id,
+              actorId: actor.id,
+              actorRole: "admin",
+              fromStatus: existing.status,
+              toStatus: "COMPLETED",
+              note: `RELEASE${body.note ? `: ${body.note}` : ""}`,
+            },
+          });
+          return next;
         });
+        return NextResponse.json({ booking: updated }, { status: 200 });
+      }
 
-        await tx.guideBookingLog.create({
-          data: {
-            bookingId: next.id,
-            actorId: actor.id,
-            actorRole: "admin",
-            fromStatus: existing.status,
-            toStatus: nextStatus,
-            note: `${body.resolution}${body.note ? `: ${body.note}` : ""}`,
-          },
-        });
-
-        return next;
+      const { booking: updated } = await bookingService.cancelGuideWithPolicy({
+        bookingId: existing.id,
+        actorId: actor.id,
+        actorRole: "admin",
+        cancelledBy: "SYSTEM",
+        cancellationReason: body.note ?? "Resolved by admin",
+        note: body.note ?? null,
       });
-
       return NextResponse.json({ booking: updated }, { status: 200 });
     }
 
     if (!body.status) return NextResponse.json({ message: "status is required" }, { status: 400 });
+
+    if (body.status === "CANCELLED") {
+      const { booking: updated } = await bookingService.cancelGuideWithPolicy({
+        bookingId: existing.id,
+        actorId: actor.id,
+        actorRole: "admin",
+        cancelledBy: "SYSTEM",
+        cancellationReason: body.reason ?? "Cancelled by admin",
+        note: body.reason ?? null,
+      });
+      return NextResponse.json({ booking: updated }, { status: 200 });
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.guideBooking.update({

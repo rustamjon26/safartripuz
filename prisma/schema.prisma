@@ -139,6 +139,13 @@ enum PartnerEarningType {
   TAXI
 }
 
+/// Who receives net payout for inventory / a booking.
+/// PLATFORM = company-operated (no PartnerEarning); PARTNER = dual-write PE + payable.
+enum PayoutOwnerType {
+  PLATFORM
+  PARTNER
+}
+
 enum PartnerEarningStatus {
   PENDING
   PAID
@@ -362,6 +369,8 @@ model GuideListing {
   partner          Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   hostId           String
   host             User               @relation("GuideHost", fields: [hostId], references: [id], onDelete: Cascade)
+  /// PLATFORM = company-operated listing (no PartnerEarning on payment).
+  ownerType        PayoutOwnerType    @default(PARTNER)
   title            String
   description      String
   meetingPoint     String?
@@ -454,6 +463,8 @@ model GuideBooking {
   cancellationReason String?
   guestNote          String?
   guideNote          String?
+  /// Stamped from GuideListing.ownerType at successful payment.
+  payoutOwnerType    PayoutOwnerType          @default(PARTNER)
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
 
@@ -503,20 +514,22 @@ model GuideReview {
 }
 
 model Hotel {
-  id           String      @id @default(cuid())
-  partnerId    String      @unique
-  partner      Partner     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  status       HotelStatus @default(draft)
+  id           String          @id @default(cuid())
+  partnerId    String          @unique
+  partner      Partner         @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  /// PLATFORM = company-operated inventory (no PartnerEarning on payment).
+  ownerType    PayoutOwnerType @default(PARTNER)
+  status       HotelStatus     @default(draft)
   name         String
-  totalRooms   Int         @default(20)
+  totalRooms   Int             @default(20)
   city         String?
   address      String?
   latitude     Float?
   longitude    Float?
   contactEmail String?
   contactPhone String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   bookings            HotelBooking[]
   paymeBookings       Booking[]           @relation("PaymeBookings")
@@ -563,6 +576,8 @@ model HotelBooking {
   /// Snapshot of cancellation policy at book time.
   cancellationPolicyId String?
   cancellationPolicy   CancellationPolicy? @relation(fields: [cancellationPolicyId], references: [id], onDelete: SetNull)
+  /// Stamped from Hotel.ownerType at successful payment (payout routing).
+  payoutOwnerType      PayoutOwnerType         @default(PARTNER)
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   roomAssignments      BookingRoomAssignment[]
@@ -577,6 +592,7 @@ model HotelBooking {
   @@index([guestId])
   @@index([status, holdExpiresAt])
   @@index([cancellationPolicyId])
+  @@index([payoutOwnerType])
 }
 
 /// Audit trail for HotelBooking status transitions (immutable append-only).
@@ -1154,6 +1170,8 @@ model HomeStayListing {
   host             User                  @relation(fields: [hostId], references: [id], onDelete: Cascade)
   partnerId        String?
   partner          HomeSayPartner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  /// PLATFORM = company-operated listing (no PartnerEarning on payment).
+  ownerType        PayoutOwnerType       @default(PARTNER)
   title            String
   description      String
   address          String
@@ -1221,6 +1239,8 @@ model HomeStayBooking {
   cancellationReason String?
   guestNote          String?
   hostNote           String?
+  /// Stamped from HomeStayListing.ownerType at successful payment.
+  payoutOwnerType    PayoutOwnerType       @default(PARTNER)
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -1252,15 +1272,17 @@ model HomeStayBookingLog {
 }
 
 model Booking {
-  id           String    @id @default(cuid())
-  userId       String
-  hotelId      String
-  amount       Int
-  status       String    @default("PENDING")
-  checkInDate  DateTime?
-  checkOutDate DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id              String          @id @default(cuid())
+  userId          String
+  hotelId         String
+  amount          Int
+  status          String          @default("PENDING")
+  checkInDate     DateTime?
+  checkOutDate    DateTime?
+  /// Stamped from Hotel.ownerType at Payme perform (legacy path).
+  payoutOwnerType PayoutOwnerType @default(PARTNER)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   user             User              @relation("PaymeBookings", fields: [userId], references: [id], onDelete: Cascade)
   hotel            Hotel             @relation("PaymeBookings", fields: [hotelId], references: [id], onDelete: Cascade)
@@ -1268,6 +1290,7 @@ model Booking {
 
   @@index([userId, status])
   @@index([hotelId, status])
+  @@index([payoutOwnerType])
 }
 
 model PaymeTransaction {
