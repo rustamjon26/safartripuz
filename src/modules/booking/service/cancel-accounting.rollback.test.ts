@@ -2,19 +2,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
 
 const postRefundCompensation = vi.hoisted(() =>
-  vi.fn(async () => ({ alreadyExisted: false, transactionId: "ltx1" })),
+  vi.fn(
+    async (_input: unknown, _tx?: unknown) => ({
+      alreadyExisted: false,
+      transactionId: "ltx1",
+    }),
+  ),
 );
 
 const reversePartnerEarningInTx = vi.hoisted(() =>
-  vi.fn(async () => {
-    throw new Error("reverse boom");
-  }),
+  vi.fn(
+    async (
+      _tx: unknown,
+      _bookingType: unknown,
+      _bookingId: unknown,
+      _refundPercent: unknown,
+    ) => {
+      throw new Error("reverse boom");
+    },
+  ),
 );
 
 vi.mock("@/src/modules/ledger", () => ({
   ledgerService: {
-    postRefundCompensation: (...args: unknown[]) =>
-      postRefundCompensation(...args),
+    postRefundCompensation,
   },
   calcPlatformCommissionTiyin: (gross: bigint, rate: number) => {
     const platformTotal = (gross * BigInt(rate)) / 100n;
@@ -23,8 +34,7 @@ vi.mock("@/src/modules/ledger", () => ({
 }));
 
 vi.mock("./partner-earning", () => ({
-  reversePartnerEarningInTx: (...args: unknown[]) =>
-    reversePartnerEarningInTx(...args),
+  reversePartnerEarningInTx,
 }));
 
 import { postCancelAccountingInTx } from "./cancel-accounting";
@@ -48,6 +58,7 @@ describe("postCancelAccountingInTx atomic failure", () => {
       retainedTiyin: 0n,
       matchedRuleId: "r1",
       hoursBeforeCheckIn: 48,
+      hoursSinceBooking: 24,
     };
 
     await expect(
@@ -85,6 +96,7 @@ describe("postCancelAccountingInTx atomic failure", () => {
           retainedTiyin: 500_000n,
           matchedRuleId: null,
           hoursBeforeCheckIn: 12,
+          hoursSinceBooking: 6,
         },
         ratePercent: 10,
       }),

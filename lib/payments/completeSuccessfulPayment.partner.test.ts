@@ -6,7 +6,9 @@ import { MissingPartnerError } from "@/src/modules/ledger";
 
 describe("createPartnerEarningIfMissing (payment completion split)", () => {
   it("writes partner net from tiyin commission (not 100% platform)", async () => {
-    const create = vi.fn(async () => ({ id: "pe1" }));
+    const create = vi.fn(
+      async (_args: { data: Record<string, unknown> }) => ({ id: "pe1" }),
+    );
     const findUnique = vi.fn(async () => null);
     const tx = {
       partnerEarning: { findUnique, create },
@@ -22,20 +24,15 @@ describe("createPartnerEarningIfMissing (payment completion split)", () => {
     });
 
     expect(create).toHaveBeenCalledTimes(1);
-    const data = create.mock.calls[0]?.[0]?.data as {
-      partnerId: string;
-      grossAmount: number;
-      commissionFee: number;
-      netAmount: number;
-      commissionRate: number;
-    };
-    expect(data.partnerId).toBe("partner_user_1");
-    expect(data.commissionRate).toBe(10);
-    expect(data.grossAmount).toBe(Money.fromTiyin(grossTiyin).toSomNumber());
+    const data = create.mock.calls[0]?.[0]?.data;
+    expect(data).toBeDefined();
+    expect(data?.partnerId).toBe("partner_user_1");
+    expect(data?.commissionRate).toBe(10);
+    expect(data?.grossAmount).toBe(Money.fromTiyin(grossTiyin).toSomNumber());
     // 10% of 1_000_000 tiyin = 100_000 tiyin fee → 1000 som; net 9000 som
-    expect(data.commissionFee).toBe(Money.fromTiyin(100_000n).toSomNumber());
-    expect(data.netAmount).toBe(Money.fromTiyin(900_000n).toSomNumber());
-    expect(data.netAmount).toBeLessThan(data.grossAmount);
+    expect(data?.commissionFee).toBe(Money.fromTiyin(100_000n).toSomNumber());
+    expect(data?.netAmount).toBe(Money.fromTiyin(900_000n).toSomNumber());
+    expect(Number(data?.netAmount)).toBeLessThan(Number(data?.grossAmount));
   });
 
   it("is idempotent when earning already exists", async () => {
