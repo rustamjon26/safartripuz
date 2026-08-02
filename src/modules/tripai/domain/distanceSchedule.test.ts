@@ -168,6 +168,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates,
@@ -220,6 +221,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates,
@@ -279,6 +281,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 1,
       candidates,
@@ -328,6 +331,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 1,
       candidates,
@@ -396,6 +400,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 3,
       candidates,

@@ -51,6 +51,7 @@ describe("scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Test",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates: [
@@ -94,6 +95,7 @@ describe("scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Zomin",
+      regionCode: "zomin",
       startDate: new Date(2026, 6, 27),
       dayCount: 3,
       candidates: [
@@ -124,6 +126,7 @@ describe("scheduleDays", () => {
   it("returns days with NO_DATA slots when candidates are empty (does not throw)", () => {
     const result = scheduleDays({
       regionDisplay: "Empty",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates: [],
@@ -151,6 +154,7 @@ describe("scheduleDays", () => {
   it("6 sites / 3 days: even [2,2,2], no repeats, coverage not full", () => {
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 3,
       candidates: sixSites(),
@@ -182,6 +186,7 @@ describe("scheduleDays", () => {
   it("6 sites / 2 days: all slots filled, no repeats, coverage full", () => {
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates: sixSites(),

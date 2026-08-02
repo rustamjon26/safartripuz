@@ -93,6 +93,7 @@ describe("prominence-aware schedule", () => {
     const ordered = sortByProminence(candidates);
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 7, 3),
       dayCount: 3,
       candidates: ordered,

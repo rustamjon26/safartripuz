@@ -19,6 +19,10 @@ Deployed `main` @ `a6d1fe1`. Migrations applied: `add_ledger_booking_type`, `add
 
 Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqsaroy → Hazrati Xizr instead of nearer Ruxobod.
 
+### Region-aware `MAX_INTRA_DAY_LEG_KM` — landed (this PR)
+
+`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Samarqand locked at 12; Buxoro/Xiva PROPOSED.
+
 ## Planner (open)
 
 ### Far / day-trip sites never get a day-start
@@ -34,7 +38,8 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- **`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`** (first job when Buxoro/Xiva go live; Tashkent spread ~25 km) — **next candidate**.
+- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); `samarqand: 12` locked; **`buxoro: 7` / `xiva: 3` PROPOSED** (await Rustam confirm); unmapped → 12 + `console.warn`. Still open: `toshkent` (~25 km spread) explicit entry.
+- Confirm PROPOSED `buxoro` / `xiva` leg budgets before treating as final.
 
 ## Knowledge / catalog
 
@@ -44,14 +49,14 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ## Ops
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
-- **CI build gate / restore-test verify** — scripts exist; cron + verified restore still ops (next ops candidate alongside regionCode).
+- **CI build gate / restore-test verify** — scripts exist; cron + verified restore still ops — **next candidate**.
 - ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh` (always `pm2 restart` all three; previously `reload` on stopped outbox was swallowed).
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
 - Post-deploy smoke (human, Contabo — after outbox catch-up CPU drops):  
   `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`  
   Empty grep = good. Brief ~100%+ CPU right after restart is backlog drain, not a hang.
 
-## Next pick (choose one)
+## Next pick
 
-1. **Planner (recommended if product):** `MAX_INTRA_DAY_LEG_KM` → map by `regionCode` — unlocks Buxoro/Xiva / Tashkent spread; pairs with day-trip day-start work.
-2. **Ops (recommended if hardening):** verified `restore-test.sh` + cron / CI build gate — scripts exist; still not verified end-to-end on Contabo.
+1. **Ops:** verified `restore-test.sh` + cron / CI build gate.
+2. **Planner:** day-trip day-start reservation + confirm PROPOSED `buxoro`/`xiva` km; optional `toshkent` map entry.

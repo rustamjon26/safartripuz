@@ -84,6 +84,7 @@ export class PlannerService {
       })),
       startDate,
       dayCount,
+      regionCode,
       regionDisplay: display,
     });
     missing.push(...schedule.missing);

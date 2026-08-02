@@ -62,6 +62,7 @@ function siyobChainCandidates(): Ranked[] {
 function placedIds(startDate: Date, dayCount: number): string[] {
   const result = scheduleDays({
     regionDisplay: "Samarqand",
+    regionCode: "samarqand",
     startDate,
     dayCount,
     candidates: siyobChainCandidates(),
