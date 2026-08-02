@@ -46,19 +46,19 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 - Three unresolved restaurants need Maps links: Plov Centre, Bibi-Xonim, Lyabi-Hauz.
 - Restaurant + `BOSHQA` publish policy — manual decision for now.
 
-## Ops
+## Ops — still OPEN (do not mark closed yet)
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
-- ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build restored since `981116c` (2026-07-30). Real gap: **`main` branch protection is OFF** (`protected: false`) — Rustam must require check **`test`** in GitHub UI (see `docs/DEPLOY.md`). Lint still intentionally out of CI (await OK to re-add).
-- ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 after manual fresh backup (`safartrip-2026-08-02.sql.gz`, age_hours=0, scratch==prod @ DUMP_TS). WARNs: bookings/ledger/earnings COUNT=0 (tables present, empty as-of — expected if no money rows yet).
-- ~~Cron gap (silent backups)~~ — root cause: mode **0644** → cron `Permission denied`. Contabo fixed 2026-08-02 (`chmod +x` + cron `/bin/bash` wrap; smoke backup OK). Repo 0755 + cron.example in PR #22 — merge so next `git pull` keeps +x.
-- ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh` (always `pm2 restart` all three; previously `reload` on stopped outbox was swallowed).
+- ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build gate in workflow since `981116c`. Job check name: **`test`**. Lint still intentionally out (still red locally).
+- **Branch protection / required `test` — BLOCKED on GitHub Free private repos.** UI + admin `gh` both return *Upgrade to GitHub Pro or make this repository public* (HTTP 403). Not a token/agent issue. Unblock via **(a) GitHub Pro** or **(b) make repo public**, then require check **`test`**. Until then merges are not gated.
+- ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 (manual fresh dump, age_hours=0, scratch==prod).
+- Cron `+x` / bash-wrap **applied on Contabo** 2026-08-02 11:58; manual `[backup] OK` + off-site OK. **Nightly 02:15 still unproven** — log/journal only show pre-fix `Permission denied` / FAILED through 2026-08-02 02:15. Await next 02:15 `[backup] OK` before closing this item.
+- ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh`.
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
-- Post-deploy smoke (human, Contabo — after outbox catch-up CPU drops):  
-  `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`  
-  Empty grep = good. Brief ~100%+ CPU right after restart is backlog drain, not a hang.
+- Post-deploy smoke (human, Contabo):  
+  `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`
 
 ## Next pick
 
-1. **Ops (human):** enable branch protection required check `test`; merge PR #22 (script +x + docs).
+1. **Ops (still open):** (i) GitHub Pro **or** public → require check `test`; (ii) confirm one successful nightly `[backup] OK` after 02:15.
 2. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
