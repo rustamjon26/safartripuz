@@ -38,8 +38,7 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); `samarqand: 12` locked; **`buxoro: 7` / `xiva: 3` PROPOSED** (await Rustam confirm); unmapped → 12 + `console.warn`. Still open: `toshkent` (~25 km spread) explicit entry.
-- Confirm PROPOSED `buxoro` / `xiva` leg budgets before treating as final.
+- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); `samarqand: 12` locked; **`xiva: 3` CONFIRMED**; **`buxoro: 7` still PROPOSED** (Chor-Bakr haversine knife-edge — early 4.3 km was ad-hoc coords, not Site rows; Wikipedia Chor-Bakr ↔ Ark/Kalyan ≈ 6.6–7.6 km → consider 8). Unmapped → 12 + `console.warn`. Still open: `toshkent` explicit entry.
 
 ## Knowledge / catalog
 

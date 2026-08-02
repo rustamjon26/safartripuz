@@ -53,7 +53,7 @@ describe("getMaxIntraDayLegKm", () => {
     expect(getMaxIntraDayLegKm("Samarqand")).toBe(12);
   });
 
-  it("returns proposed buxoro / xiva values (distinct from samarqand)", () => {
+  it("returns buxoro (proposed) / xiva (confirmed) values distinct from samarqand", () => {
     expect(getMaxIntraDayLegKm("buxoro")).toBe(7);
     expect(getMaxIntraDayLegKm("xiva")).toBe(3);
     expect(getMaxIntraDayLegKm("buxoro")).not.toBe(getMaxIntraDayLegKm("samarqand"));

@@ -28,26 +28,23 @@ const MAX_INTRA_DAY_LEG_KM_BY_REGION: Readonly<Record<string, number>> = {
   /**
    * PROPOSED — needs Rustam's confirmation before treating as final.
    *
-   * Basis (haversine from Po-i-Kalyan ≈ 39.776°N 64.415°E):
-   * - UNESCO historic core (Ark / Lyabi-Hauz / Samanid): ≤ ~1.3 km
-   * - Chor-Bakr necropolis: ~4.3 km (include as same-day city circuit)
-   * - Bahoutdin Naqshband (Kasri Orifon): ~14.3 km (exclude as day-trip,
-   *   analogous to Imom vs Samarqand)
-   *
-   * 7 km = Chor-Bakr + ~2.5 km operational margin; still well below Naqshband.
+   * ⚠ The earlier ~4.3 km Chor-Bakr figure was **not** from Site rows (repo has
+   * no published `buxoro` Sites yet). It came from an ad-hoc session pair:
+   *   "center"  ≈ 39.77556°N 64.41500°E  (hand-picked Po-i-Kalyan-ish)
+   *   "chor"    ≈ 39.8058°N  64.3833°E   (hand-picked — too far NE / wrong)
+   * That under-shot open sources. Better public anchors:
+   *   Chor-Bakr (Wikipedia): 39.77444°N 64.33444°E (39°46′28″N 64°20′4″E)
+   *   → Ark ≈39.7775°N 64.4110°E : ~6.55 km
+   *   → Kalyan ≈39.7756°N 64.4229°E : ~7.56 km
+   * So 7 km is a knife-edge vs real Chor-Bakr; 8 km is the safer include.
+   * Naqshband (~10–14 km) stays out at either 7 or 8.
    */
   buxoro: 7,
 
   /**
-   * PROPOSED — needs Rustam's confirmation before treating as final.
-   *
-   * Basis (Ichan-Kala tourist footprint):
-   * - Walled Ichan-Kala west–east span: ~0.6 km
-   * - Nurullabay / near Dishan-Kala fringes: ~0.7–1.4 km from Ichan centre
-   * - Entire walkable tourist Khiva diameter: roughly ≤ 2 km
-   *
-   * 3 km covers the published oasis-town core with margin; far larger than
-   * the historic walls but still clearly distinct from Samarqand's 12.
+   * CONFIRMED (Rustam, 2026-08-02): Ichan-Qala walls ~2250 m / ~30 ha →
+   * centre-to-edge ~0.4–0.6 km; Dishan-Qala (~240 ha) → ~1.1–1.4 km radius.
+   * 3 km covers the oasis-town core with margin.
    */
   xiva: 3,
 };
