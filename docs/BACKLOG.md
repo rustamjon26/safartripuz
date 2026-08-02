@@ -50,8 +50,8 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
 - ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build restored since `981116c` (2026-07-30). Real gap: **`main` branch protection is OFF** (`protected: false`) — Rustam must require check **`test`** in GitHub UI (see `docs/DEPLOY.md`). Lint still intentionally out of CI (await OK to re-add).
-- **Contabo `restore-test.sh` end-to-end verify** — 2026-08-02 run: restore/compare path OK (scratch==prod @ DUMP_TS) but **FAIL dump too stale** — latest daily was `safartrip-2026-07-27.sql.gz` (DUMP_TS age 137h > 36h). Counts @ that DUMP_TS were all 0. Next: fresh `backup.sh` (needs `BACKUP_OFFSITE_CMD`) then re-run restore-test; install cron if missing.
-- Confirm cron installed: `/etc/cron.d/safartrip-backup` from `scripts/cron/safartrip-backup.cron.example`.
+- ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 after manual fresh backup (`safartrip-2026-08-02.sql.gz`, age_hours=0, scratch==prod @ DUMP_TS). WARNs: bookings/ledger/earnings COUNT=0 (tables present, empty as-of — expected if no money rows yet).
+- **Cron gap:** `/etc/cron.d/safartrip-backup` exists (installed Jul 27) but no daily dumps until manual run — investigate why cron backup stopped (log + rclone as root).
 - ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh` (always `pm2 restart` all three; previously `reload` on stopped outbox was swallowed).
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
 - Post-deploy smoke (human, Contabo — after outbox catch-up CPU drops):  
@@ -60,5 +60,5 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 ## Next pick
 
-1. **Ops (human):** enable branch protection required check `test` + Contabo `restore-test.sh` PASS.
+1. **Ops (human):** enable branch protection required check `test`; fix why daily backup cron went silent after Jul 27.
 2. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
