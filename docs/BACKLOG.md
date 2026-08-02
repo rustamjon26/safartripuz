@@ -2,22 +2,24 @@
 
 Living list — not a commitment to order. Update when items land or change.
 
-## Planner
+## Done recently
 
-### Same-tier zigzag (name beats distance) — confirmed 2026-07-31
+### P0 accounting refactor (Steps 2–4) — closed 2026-08-02 Contabo
 
-Prod day 3: **Aqsaroy → Hazrati Xizr → Ruxobod** (all `SECONDARY`).
+Deployed `main` @ `a6d1fe1`. Migrations applied: `add_ledger_booking_type`, `add_payout_owner_type` (plus prior `0_init` / `site_prominence`). Post-deploy `reconcile-ledger.ts`: **clean: YES**, all drift counts 0, no POLICY notes.
 
-| Leg | Approx haversine |
-|-----|------------------|
-| Aqsaroy → Ruxobod | ~350 m |
-| Aqsaroy → Hazrati Xizr | ~2 km |
+| Step | What |
+|------|------|
+| 2 | Dual-write PE + ledger; cancel funnel; integer commission; fail-loud partner |
+| 2 follow-up | Explicit `payoutOwnerType` PLATFORM \| PARTNER |
+| 3 | Read-only `reconcile-ledger.ts` |
+| 4 | Hybrid reads (Ledger balances / PE line items) + `LedgerTransaction.bookingType` |
 
-Intended order after Aqsaroy: **Ruxobod** (nearer, same prominence). Actual: **Hazrati Xizr**.
+### Same-tier zigzag (name beats distance) — fixed (PR #15)
 
-**Cause:** `orderCandidatesForSlot` (slots 2+) sorts with `compareByProminence`, which already tie-breaks by **name**. So within a tier, `"Hazrati…".localeCompare("Ruxobod…")` wins and **distance never runs**.
+Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqsaroy → Hazrati Xizr instead of nearer Ruxobod.
 
-**Fix (when scheduled):** sort by `prominenceRank` only, then `distanceKm`, then name — do not reuse `compareByProminence` for intra-day slot 2+.
+## Planner (open)
 
 ### Far / day-trip sites never get a day-start
 
@@ -32,7 +34,7 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- `MAX_INTRA_DAY_LEG_KM` → map by `regionCode` (first job when Buxoro/Xiva go live; Tashkent spread ~25 km).
+- **`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`** (first job when Buxoro/Xiva go live; Tashkent spread ~25 km) — **next candidate**.
 
 ## Knowledge / catalog
 
@@ -42,3 +44,6 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ## Ops
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
+- **CI build gate / restore-test verify** — scripts exist; cron + verified restore still ops (next ops candidate alongside regionCode).
+- After cutover deploys that `pm2 stop all`: reload **all** apps (`safartrip`, `safartrip-outbox`, `safartrip-expire-holds`), not only the web app.
+- `deploy-safe.sh` lint scans `standalone/.next` — consider excluding build output from eslint (slow/OOM risk on 8 GB).
