@@ -53,9 +53,9 @@ Still open (optional follow-ups):
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
 - ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build gate in workflow since `981116c`. Job check name: **`test`**. Lint still intentionally out (still red locally).
-- **Branch protection / required `test` — BLOCKED on GitHub Free private repos.** UI + admin `gh` both return *Upgrade to GitHub Pro or make this repository public* (HTTP 403). Not a token/agent issue. Unblock via **(a) personal GitHub Pro** / **org GitHub Team**, or **(b) make repo public**, then require check **`test`**. Until then merges are not gated.
+- ~~Branch protection / required `test`~~ — **DONE 2026-08-02.** Repo made **public**; ruleset `main` **Active** with required status check **`test`** (integration_id 15368), PR required, non-fast-forward. Verified via `gh api …/rules/branches/main`.
 - ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 (manual fresh dump, age_hours=0, scratch==prod).
-- Cron `+x` / bash-wrap **applied on Contabo** 2026-08-02 11:58; manual `[backup] OK` + off-site OK. **Nightly 02:15 still unproven** — log/journal only show pre-fix `Permission denied` / FAILED through 2026-08-02 02:15. Await next 02:15 `[backup] OK` before closing this item.
+- Cron `+x` / bash-wrap **applied on Contabo** 2026-08-02 11:58; post-fix **manual** `[backup] OK` + off-site OK (15:30 log). **Nightly 02:15 still unproven** — 02-avg 02:15 was pre-fix `FAILED`. Await **03-avg 02:15** `[backup] OK` (no syslog `FAILED`) before closing this item.
 - ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh`.
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
 - Post-deploy smoke (human, Contabo):  
@@ -63,6 +63,6 @@ Still open (optional follow-ups):
 
 ## Next pick
 
-1. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
+1. **Ops (last open):** nightly `[backup] OK` after **2026-08-03 02:15** (manual path already green).
 2. **Knowledge:** dining DRAFT publish policy / `BOSHQA`; Contabo seed for three dining DRAFTs already run (`created=3`).
 3. **Planner:** optional `toshkent` leg-km map entry; optional `Site.isDayTrip` column.
