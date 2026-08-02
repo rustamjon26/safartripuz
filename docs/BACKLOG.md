@@ -60,5 +60,5 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 ## Next pick
 
-1. **Ops (still open):** (i) GitHub Pro **or** public → require check `test`; (ii) confirm one successful nightly `[backup] OK` after 02:15.
+1. **Ops (still open):** (i) personal **GitHub Pro** (owner `rustamjon26` is a User, not an org) **or** public → require check `test`; (ii) confirm one successful nightly `[backup] OK` after 02:15.
 2. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
