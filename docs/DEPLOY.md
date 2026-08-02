@@ -23,15 +23,14 @@ Production host: Contabo VPS, app path `/var/www/safar`, PM2 app name `safartrip
 
 Workflow job name is **`test`** (check run name: `test`). A green Actions run alone does **not** block merges unless this is required.
 
-**Prerequisite (2026-08-02):** private repos on **GitHub Free** cannot use branch protection / rulesets — UI and admin API return *Upgrade to GitHub Pro or make this repository public* (HTTP 403). Options: make the repo **public**, or upgrade — **personal account → GitHub Pro**; **organization → GitHub Team** (orgs have no “Pro”; Team is the minimum). Then:
+**Status (2026-08-02):** repo is **public**; ruleset **`main`** is **Active** with required check **`test`**, PR required, force-push blocked. (Private + Free still cannot use rulesets — Pro or public required.)
 
-1. GitHub → **Settings** → **Branches** → **Branch protection rules** → rule for `main` (create if missing).
+Re-create / edit via **Settings → Rules → Rulesets** (or classic Branches UI):
+
+1. Target branch pattern: `main`; enforcement **Active**.
 2. Enable **Require a pull request before merging** (recommended).
-3. Enable **Require status checks to pass before merging**.
-4. Search/select required check: **`test`** (from workflow `CI`, job `test`). Do **not** rename the job in `.github/workflows/ci.yml` — renames silently unhook this setting.
-5. Save.
-
-Until Pro/public: `main` stays `"protected": false` even with a green CI workflow.
+3. Enable **Require status checks to pass** → add check **`test`** (workflow `CI`, job `test`). Do **not** rename that job in `.github/workflows/ci.yml` — renames silently unhook this setting.
+4. Save.
 
 ```bash
 # Wrong

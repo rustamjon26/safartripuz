@@ -60,6 +60,13 @@ describe("getMaxIntraDayLegKm", () => {
     expect(getMaxIntraDayLegKm("xiva")).not.toBe(getMaxIntraDayLegKm("samarqand"));
   });
 
+  it("maps toshkent explicitly to 12 without unmapped warning", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(getMaxIntraDayLegKm("toshkent")).toBe(12);
+    expect(getMaxIntraDayLegKm("Toshkent")).toBe(12);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("falls back to 12 for unmapped regionCode and warns (does not throw)", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(() => getMaxIntraDayLegKm("andijon")).not.toThrow();

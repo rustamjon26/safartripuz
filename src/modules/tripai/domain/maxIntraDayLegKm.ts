@@ -45,6 +45,13 @@ const MAX_INTRA_DAY_LEG_KM_BY_REGION: Readonly<Record<string, number>> = {
    * 3 km covers the oasis-town core with margin.
    */
   xiva: 3,
+
+  /**
+   * Explicit map entry (was silent fallback → warn). Value equals the locked
+   * default {@link MAX_INTRA_DAY_LEG_KM} (12) until a Tashkent-core span is
+   * measured against real Sites — do not invent a tighter city-specific km.
+   */
+  toshkent: MAX_INTRA_DAY_LEG_KM,
 };
 
 const warnedUnmapped = new Set<string>();

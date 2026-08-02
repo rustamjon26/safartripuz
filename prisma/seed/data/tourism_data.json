@@ -305,13 +305,15 @@
       "category": "RESTORAN",
       "lat": 39.6816035,
       "lng": 66.9846969,
+      "open_hours": "Du-Ju 11:00 - 16:00, Sh 11:00 - 14:30, Ya 11:00 - 13:00",
       "sourceUrl": "https://www.google.com/maps?cid=14268127267228355785",
+      "prominence": "OPTIONAL",
       "dining": {
-        "mealTypes": null,
-        "cuisine": null,
-        "mustTry": null,
-        "priceBand": null,
-        "note": "Verified via Google Maps share https://maps.app.goo.gl/LMBZa9H1bU8mnp1W7 (pilaf restaurant)."
+        "mealTypes": ["tushlik"],
+        "cuisine": ["uzbek"],
+        "mustTry": ["osh"],
+        "priceBand": "orta",
+        "note": "Maps 2026-08-02 (cid=14268127267228355785): pilaf restaurant; hours Du–Ju 11–16, Sh 11–14:30, Ya 11–13 (business-updated); price UZS 50–100k/person → orta; mealTypes from hours (closes afternoon — tushlik only). https://maps.app.goo.gl/LMBZa9H1bU8mnp1W7"
       }
     },
     {
@@ -322,13 +324,15 @@
       "category": "CHAYXONA",
       "lat": 39.6597576,
       "lng": 66.9800775,
+      "open_hours": "11:00 - 23:00",
       "sourceUrl": "https://www.google.com/maps?cid=5531354908977729096",
+      "prominence": "SECONDARY",
       "dining": {
-        "mealTypes": null,
-        "cuisine": null,
+        "mealTypes": ["tushlik", "kechki"],
+        "cuisine": ["uzbek"],
         "mustTry": null,
-        "priceBand": null,
-        "note": "Verified via Google Maps share https://maps.app.goo.gl/dqfW8YHB83iRZYmj6 — not the Bibi-Xonim mosque."
+        "priceBand": "orta",
+        "note": "Maps 2026-08-02 (cid=5531354908977729096): Bibikhanum Teahouse — not the mosque; daily 11:00–23:00; price UZS 50–100k/person → orta. https://maps.app.goo.gl/dqfW8YHB83iRZYmj6"
       }
     },
     {
@@ -345,7 +349,7 @@
         "cuisine": null,
         "mustTry": null,
         "priceBand": null,
-        "note": "Verified via Google Maps share https://maps.app.goo.gl/JMBbUS2H1biqJfJe6 (Bukhara; Google types as hotel — dining venue at Lyabi-Hauz). Not the UNESCO square pin, not the Tashkent namesake."
+        "note": "Maps 2026-08-02 (cid=16248639576405358982): listed as Lyabi House Hotel (3★) — check-in/out only, no restaurant opening hours. Amenity text mentions breakfast/restaurant but no weekly hours → leave DRAFT (do not invent). Not UNESCO square pin, not Tashkent namesake. https://maps.app.goo.gl/JMBbUS2H1biqJfJe6"
       }
     }
   ]

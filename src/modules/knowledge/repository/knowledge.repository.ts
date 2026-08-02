@@ -110,6 +110,17 @@ export class KnowledgeRepository {
     });
   }
 
+  async updateSiteStatus(
+    id: string,
+    status: SiteStatus,
+    client: DbClient = prisma,
+  ) {
+    return client.site.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
   async upsertSource(
     data: {
       tier: SourceTier;
