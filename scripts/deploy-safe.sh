@@ -18,8 +18,12 @@ set -euo pipefail
 
 cd /var/www/safar
 
+PM2_APPS=(safartrip safartrip-outbox safartrip-expire-holds)
+
 echo "==> Pulling latest..."
-git pull
+# Fetch only main to avoid unrelated remote-ref permission noise; keep working tree on main.
+git fetch origin main
+git merge --ff-only FETCH_HEAD || git reset --hard origin/main
 
 echo "==> Installing dependencies..."
 npm ci || npm install
@@ -35,17 +39,15 @@ npm run typecheck
 npm run lint
 npm run test:unit
 
-# Tradeoff: stopping PM2 (and optionally MySQL) during build frees RAM on ~8 GB hosts so
-# the Next.js webpack worker can finish. Cost: the site is DOWN for the whole build
-# window (and DB is briefly unavailable if MySQL is stopped). On a fresh Contabo box
-# that has never served traffic successfully, that cost is acceptable; on a busy
-# production host, prefer a larger machine or a blue/green build directory instead.
-echo "==> Stopping PM2 apps to free RAM for build..."
-pm2 stop all || true
-
+# Tradeoff: stopping the Next.js app (and optionally MySQL + workers) during build
+# frees RAM on ~8 GB hosts. Cost: site DOWN for the build window.
 STOP_MYSQL_FOR_BUILD="${STOP_MYSQL_FOR_BUILD:-1}"
 MYSQL_WAS_STOPPED=0
+
 if [[ "$STOP_MYSQL_FOR_BUILD" == "1" ]]; then
+  # MySQL down → workers will fail; stop the full PM2 set.
+  echo "==> Stopping all PM2 apps (MySQL will stop for build)..."
+  pm2 stop all || true
   if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet mysql 2>/dev/null; then
     echo "==> Stopping MySQL for build (set STOP_MYSQL_FOR_BUILD=0 to skip)..."
     systemctl stop mysql
@@ -55,6 +57,10 @@ if [[ "$STOP_MYSQL_FOR_BUILD" == "1" ]]; then
     systemctl stop mysqld
     MYSQL_WAS_STOPPED=1
   fi
+else
+  # Keep outbox + expire-holds running; only free RAM from the Next.js process.
+  echo "==> Stopping PM2 app safartrip only (workers stay up; STOP_MYSQL_FOR_BUILD=0)..."
+  pm2 stop safartrip || true
 fi
 
 # ~8 GB VPS: do NOT request 8192 MB old-space. V8 treats max-old-space-size as a soft
@@ -81,10 +87,17 @@ if [ -f .env.local ]; then
   cp .env.local ./.next/standalone/.env.local
 fi
 
-echo "==> Reloading PM2 (prefer reload over hard restart)..."
-pm2 reload safartrip --update-env || pm2 restart safartrip --update-env || pm2 start ecosystem.config.js
-# Outbox + expire-holds if present in ecosystem
-pm2 reload safartrip-outbox --update-env 2>/dev/null || true
-pm2 restart safartrip-expire-holds --update-env 2>/dev/null || true
+# Always restart (not reload): reload on a stopped process fails and was previously
+# swallowed for outbox (`|| true`), leaving workers down after deploy.
+echo "==> Restarting PM2 apps: ${PM2_APPS[*]} ..."
+if ! pm2 restart "${PM2_APPS[@]}" --update-env; then
+  echo "==> restart failed — starting from ecosystem.config.js ..."
+  pm2 start ecosystem.config.js
+  pm2 restart "${PM2_APPS[@]}" --update-env
+fi
+pm2 save
+
+echo "==> PM2 status:"
+pm2 status
 
 echo "==> Done (deploy-safe)."
