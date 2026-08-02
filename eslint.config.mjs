@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Production deploy copies of the standalone build (linting these OOMs / hangs on 8 GB).
+    "standalone/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

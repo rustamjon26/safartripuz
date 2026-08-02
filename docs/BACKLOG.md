@@ -45,5 +45,13 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
 - **CI build gate / restore-test verify** — scripts exist; cron + verified restore still ops (next ops candidate alongside regionCode).
-- After cutover deploys that `pm2 stop all`: reload **all** apps (`safartrip`, `safartrip-outbox`, `safartrip-expire-holds`), not only the web app.
-- `deploy-safe.sh` lint scans `standalone/.next` — consider excluding build output from eslint (slow/OOM risk on 8 GB).
+- ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh` (always `pm2 restart` all three; previously `reload` on stopped outbox was swallowed).
+- ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
+- Post-deploy smoke (human, Contabo — after outbox catch-up CPU drops):  
+  `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`  
+  Empty grep = good. Brief ~100%+ CPU right after restart is backlog drain, not a hang.
+
+## Next pick (choose one)
+
+1. **Planner (recommended if product):** `MAX_INTRA_DAY_LEG_KM` → map by `regionCode` — unlocks Buxoro/Xiva / Tashkent spread; pairs with day-trip day-start work.
+2. **Ops (recommended if hardening):** verified `restore-test.sh` + cron / CI build gate — scripts exist; still not verified end-to-end on Contabo.
