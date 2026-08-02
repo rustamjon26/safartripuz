@@ -8,6 +8,11 @@ import type {
 } from "@prisma/client";
 import { deriveClaimLevel } from "../domain/deriveClaimLevel";
 import { normalizePublisherKey } from "../domain/normalizePublisherKey";
+import {
+  evaluatePublishEligibility,
+  formatPublishBlockedMessage,
+  type PublishEligibility,
+} from "../domain/publishPolicy";
 import { knowledgeRepository } from "../repository/knowledge.repository";
 
 export type CreateSiteInput = {
@@ -59,6 +64,75 @@ export class KnowledgeService {
       ...input,
       status: input.status ?? "DRAFT",
     });
+  }
+
+  /**
+   * Assess whether a site may leave DRAFT/REVIEW for PUBLISHED.
+   * Does not write. Seed never calls this.
+   */
+  async assessPublishEligibility(siteId: string): Promise<PublishEligibility> {
+    const site = await knowledgeRepository.findSiteById(siteId);
+    if (!site) {
+      throw new Error(`Site not found: ${siteId}`);
+    }
+    return evaluatePublishEligibility({
+      status: site.status,
+      category: site.category,
+      sourceUrl: site.sourceUrl,
+      lat: site.lat,
+      lng: site.lng,
+      openingHours: site.openingHours,
+      dining: site.dining,
+      prominence: site.prominence,
+    });
+  }
+
+  /**
+   * Human/ops publish gate. Seed never calls this.
+   *
+   * Dining (RESTORAN/CHAYXONA/KAFE): planner-grade diningJson + usable hours.
+   * Non-dining incl. BOSHQA: same base gates; dining JSON must be null —
+   * no auto-publish shortcut for the catch-all category.
+   */
+  async publishSite(siteId: string): Promise<{
+    site: NonNullable<Awaited<ReturnType<typeof knowledgeRepository.findSiteById>>>;
+    eligibility: PublishEligibility;
+  }> {
+    const site = await knowledgeRepository.findSiteById(siteId);
+    if (!site) {
+      throw new Error(`Site not found: ${siteId}`);
+    }
+
+    if (site.status === "PUBLISHED") {
+      return {
+        site,
+        eligibility: { ok: false, reasons: ["already_published"] },
+      };
+    }
+
+    const eligibility = evaluatePublishEligibility({
+      status: site.status,
+      category: site.category,
+      sourceUrl: site.sourceUrl,
+      lat: site.lat,
+      lng: site.lng,
+      openingHours: site.openingHours,
+      dining: site.dining,
+      prominence: site.prominence,
+    });
+
+    if (!eligibility.ok) {
+      throw new Error(formatPublishBlockedMessage(site.slug, eligibility.reasons));
+    }
+
+    const updated = await knowledgeRepository.updateSiteStatus(
+      siteId,
+      "PUBLISHED",
+    );
+    return {
+      site: { ...site, ...updated, status: "PUBLISHED" },
+      eligibility,
+    };
   }
 
   async createClaim(input: {

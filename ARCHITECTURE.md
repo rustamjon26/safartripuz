@@ -154,6 +154,7 @@ Also: `ClaimPosition` (disputes), `AccuracyReport` (intake; `guideUserId` not li
 - Independence for `TASDIQLANGAN`: **≥ 2 distinct `Source.publisherKey`** at `A_RASMIY` (normalize via `normalizePublisherKey`), not ClaimSource row count.
 - `NIZOLI`: keep **all** positions; never pick a winner in UI or API.
 - Seed / import: status **`DRAFT`** until sources are attached — never bulk-`PUBLISHED` from `tourism_data.json`.
+- Publish gate (`evaluatePublishEligibility` / `knowledgeService.publishSite`): every category needs non-empty `sourceUrl`, finite lat/lng, usable `openingHours.weekly`, and explicit `prominence`. Dining (`RESTORAN`/`CHAYXONA`/`KAFE`) also needs planner-grade `dining` (`priceBand` + non-empty `mealTypes`). **`BOSHQA`** has no shortcut — same base gates; dining JSON must be absent.
 - `AccuracyReport.upheld`: `null` unreviewed, `true` upheld, `false` rejected — transparency pages show received vs upheld separately.
 - Opening hours: machine-readable JSON only (`isOpenAt` / `nextOpenSlot`); never free-text hours.
 

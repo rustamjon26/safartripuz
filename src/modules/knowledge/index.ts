@@ -32,6 +32,18 @@ export {
   regionCodeFromCity,
 } from "./domain/tourismData";
 export type { TourismSiteInput, TourismDataFile } from "./domain/tourismData";
+export {
+  evaluatePublishEligibility,
+  formatPublishBlockedMessage,
+  hasUsableOpeningHours,
+  isDiningCategory,
+} from "./domain/publishPolicy";
+export type {
+  PublishBlockReason,
+  PublishEligibility,
+  PublishSiteSnapshot,
+  SiteProminenceValue,
+} from "./domain/publishPolicy";
 export type {
   SiteCategory,
   SiteStatus,

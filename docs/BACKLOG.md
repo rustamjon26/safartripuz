@@ -42,12 +42,12 @@ Still open (optional follow-ups):
 ## Knowledge / catalog
 
 - When seeding Bukhara Sites: publish verified lat/lng for a historic-core reference Site (Ark or Kalyan) **and** Chor-Bakr — not the ad-hoc pair once used for the leg-budget estimate.
-- ~~Three unresolved restaurants (Maps links)~~ — resolved 2026-08-02 into `tourism_data.json` as DRAFT rows with Google `cid` `sourceUrl`:
+- ~~Three unresolved restaurants (Maps links)~~ — resolved 2026-08-02 into `tourism_data.json` as DRAFT rows with Google `cid` `sourceUrl`; Contabo seed `created=3`:
   - Plov Centre → `Samarqand Osh Markazi N1` (`cid=14268127267228355785`)
   - Bibi-Xonim → `Bibixonim Choyxona` / Bibikhanum Teahouse (`cid=5531354908977729096`) — not the mosque
   - Lyabi-Hauz → `Lyabi House` Buxoro (`cid=16248639576405358982`) — not UNESCO square / not Tashkent namesake
-  Next: Contabo `npm run seed:knowledge` (end-to-end DRAFT seed).
-- Restaurant + `BOSHQA` publish policy — manual decision for now.
+  Still DRAFT until editorial `open_hours` + planner-grade `dining` (`priceBand` + `mealTypes`) + `prominence` — do not invent; then `knowledgeService.publishSite`.
+- ~~Restaurant + `BOSHQA` publish policy~~ — `evaluatePublishEligibility` / `knowledgeService.publishSite`: dining needs planner-grade `parseDining`; **BOSHQA** same base gates as landmarks, no dining JSON, no auto-publish. Seed still never writes `PUBLISHED`.
 
 ## Ops — still OPEN (do not mark closed yet)
 
@@ -63,6 +63,6 @@ Still open (optional follow-ups):
 
 ## Next pick
 
-1. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
-2. **Knowledge:** dining DRAFT publish policy / `BOSHQA`; Contabo seed for three dining DRAFTs already run (`created=3`).
+1. **Ops (still open):** nightly `[backup] OK` after 02:15 (cron wrap already applied).
+2. **Knowledge:** fill hours / dining / prominence for the three Contabo DRAFT restaurants → re-seed + `publishSite` (do not invent).
 3. **Planner:** optional `toshkent` leg-km map entry; optional `Site.isDayTrip` column.
