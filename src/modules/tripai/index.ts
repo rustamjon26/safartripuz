@@ -11,6 +11,11 @@ export {
   SLOTS_PER_DAY,
   MAX_INTRA_DAY_LEG_KM,
   getMaxIntraDayLegKm,
+  classifyDayTripIds,
+  dayTripStartBudget,
+  isDayTripCandidate,
+  primaryCoreAnchors,
+  reservedDayTripStartIndexes,
 } from "./domain/schedule";
 export {
   prominenceRank,
