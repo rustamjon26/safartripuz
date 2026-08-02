@@ -296,6 +296,57 @@
       "open_hours": "08:00 - 21:00",
       "sourceUrl": "https://www.google.com/maps/place/?q=place_id:ChIJvw8EEjYUTT8R49K9TQsbYt4",
       "prominence": "SECONDARY"
+    },
+    {
+      "name": "Samarqand Osh Markazi N1",
+      "nameEn": "Samarkand Plov Centre N1",
+      "nameRu": "Центр Плова N1",
+      "regionCode": "samarqand",
+      "category": "RESTORAN",
+      "lat": 39.6816035,
+      "lng": 66.9846969,
+      "sourceUrl": "https://www.google.com/maps?cid=14268127267228355785",
+      "dining": {
+        "mealTypes": null,
+        "cuisine": null,
+        "mustTry": null,
+        "priceBand": null,
+        "note": "Verified via Google Maps share https://maps.app.goo.gl/LMBZa9H1bU8mnp1W7 (pilaf restaurant)."
+      }
+    },
+    {
+      "name": "Bibixonim Choyxona",
+      "nameEn": "Bibikhanum Teahouse",
+      "nameRu": "Бибиханум Чайхана",
+      "regionCode": "samarqand",
+      "category": "CHAYXONA",
+      "lat": 39.6597576,
+      "lng": 66.9800775,
+      "sourceUrl": "https://www.google.com/maps?cid=5531354908977729096",
+      "dining": {
+        "mealTypes": null,
+        "cuisine": null,
+        "mustTry": null,
+        "priceBand": null,
+        "note": "Verified via Google Maps share https://maps.app.goo.gl/dqfW8YHB83iRZYmj6 — not the Bibi-Xonim mosque."
+      }
+    },
+    {
+      "name": "Lyabi House",
+      "nameEn": "Lyabi House",
+      "nameRu": "Ляби Хаус",
+      "regionCode": "buxoro",
+      "category": "RESTORAN",
+      "lat": 39.7722694,
+      "lng": 64.4209262,
+      "sourceUrl": "https://www.google.com/maps?cid=16248639576405358982",
+      "dining": {
+        "mealTypes": null,
+        "cuisine": null,
+        "mustTry": null,
+        "priceBand": null,
+        "note": "Verified via Google Maps share https://maps.app.goo.gl/JMBbUS2H1biqJfJe6 (Bukhara; Google types as hotel — dining venue at Lyabi-Hauz). Not the UNESCO square pin, not the Tashkent namesake."
+      }
     }
   ]
 }
