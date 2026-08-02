@@ -43,11 +43,7 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ## Knowledge / catalog
 
 - When seeding Bukhara Sites: publish verified lat/lng for a historic-core reference Site (Ark or Kalyan) **and** Chor-Bakr — not the ad-hoc pair once used for the leg-budget estimate.
-- ~~Three unresolved restaurants (Maps links)~~ — resolved 2026-08-02 into `tourism_data.json` as DRAFT rows with Google `cid` `sourceUrl`:
-  - Plov Centre → `Samarqand Osh Markazi N1` (`cid=14268127267228355785`)
-  - Bibi-Xonim → `Bibixonim Choyxona` / Bibikhanum Teahouse (`cid=5531354908977729096`) — not the mosque
-  - Lyabi-Hauz → `Lyabi House` Buxoro (`cid=16248639576405358982`) — not UNESCO square / not Tashkent namesake
-  Next: Contabo `npm run seed:knowledge` (end-to-end DRAFT seed).
+- ~~Three unresolved restaurants (Maps links)~~ — resolved + Contabo seeded 2026-08-02 @ `01dba4c`: `seed:knowledge` → **created=3 updated=0 unchanged=22** (DRAFT). Rows: `Samarqand Osh Markazi N1`, `Bibixonim Choyxona`, `Lyabi House` (Buxoro).
 - Restaurant + `BOSHQA` publish policy — manual decision for now.
 
 ## Ops — still OPEN (do not mark closed yet)
@@ -64,6 +60,6 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 ## Next pick
 
-1. **Knowledge:** Contabo end-to-end `npm run seed:knowledge` for the three new dining DRAFTs (+ full catalog idempotent re-run).
-2. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
-3. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
+1. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
+2. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
+3. **Knowledge (optional):** publish policy for dining DRAFTs / `BOSHQA` — manual.
