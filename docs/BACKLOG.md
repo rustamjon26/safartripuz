@@ -37,7 +37,7 @@ Still open (optional follow-ups):
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); confirmed `samarqand: 12` / `buxoro: 8` / `xiva: 3`; unmapped → 12 + `console.warn`. Still open: `toshkent` explicit entry.
+- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); confirmed `samarqand: 12` / `buxoro: 8` / `xiva: 3`; `toshkent: 12` explicit (same as default until city-core span measured); other unmapped → 12 + `console.warn`.
 
 ## Knowledge / catalog
 
@@ -65,4 +65,4 @@ Still open (optional follow-ups):
 
 1. **Ops (still open):** nightly `[backup] OK` after 02:15 (cron wrap already applied).
 2. **Knowledge:** fill hours / dining / prominence for the three Contabo DRAFT restaurants → re-seed + `publishSite` (do not invent).
-3. **Planner:** optional `toshkent` leg-km map entry; optional `Site.isDayTrip` column.
+3. **Planner:** optional `Site.isDayTrip` column; whole-day day-trip reservation follow-up.
