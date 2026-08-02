@@ -2,12 +2,14 @@ import type {
   BookingEventActor,
   BookingSource,
   BookingStatus as PrismaBookingStatus,
+  GuideBooking,
+  HomeStayBooking,
   HotelBooking,
   Prisma,
 } from "@prisma/client";
+import { getCommissionRates } from "@/lib/getCommissionRates";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
-import { splitBookingCommission } from "@/src/modules/ledger/domain/commission";
-import { ledgerService } from "@/src/modules/ledger/service/ledger.service";
+import { MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { Money } from "@/src/shared/money";
 import {
@@ -18,6 +20,10 @@ import {
   type BookingStatus,
 } from "../domain/booking.state";
 import {
+  canGuestCancelStatus,
+  computeGuestCancelRefund,
+} from "../domain/guest-cancel";
+import {
   computeRefund,
   DEFAULT_FLEXIBLE_RULES,
   type CancellationRuleSnapshot,
@@ -25,6 +31,8 @@ import {
 } from "../domain/refund";
 import { bookingEventRepository } from "../repository/booking-event.repository";
 import { bookingRepository, type Tx } from "../repository/booking.repository";
+import { postCancelAccountingInTx } from "./cancel-accounting";
+import { reversePartnerEarningInTx } from "./partner-earning";
 
 function asStatus(s: PrismaBookingStatus | string): BookingStatus {
   return s as BookingStatus;
@@ -61,6 +69,29 @@ export type CreateHeldHotelBookingInput = {
 
 export type CancelWithPolicyResult = {
   booking: HotelBooking;
+  refund: RefundBreakdown;
+};
+
+export type CancelHomestayWithPolicyInput = {
+  bookingType: "HOMESTAY";
+  bookingId: string;
+  actorId: string;
+  cancellationReason?: string;
+};
+
+export type CancelGuideWithPolicyInput = {
+  bookingType: "GUIDE";
+  bookingId: string;
+  actorId: string;
+  actorRole: string;
+  /** Schema: GuideBookingCancelledBy = GUIDE | CUSTOMER | SYSTEM */
+  cancelledBy: "CUSTOMER" | "GUIDE" | "SYSTEM";
+  cancellationReason?: string;
+  note?: string | null;
+};
+
+export type CancelNonHotelResult<T> = {
+  booking: T;
   refund: RefundBreakdown;
 };
 
@@ -501,13 +532,12 @@ export class BookingService {
 
       const rules = await this.resolveCancellationRules(locked, tx);
       const fromStatus = asStatus(locked.status);
-      const paidSom = Number(locked.paidAmount);
-      const isPaid =
-        isPaidStatus(fromStatus) || paidSom > 0;
+      const paidSom = Money.fromSomNumber(locked.paidAmount.toString()).toTiyin();
+      const isPaid = isPaidStatus(fromStatus) || paidSom > 0n;
       const grossPaidTiyin = isPaid
-        ? Money.fromSomNumber(
-            paidSom > 0 ? paidSom : Number(locked.totalAmount),
-          ).toTiyin()
+        ? paidSom > 0n
+          ? paidSom
+          : Money.fromSomNumber(locked.totalAmount.toString()).toTiyin()
         : 0n;
 
       const cancelledAt = new Date();
@@ -554,30 +584,214 @@ export class BookingService {
           },
         });
         const partnerUserId = hotel?.partner?.userId ?? null;
-        const { platformTotal } = splitBookingCommission(grossPaidTiyin);
-
-        await ledgerService.postRefundCompensation(
-          {
-            idempotencyKey: `refund:${bookingId}:${refund.refundPercent}`,
-            bookingId,
-            refundTiyin: refund.refundTiyin,
-            refundPercent: refund.refundPercent,
-            originalCommissionTiyin: platformTotal,
-            partnerUserId,
-            allowUnattributed: !partnerUserId,
-          },
-          tx,
-        );
-
-        await this.reversePartnerEarning(
-          tx,
-          "HOTEL",
+        if (!partnerUserId) {
+          throw new MissingPartnerError(
+            `Hotel partner missing for cancel accounting on booking ${bookingId}`,
+          );
+        }
+        const rates = await getCommissionRates(tx);
+        await postCancelAccountingInTx(tx, {
+          bookingType: "HOTEL",
           bookingId,
-          refund.refundPercent,
-        );
+          partnerUserId,
+          refund,
+          ratePercent: rates.HOTEL,
+        });
       }
 
       return { booking, refund };
+    };
+
+    if (outerTx) return run(outerTx);
+    return inventoryService.withSerializableRetry(run);
+  }
+
+  /**
+   * Homestay cancel + inventory release + ledger/PartnerEarning reverse.
+   * Same accounting path as hotel {@link cancelWithPolicy} via postCancelAccountingInTx.
+   */
+  async cancelHomestayWithPolicy(
+    input: Omit<CancelHomestayWithPolicyInput, "bookingType">,
+    outerTx?: Tx,
+  ): Promise<CancelNonHotelResult<HomeStayBooking>> {
+    const run = async (tx: Tx): Promise<CancelNonHotelResult<HomeStayBooking>> => {
+      const booking = await tx.homeStayBooking.findUnique({
+        where: { id: input.bookingId },
+      });
+      if (!booking) {
+        throw new Error(`Homestay booking not found: ${input.bookingId}`);
+      }
+      if (!canGuestCancelStatus(booking.status)) {
+        throw new Error(`Homestay booking cannot be cancelled: ${booking.status}`);
+      }
+
+      const refund = computeGuestCancelRefund({
+        checkInAt: booking.checkIn,
+        bookedAt: booking.createdAt,
+        grossPaidTiyin: Money.fromSomNumber(
+          booking.totalPrice.toString(),
+        ).toTiyin(),
+      });
+
+      const next = await tx.homeStayBooking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CANCELLED",
+          cancellationReason:
+            input.cancellationReason ?? "Cancelled",
+        },
+      });
+
+      const listing = await tx.homeStayListing.findUnique({
+        where: { id: booking.listingId },
+        select: { hostId: true },
+      });
+      if (refund.refundTiyin > 0n && !listing?.hostId) {
+        throw new MissingPartnerError(
+          `Homestay host missing for cancel accounting on booking ${booking.id}`,
+        );
+      }
+
+      const rates = await getCommissionRates(tx);
+      await postCancelAccountingInTx(tx, {
+        bookingType: "HOMESTAY",
+        bookingId: booking.id,
+        partnerUserId: listing?.hostId ?? null,
+        refund,
+        ratePercent: rates.HOMESTAY,
+      });
+
+      const linkedAvailability = await tx.homeStayAvailability.findFirst({
+        where: {
+          OR: [
+            { bookingId: booking.id },
+            {
+              listingId: booking.listingId,
+              startDate: booking.checkIn,
+              endDate: booking.checkOut,
+              reason: "BOOKED",
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      if (linkedAvailability) {
+        await tx.homeStayAvailability.delete({
+          where: { id: linkedAvailability.id },
+        });
+      }
+
+      if (booking.travelPlanId) {
+        const otherLinkedCount = await tx.homeStayBooking.count({
+          where: {
+            travelPlanId: booking.travelPlanId,
+            id: { not: booking.id },
+            status: { not: "CANCELLED" },
+          },
+        });
+        if (otherLinkedCount === 0) {
+          await tx.travelPlan.update({
+            where: { id: booking.travelPlanId },
+            data: { status: "DRAFT" },
+          });
+        }
+      }
+
+      return { booking: next, refund };
+    };
+
+    if (outerTx) return run(outerTx);
+    return inventoryService.withSerializableRetry(run);
+  }
+
+  /**
+   * Guide cancel + slot release + ledger/PartnerEarning reverse.
+   * Same accounting path as hotel {@link cancelWithPolicy} via postCancelAccountingInTx.
+   */
+  async cancelGuideWithPolicy(
+    input: Omit<CancelGuideWithPolicyInput, "bookingType">,
+    outerTx?: Tx,
+  ): Promise<CancelNonHotelResult<GuideBooking>> {
+    const run = async (tx: Tx): Promise<CancelNonHotelResult<GuideBooking>> => {
+      const booking = await tx.guideBooking.findUnique({
+        where: { id: input.bookingId },
+      });
+      if (!booking) {
+        throw new Error(`Guide booking not found: ${input.bookingId}`);
+      }
+      if (!canGuestCancelStatus(booking.status) && booking.status !== "DISPUTE") {
+        throw new Error(`Guide booking cannot be cancelled: ${booking.status}`);
+      }
+
+      const checkInAt = new Date(booking.date);
+      if (booking.startTime) {
+        const [hh, mm] = booking.startTime.split(":").map(Number);
+        if (Number.isFinite(hh)) checkInAt.setHours(hh, mm || 0, 0, 0);
+      }
+
+      const refund = computeGuestCancelRefund({
+        checkInAt,
+        bookedAt: booking.createdAt,
+        grossPaidTiyin: Money.fromSomNumber(
+          booking.totalPrice.toString(),
+        ).toTiyin(),
+      });
+
+      const next = await tx.guideBooking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CANCELLED",
+          cancelledBy: input.cancelledBy,
+          cancellationReason:
+            input.cancellationReason ?? "Cancelled",
+          guideNote: input.note ?? booking.guideNote,
+        },
+      });
+
+      if (refund.refundTiyin > 0n && !booking.guideId) {
+        throw new MissingPartnerError(
+          `Guide id missing for cancel accounting on booking ${booking.id}`,
+        );
+      }
+
+      const rates = await getCommissionRates(tx);
+      await postCancelAccountingInTx(tx, {
+        bookingType: "GUIDE",
+        bookingId: booking.id,
+        partnerUserId: booking.guideId,
+        refund,
+        ratePercent: rates.GUIDE,
+      });
+
+      const linkedBlockedSlot = await tx.guideBlockedSlot.findFirst({
+        where: {
+          listingId: next.listingId,
+          guideId: next.guideId,
+          date: next.date,
+          startTime: next.startTime,
+          endTime: next.endTime,
+          note: `BOOKED:${next.id}`,
+        },
+        select: { id: true },
+      });
+      if (linkedBlockedSlot) {
+        await tx.guideBlockedSlot.delete({
+          where: { id: linkedBlockedSlot.id },
+        });
+      }
+
+      await tx.guideBookingLog.create({
+        data: {
+          bookingId: next.id,
+          actorId: input.actorId,
+          actorRole: input.actorRole,
+          fromStatus: booking.status,
+          toStatus: "CANCELLED",
+          note: next.cancellationReason ?? null,
+        },
+      });
+
+      return { booking: next, refund };
     };
 
     if (outerTx) return run(outerTx);
@@ -627,37 +841,7 @@ export class BookingService {
     bookingId: string,
     refundPercent: number,
   ): Promise<void> {
-    const earning = await tx.partnerEarning.findUnique({
-      where: {
-        bookingType_bookingId: { bookingType, bookingId },
-      },
-    });
-    if (!earning || earning.status === "CANCELLED") return;
-
-    if (refundPercent >= 100) {
-      await tx.partnerEarning.update({
-        where: { id: earning.id },
-        data: { status: "CANCELLED" },
-      });
-      return;
-    }
-
-    const remain = 100 - refundPercent;
-    const gross = Money.fromSomNumber(earning.grossAmount.toString()).toTiyin();
-    const fee = Money.fromSomNumber(earning.commissionFee.toString()).toTiyin();
-    const net = Money.fromSomNumber(earning.netAmount.toString()).toTiyin();
-    const nextGross = (gross * BigInt(remain)) / 100n;
-    const nextFee = (fee * BigInt(remain)) / 100n;
-    const nextNet = (net * BigInt(remain)) / 100n;
-
-    await tx.partnerEarning.update({
-      where: { id: earning.id },
-      data: {
-        grossAmount: Money.fromTiyin(nextGross).toSomNumber(),
-        commissionFee: Money.fromTiyin(nextFee).toSomNumber(),
-        netAmount: Money.fromTiyin(nextNet).toSomNumber(),
-      },
-    });
+    return reversePartnerEarningInTx(tx, bookingType, bookingId, refundPercent);
   }
 
   /**

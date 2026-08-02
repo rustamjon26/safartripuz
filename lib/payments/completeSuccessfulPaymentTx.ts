@@ -387,7 +387,15 @@ export async function completeSuccessfulPaymentInTx(
   return { payment: updatedPayment, plan: updatedPlan };
 }
 
-async function createPartnerEarningIfMissing(
+/** Alias matching Step-2 plan name; same implementation. */
+export const completeSuccessfulPaymentTx = completeSuccessfulPaymentInTx;
+
+/**
+ * Idempotent PartnerEarning create (tiyin → SOM Decimal columns).
+ * Exported for Payme legacy dual-write and unit tests.
+ * Never pass a silent null partner — caller must resolve or throw.
+ */
+export async function createPartnerEarningIfMissing(
   tx: Prisma.TransactionClient,
   opts: {
     partnerId: string;

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { getCommissionRates } from "@/lib/getCommissionRates";
+import { createPartnerEarningIfMissing } from "@/lib/payments/completeSuccessfulPaymentTx";
 import { MissingPartnerError, ledgerService } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
@@ -82,12 +84,25 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
         data: { status: "PAID" },
       });
 
+      const rates = await getCommissionRates(tx);
+      const grossTiyin = BigInt(expired.amount);
+
+      // Dual-write: PartnerEarning + ledger in the same transaction.
+      await createPartnerEarningIfMissing(tx, {
+        partnerId: partnerUserId,
+        bookingType: "HOTEL",
+        bookingId: expired.bookingId,
+        grossTiyin,
+        rate: rates.HOTEL,
+      });
+
       await ledgerService.record(
         {
           idempotencyKey: `payme:${paymeId}`,
           bookingId: expired.bookingId,
-          grossTiyin: BigInt(expired.amount),
+          grossTiyin,
           partnerUserId,
+          ratePercent: rates.HOTEL,
         },
         tx,
       );

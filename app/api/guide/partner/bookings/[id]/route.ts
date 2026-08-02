@@ -1,9 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
-import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
-import { computeGuestCancelRefund } from "@/src/modules/booking/domain/guest-cancel";
-import { postCancelAccountingInTx } from "@/src/modules/booking";
-import { Money } from "@/src/shared/money";
+import { bookingService } from "@/src/modules/booking";
 import { fail, handleApiError, hasActiveListing, ok, onboardingResponse, requireGuidePartner } from "../../_utils";
 import type { GuideBookingStatus } from "@prisma/client";
 
@@ -136,6 +133,20 @@ export async function PATCH(
       if (!finalMeetingPoint) return fail(GUIDE_ERRORS.MEETING_POINT_REQUIRED, 400);
     }
 
+    if (body.status === "CANCELLED") {
+      // Funnel: cancelGuideWithPolicy → postCancelAccountingInTx (same as hotel cancelWithPolicy).
+      await bookingService.cancelGuideWithPolicy({
+        bookingId: booking.id,
+        actorId: actor.id,
+        actorRole: "guide_partner",
+        cancelledBy: "GUIDE",
+        cancellationReason: body.cancellationReason ?? "Guide cancelled",
+        note: body.note ?? null,
+      });
+      const cancelled = await getOwnBooking(actor.id, booking.id);
+      return ok(cancelled);
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.guideBooking.update({
         where: { id: booking.id },
@@ -144,11 +155,6 @@ export async function PATCH(
           meetingPoint:
             booking.status === "PENDING" && body.status === "CONFIRMED"
               ? body.meetingPoint ?? booking.meetingPoint ?? booking.listing.meetingPoint
-              : undefined,
-          cancelledBy: body.status === "CANCELLED" ? "GUIDE" : undefined,
-          cancellationReason:
-            body.status === "CANCELLED"
-              ? body.cancellationReason ?? "Guide cancelled"
               : undefined,
           guideNote: body.note ?? undefined,
         },
@@ -164,21 +170,6 @@ export async function PATCH(
           note: body.note ?? null,
         },
       });
-
-      if (body.status === "CANCELLED") {
-        const refund = computeGuestCancelRefund({
-          checkInAt: new Date(booking.date),
-          bookedAt: booking.createdAt,
-          grossPaidTiyin: Money.fromSomNumber(booking.totalPrice.toString()).toTiyin(),
-        });
-        await postCancelAccountingInTx(tx, {
-          bookingType: "GUIDE",
-          bookingId: booking.id,
-          partnerUserId: booking.guideId,
-          refund,
-          ratePercent: DEFAULT_COMMISSION_RATES.GUIDE,
-        });
-      }
 
       if (body.status === "COMPLETED") {
         await tx.guideListing.update({
