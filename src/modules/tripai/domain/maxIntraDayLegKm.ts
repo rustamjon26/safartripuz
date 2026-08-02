@@ -15,8 +15,8 @@ export const MAX_INTRA_DAY_LEG_KM = 12;
 /**
  * regionCode → max consecutive intra-day leg (km).
  *
- * Values for `buxoro` and `xiva` are **PROPOSED — needs Rustam's confirmation
- * before treating as final**. See comments on each entry for geographic basis.
+ * `samarqand` / `buxoro` / `xiva` are CONFIRMED. See per-entry notes for
+ * geographic basis — do not silently re-tune without re-checking those notes.
  */
 const MAX_INTRA_DAY_LEG_KM_BY_REGION: Readonly<Record<string, number>> = {
   /**
@@ -26,20 +26,18 @@ const MAX_INTRA_DAY_LEG_KM_BY_REGION: Readonly<Record<string, number>> = {
   samarqand: MAX_INTRA_DAY_LEG_KM,
 
   /**
-   * PROPOSED — needs Rustam's confirmation before treating as final.
+   * CONFIRMED (Rustam, 2026-08-02): **8** (not 7).
    *
-   * ⚠ The earlier ~4.3 km Chor-Bakr figure was **not** from Site rows (repo has
-   * no published `buxoro` Sites yet). It came from an ad-hoc session pair:
-   *   "center"  ≈ 39.77556°N 64.41500°E  (hand-picked Po-i-Kalyan-ish)
-   *   "chor"    ≈ 39.8058°N  64.3833°E   (hand-picked — too far NE / wrong)
-   * That under-shot open sources. Better public anchors:
-   *   Chor-Bakr (Wikipedia): 39.77444°N 64.33444°E (39°46′28″N 64°20′4″E)
+   * Why not 7: an earlier draft used an ad-hoc non-Site coordinate pair
+   * (center ≈39.77556°N 64.41500°E; “chor” ≈39.8058°N 64.3833°E — chor was
+   * shifted NE / wrong) that yielded ~4.3 km and suggested 7 with margin.
+   * Against real Chor-Bakr (Wikipedia 39.77444°N 64.33444°E):
    *   → Ark ≈39.7775°N 64.4110°E : ~6.55 km
    *   → Kalyan ≈39.7756°N 64.4229°E : ~7.56 km
-   * So 7 km is a knife-edge vs real Chor-Bakr; 8 km is the safer include.
-   * Naqshband (~10–14 km) stays out at either 7 or 8.
+   * Threshold 7 is a coin-flip vs that span; 8 keeps Chor-Bakr in.
+   * Naqshband (~10–14 km) stays out. Do not drop back to 7 without new coords.
    */
-  buxoro: 7,
+  buxoro: 8,
 
   /**
    * CONFIRMED (Rustam, 2026-08-02): Ichan-Qala walls ~2250 m / ~30 ha →

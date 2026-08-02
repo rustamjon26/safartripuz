@@ -21,7 +21,7 @@ Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqs
 
 ### Region-aware `MAX_INTRA_DAY_LEG_KM` — landed (this PR)
 
-`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Samarqand locked at 12; Buxoro/Xiva PROPOSED.
+`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Confirmed: `samarqand: 12`, `buxoro: 8`, `xiva: 3`.
 
 ## Planner (open)
 
@@ -38,10 +38,11 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); `samarqand: 12` locked; **`xiva: 3` CONFIRMED**; **`buxoro: 7` still PROPOSED** (Chor-Bakr haversine knife-edge — early 4.3 km was ad-hoc coords, not Site rows; Wikipedia Chor-Bakr ↔ Ark/Kalyan ≈ 6.6–7.6 km → consider 8). Unmapped → 12 + `console.warn`. Still open: `toshkent` explicit entry.
+- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); confirmed `samarqand: 12` / `buxoro: 8` / `xiva: 3`; unmapped → 12 + `console.warn`. Still open: `toshkent` explicit entry.
 
 ## Knowledge / catalog
 
+- When seeding Bukhara Sites: publish verified lat/lng for a historic-core reference Site (Ark or Kalyan) **and** Chor-Bakr — not the ad-hoc pair once used for the leg-budget estimate.
 - Three unresolved restaurants need Maps links: Plov Centre, Bibi-Xonim, Lyabi-Hauz.
 - Restaurant + `BOSHQA` publish policy — manual decision for now.
 
@@ -58,4 +59,4 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ## Next pick
 
 1. **Ops:** verified `restore-test.sh` + cron / CI build gate.
-2. **Planner:** day-trip day-start reservation + confirm PROPOSED `buxoro`/`xiva` km; optional `toshkent` map entry.
+2. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
