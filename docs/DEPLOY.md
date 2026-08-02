@@ -19,6 +19,20 @@ Production host: Contabo VPS, app path `/var/www/safar`, PM2 app name `safartrip
 2. You are deploying that exact SHA (`git rev-parse HEAD` matches the CI run).
 3. All server commands that touch the app tree run as **`safartrip`**, never as root. Root-owned `.next` breaks PM2 running as `safartrip`.
 
+## Branch protection (manual — GitHub UI)
+
+Workflow job name is **`test`** (check run name: `test`). A green Actions run alone does **not** block merges unless this is required.
+
+As repo admin:
+
+1. GitHub → **Settings** → **Branches** → **Branch protection rules** → rule for `main` (create if missing).
+2. Enable **Require a pull request before merging** (recommended).
+3. Enable **Require status checks to pass before merging**.
+4. Search/select required check: **`test`** (from workflow `CI`, job `test`). Do **not** rename the job in `.github/workflows/ci.yml` — renames silently unhook this setting.
+5. Save.
+
+Audit note (2026-08-02): `GET /branches/main` reported `"protected": false` — protection was not enabled.
+
 ```bash
 # Wrong
 sudo npm run build

@@ -10,6 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Job name MUST stay `test` — GitHub branch protection required checks
+  # target this exact name (check run: "test"). Renaming silently unhooks
+  # "Require status checks to pass before merging".
   test:
     runs-on: ubuntu-latest
     services:
@@ -54,11 +57,19 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Production gate: green CI means this SHA is deployable.
+      # Failure must fail the job (no continue-on-error). Restored 2026-07-30
+      # after 5f5de3a stripped it for runner memory; keep BUILD_ID assert.
       - name: Production build
-        run: npm run build
+        run: |
+          set -euo pipefail
+          npm run build
+          test -f .next/BUILD_ID
 
-      # Lint intentionally removed 2026-07-29 (standalone/ noise + separate eslint ignore PR).
-      # Restore after eslint.config.mjs ignores standalone/ and the suite is green again.
+      # Lint still intentionally OUT of the blocking sequence (removed 2026-07-29
+      # in 5f5de3a for standalone/ noise). eslint.config.mjs now ignores
+      # standalone/** — re-adding Lint as a required step needs Rustam's OK
+      # after a green `npm run lint` on main (do not silently re-enable).
 
       # Empty CI MySQL must apply history from 0_init (never db push here —
       # that reintroduces migrate/schema drift).
@@ -67,3 +78,5 @@ jobs:
 
       - name: Vitest
         run: npx vitest run
+
+      # No deploy job — production deploy is server-side via scripts/deploy-safe.sh
