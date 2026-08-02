@@ -1,10 +1,15 @@
+import type { PartnerEarningType } from "@prisma/client";
 import { assertBalanced } from "../domain/balance";
 import {
   calcPlatformCommissionTiyin,
   splitBookingCommission,
 } from "../domain/commission";
 import { LedgerTxType, UNATTRIBUTED_OWNER } from "../domain/types";
-import { ledgerRepository, type Tx } from "../repository/ledger.repository";
+import {
+  ledgerRepository,
+  type LedgerBookingType,
+  type Tx,
+} from "../repository/ledger.repository";
 
 export class MissingPartnerError extends Error {
   readonly code = "MISSING_PARTNER" as const;
@@ -20,6 +25,8 @@ export type PayoutOwnerType = "PLATFORM" | "PARTNER";
 export type PostBookingPaymentInput = {
   idempotencyKey: string;
   bookingId?: string | null;
+  /** Vertical discriminator — stamped on LedgerTransaction (PartnerEarningType). */
+  bookingType?: PartnerEarningType | null;
   grossTiyin: bigint;
   /**
    * Required when payoutOwnerType is PARTNER (default).
@@ -35,6 +42,7 @@ export type PostBookingPaymentInput = {
 export type PostRefundInput = {
   idempotencyKey: string;
   bookingId?: string | null;
+  bookingType?: PartnerEarningType | null;
   refundTiyin: bigint;
   refundPercent: number;
   originalCommissionTiyin: bigint;
@@ -80,6 +88,7 @@ export class LedgerService {
         const created = await tx.ledgerTransaction.create({
           data: {
             bookingId: input.bookingId ?? null,
+            bookingType: input.bookingType ?? null,
             type: LedgerTxType.BOOKING_PAYMENT,
             idempotencyKey: input.idempotencyKey,
           },
@@ -150,6 +159,7 @@ export class LedgerService {
       const created = await ledgerRepository.createTransactionWithEntries(
         {
           bookingId: input.bookingId,
+          bookingType: input.bookingType ?? null,
           type: LedgerTxType.BOOKING_PAYMENT,
           idempotencyKey: input.idempotencyKey,
           entries: lines,
@@ -203,6 +213,7 @@ export class LedgerService {
         const created = await tx.ledgerTransaction.create({
           data: {
             bookingId: input.bookingId ?? null,
+            bookingType: input.bookingType ?? null,
             type: txType,
             idempotencyKey: input.idempotencyKey,
           },
@@ -285,6 +296,7 @@ export class LedgerService {
       const created = await ledgerRepository.createTransactionWithEntries(
         {
           bookingId: input.bookingId,
+          bookingType: input.bookingType ?? null,
           type: txType,
           idempotencyKey: input.idempotencyKey,
           entries: lines,
@@ -392,11 +404,40 @@ export class LedgerService {
     return ledgerRepository.getPartnerPayableTiyin(partnerUserId);
   }
 
+  /**
+   * Ledger balance aggregates for partner dashboards (general ledger SoT).
+   * pendingNet = outstanding payable; totalCommission = attributed platform share.
+   */
+  async getPartnerBalanceSummary(partnerUserId: string): Promise<{
+    payableTiyin: bigint;
+    pendingNetTiyin: bigint;
+    attributedCommissionTiyin: bigint;
+  }> {
+    const [payableTiyin, attributedCommissionTiyin] = await Promise.all([
+      ledgerRepository.getPartnerPayableTiyin(partnerUserId),
+      ledgerRepository.sumPartnerAttributedCommissionTiyin(partnerUserId),
+    ]);
+    const pendingNetTiyin = payableTiyin < 0n ? 0n : payableTiyin;
+    return {
+      payableTiyin,
+      pendingNetTiyin,
+      attributedCommissionTiyin:
+        attributedCommissionTiyin < 0n ? 0n : attributedCommissionTiyin,
+    };
+  }
+
   async sumPlatformRevenueTiyin(opts?: {
     from?: Date;
     to?: Date;
   }): Promise<bigint> {
     return ledgerRepository.sumPlatformRevenueTiyin(opts ?? {});
+  }
+
+  async sumPlatformRevenueByBookingTypeTiyin(opts?: {
+    from?: Date;
+    to?: Date;
+  }): Promise<Map<LedgerBookingType, bigint>> {
+    return ledgerRepository.sumPlatformRevenueByBookingTypeTiyin(opts ?? {});
   }
 }
 

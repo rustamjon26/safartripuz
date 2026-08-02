@@ -90,6 +90,7 @@ export async function completeSuccessfulPaymentInTx(
         {
           idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
           bookingId: booking.id,
+          bookingType: "HOTEL",
           grossTiyin,
           payoutOwnerType: "PLATFORM",
         },
@@ -116,6 +117,7 @@ export async function completeSuccessfulPaymentInTx(
       {
         idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
         bookingId: booking.id,
+        bookingType: "HOTEL",
         grossTiyin,
         partnerUserId,
         payoutOwnerType: "PARTNER",
@@ -167,6 +169,7 @@ export async function completeSuccessfulPaymentInTx(
           {
             idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
             bookingId: booking.id,
+            bookingType: "HOMESTAY",
             grossTiyin,
             payoutOwnerType: "PLATFORM",
           },
@@ -189,6 +192,7 @@ export async function completeSuccessfulPaymentInTx(
           {
             idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
             bookingId: booking.id,
+            bookingType: "HOMESTAY",
             grossTiyin,
             partnerUserId: listing.hostId,
             payoutOwnerType: "PARTNER",
@@ -267,6 +271,7 @@ export async function completeSuccessfulPaymentInTx(
           {
             idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
             bookingId: booking.id,
+            bookingType: "GUIDE",
             grossTiyin,
             payoutOwnerType: "PLATFORM",
           },
@@ -291,6 +296,7 @@ export async function completeSuccessfulPaymentInTx(
         {
           idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
           bookingId: booking.id,
+          bookingType: "GUIDE",
           grossTiyin,
           partnerUserId: booking.guideId,
           payoutOwnerType: "PARTNER",

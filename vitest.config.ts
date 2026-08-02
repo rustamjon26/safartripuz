@@ -16,7 +16,11 @@ export default defineConfig({
     maxWorkers: 1,
     fileParallelism: false,
     setupFiles: ["src/test/vitest.setup.ts"],
-    include: ["src/**/*.{test,spec}.ts"],
+    include: [
+      "src/**/*.{test,spec}.ts",
+      "lib/**/*.{test,spec}.ts",
+      "app/**/*.{test,spec}.ts",
+    ],
     exclude: ["node_modules/**", ".next/**"],
     testTimeout: 60_000,
     hookTimeout: 120_000,

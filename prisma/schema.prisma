@@ -1398,13 +1398,18 @@ model LedgerAccount {
 }
 
 model LedgerTransaction {
-  id                    String        @id @default(cuid())
+  id                    String              @id @default(cuid())
   bookingId             String?
+  /// Booking vertical for platform-fee / payable attribution (reuses PartnerEarningType).
+  /// Null only for legacy/unresolvable rows (e.g. payout without booking).
+  bookingType           PartnerEarningType?
   type                  String // BOOKING_PAYMENT | COMMISSION | PAYOUT | REFUND | ADJUSTMENT
-  idempotencyKey        String        @unique
+  idempotencyKey        String              @unique
   reversesTransactionId String?
-  createdAt             DateTime      @default(now())
+  createdAt             DateTime            @default(now())
   entries               LedgerEntry[]
+
+  @@index([bookingType, createdAt])
 }
 
 /// Immutable: never UPDATE/DELETE LedgerEntry rows — compensate with a reversing LedgerTransaction.

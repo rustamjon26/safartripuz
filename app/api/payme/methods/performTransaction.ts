@@ -95,6 +95,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
           {
             idempotencyKey: `payme:${paymeId}`,
             bookingId: expired.bookingId,
+            bookingType: "HOTEL",
             grossTiyin,
             payoutOwnerType: "PLATFORM",
           },
@@ -119,6 +120,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
           {
             idempotencyKey: `payme:${paymeId}`,
             bookingId: expired.bookingId,
+            bookingType: "HOTEL",
             grossTiyin,
             partnerUserId,
             payoutOwnerType: "PARTNER",

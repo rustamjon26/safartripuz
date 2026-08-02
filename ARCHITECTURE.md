@@ -17,7 +17,7 @@ Authoritative invariants also live in `.cursor/rules/` (modular monolith, money/
 | 2.1 | Double-entry ledger (parallel-run / `LEDGER_V2`) | minimal only | `partnerUserId: null` on many payment posts; ≠ PartnerEarning |
 | 2.2 | Payment idempotency + webhook dedup | done | `ProcessedEvent` UNIQUE enforced |
 | 2.3 | Reconciliation job | pending | not found |
-| — | Ledger comparison clean → remove PartnerEarning reads | pending | reads still PartnerEarning |
+| — | ~~Ledger comparison clean → remove PartnerEarning reads~~ → **hybrid cutover (see below)** | **resolved (hybrid)** | Ledger = balance aggregates; PartnerEarning = line-item subledger |
 | 3.1 | Rate engine | done | som↔tiyin still outside payment adapters |
 | 3.2 | Cancellation policy engine | done | hotel wired; homestay/guide no ledger reverse |
 | 3.3 | Transactional outbox | done | consumer uses outbox repo (Step 1) |
@@ -72,7 +72,7 @@ Env (on server, **not in git**): `/etc/safartrip/backup.env` with `DATABASE_URL`
 | 1.5 Hotfix stop new drift | **after** Console SSH verify + restore passed |
 | 2 Ledger dual-write | **blocked** until restore + 1.5; two-phase backfill (below) |
 | 3 Provider recon | blocked on Step 2 |
-| 4 Read cutover | blocked until recon clean for days; impossible until partner attribution fixed |
+| 4 Read cutover | **hybrid pattern** — Ledger balances / PartnerEarning line items (annotate below); was: blocked until recon clean |
 | 5 Backup automation | scripts + cron; DUMP_TS as-of compare; off-site required |
 
 ### Ops gate 0 — SSH host key (before any VPS shell / backup)
@@ -112,7 +112,21 @@ Confirmed bug: null partner → else-branch credits **100% gross** to Platform R
 | **2a Reclassify** | Existing `BOOKING_PAYMENT` txs that have no PARTNER credit | Compensating tx only: `DEBIT Platform Revenue partnerNet` + `CREDIT Partner Payable partnerNet`; `type: RECLASSIFICATION`, `originalTransactionId`; partner via hotel→partner join (recoverable set) | Report tiyin moved per tx |
 | **2b Primary events** | Never-posted / swallowed (homestay/guide cancel, missed reverses, etc.) | New txs from `HotelBooking` / `Payment` / `PaymentTransaction` / refund audit — **not** from PartnerEarning alone | Diff vs current PartnerEarning + ledger |
 
-UI today reads PartnerEarning (not ledger). Still audit any external “revenue” exports that may have used ledger.
+~~UI today reads PartnerEarning (not ledger). Still audit any external “revenue” exports that may have used ledger.~~
+
+### Step 4 — Read cutover: general ledger + subledger (resolved)
+
+Do **not** interpret “remove PartnerEarning reads” as “never query PartnerEarning for display.” Resolved pattern:
+
+| Concern | Source of truth | Why |
+|---------|-----------------|-----|
+| Balances / aggregates (partner payable, pending payout, platform revenue totals) | **Ledger** | Dual-write + `reconcile-ledger.ts` keep GL honest |
+| Line items / per-booking breakdown / CSV detail / dispute audit | **PartnerEarning** | Subsidiary ledger; Ledger txs intentionally lack booking-type drill-down |
+
+- Partner dashboards (`/api/hotel|homestay|guide/earnings`): Ledger → `totalNet` / `pendingNet` / `totalCommission`; PE → `earnings[]` + `pendingCount`.
+- Admin revenue: Ledger → `totalPlatformCommission` + per-type `platformFee` via `LedgerTransaction.bookingType` (includes PLATFORM-owned); PE `groupBy` → `commissionSummary` (partner-side detail only).
+- Taxi/`DriverEarning` remains separate (`TODO(taxi)`).
+- Never recompute partner net/commission on-the-fly from `booking.totalPrice` + `getCommissionRates` for display.
 
 ### Backup compare (no race)
 
