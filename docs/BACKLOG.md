@@ -19,9 +19,9 @@ Deployed `main` @ `a6d1fe1`. Migrations applied: `add_ledger_booking_type`, `add
 
 Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqsaroy → Hazrati Xizr instead of nearer Ruxobod.
 
-### Region-aware `MAX_INTRA_DAY_LEG_KM` — landed (this PR)
+### Region-aware `MAX_INTRA_DAY_LEG_KM` — merged `main` @ `7fdf52e` (PR #20)
 
-`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Confirmed: `samarqand: 12`, `buxoro: 8`, `xiva: 3`.
+`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Confirmed: `samarqand: 12`, `buxoro: 8`, `xiva: 3`. No Contabo migrate needed.
 
 ## Planner (open)
 
