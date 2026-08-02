@@ -46,7 +46,7 @@ Still open (optional follow-ups):
   - Plov Centre → `Samarqand Osh Markazi N1` (`cid=14268127267228355785`)
   - Bibi-Xonim → `Bibixonim Choyxona` / Bibikhanum Teahouse (`cid=5531354908977729096`) — not the mosque
   - Lyabi-Hauz → `Lyabi House` Buxoro (`cid=16248639576405358982`) — not UNESCO square / not Tashkent namesake
-  Still DRAFT until editorial `open_hours` + planner-grade `dining` (`priceBand` + `mealTypes`) + `prominence` — do not invent; then `knowledgeService.publishSite`.
+  Maps browser pull 2026-08-02: **Osh Markazi** + **Bibixonim Choyxona** hours/price filled in seed (publishable after re-seed). **Lyabi House** still DRAFT — Maps lists hotel, no restaurant weekly hours (do not invent).
 - ~~Restaurant + `BOSHQA` publish policy~~ — `evaluatePublishEligibility` / `knowledgeService.publishSite`: dining needs planner-grade `parseDining`; **BOSHQA** same base gates as landmarks, no dining JSON, no auto-publish. Seed still never writes `PUBLISHED`.
 
 ## Ops — still OPEN (do not mark closed yet)
