@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  PLATFORM_OWNED_POLICY_NOTE,
+  LEGACY_UNCLASSIFIED_PAYOUT_NOTE,
   reconcileLedgerPartnerEarnings,
   type ReconcileInput,
   type ReconcileLedgerTxRow,
@@ -58,6 +58,29 @@ function paymentTx(
   };
 }
 
+function platformPaymentTx(bookingId: string, gross = 1_000_000n): ReconcileLedgerTxRow {
+  return {
+    id: `ltx_pay_${bookingId}`,
+    bookingId,
+    type: LedgerTxType.BOOKING_PAYMENT,
+    createdAt: new Date("2026-08-01"),
+    entries: [
+      {
+        amount: gross,
+        direction: "DEBIT",
+        accountType: "ASSET",
+        ownerType: "PLATFORM",
+      },
+      {
+        amount: gross,
+        direction: "CREDIT",
+        accountType: "REVENUE",
+        ownerType: "PLATFORM",
+      },
+    ],
+  };
+}
+
 function refundTx(bookingId: string): ReconcileLedgerTxRow {
   return {
     id: `ltx_ref_${bookingId}`,
@@ -96,6 +119,7 @@ function baseInput(over: Partial<ReconcileInput> = {}): ReconcileInput {
       status: "CONFIRMED",
       grossTiyin: 1_000_000n,
       createdAt: new Date("2026-08-01"),
+      payoutOwnerType: "PARTNER" as const,
     },
   ];
   const partnerEarnings = over.partnerEarnings ?? [
@@ -111,7 +135,6 @@ function baseInput(over: Partial<ReconcileInput> = {}): ReconcileInput {
     bookings,
     partnerEarnings,
     ledgerTxs,
-    knownBookingIds: known,
     ...over,
     knownBookingIds: over.knownBookingIds ?? known,
   };
@@ -133,11 +156,8 @@ describe("reconcileLedgerPartnerEarnings", () => {
     expect(driftOf(report, "SUM_MISMATCH")).toHaveLength(0);
     expect(driftOf(report, "REVERSAL_INCOMPLETE")).toHaveLength(0);
     expect(driftOf(report, "ORPHAN_ENTRY")).toHaveLength(0);
-    expect(report.policyNotes[0]).toContain("implicit");
-    expect(report.findings.some((f) => f.check === "POLICY")).toBe(true);
-    expect(report.findings.some((f) => f.detail === PLATFORM_OWNED_POLICY_NOTE)).toBe(
-      true,
-    );
+    expect(report.policyNotes).toHaveLength(0);
+    expect(report.findings.some((f) => f.check === "POLICY")).toBe(false);
   });
 
   it("flags missing PartnerEarning", () => {
@@ -150,6 +170,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
             status: "CONFIRMED",
             grossTiyin: 1_000_000n,
             createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
           },
         ],
         partnerEarnings: [],
@@ -165,6 +186,59 @@ describe("reconcileLedgerPartnerEarnings", () => {
     expect(driftOf(report, "SUM_MISMATCH")).toHaveLength(0);
   });
 
+  it("does not flag PLATFORM-owned booking without PartnerEarning", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        bookings: [
+          {
+            id: "bk_platform",
+            bookingType: "HOTEL",
+            status: "CONFIRMED",
+            grossTiyin: 1_000_000n,
+            createdAt: new Date(),
+            payoutOwnerType: "PLATFORM",
+          },
+        ],
+        partnerEarnings: [],
+        ledgerTxs: [platformPaymentTx("bk_platform")],
+        knownBookingIds: new Set(["bk_platform"]),
+      }),
+    );
+    expect(report.clean).toBe(true);
+    expect(driftOf(report, "MISSING_PARTNER_EARNING")).toHaveLength(0);
+    expect(driftOf(report, "POLICY")).toHaveLength(0);
+  });
+
+  it("still flags PARTNER booking without PartnerEarning", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        bookings: [
+          {
+            id: "bk_partner_missing",
+            bookingType: "HOMESTAY",
+            status: "CONFIRMED",
+            grossTiyin: 500_000n,
+            createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
+          },
+        ],
+        partnerEarnings: [],
+        ledgerTxs: [
+          paymentTx("bk_partner_missing", {
+            gross: 500_000n,
+            platform: 50_000n,
+            partner: 450_000n,
+          }),
+        ],
+        knownBookingIds: new Set(["bk_partner_missing"]),
+      }),
+    );
+    expect(report.clean).toBe(false);
+    const missing = driftOf(report, "MISSING_PARTNER_EARNING");
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.bookingId).toBe("bk_partner_missing");
+  });
+
   it("flags duplicate PartnerEarning for same bookingId", () => {
     const report = reconcileLedgerPartnerEarnings(
       baseInput({
@@ -175,6 +249,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
             status: "CONFIRMED",
             grossTiyin: 1_000_000n,
             createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
           },
         ],
         partnerEarnings: [
@@ -202,6 +277,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
             status: "CONFIRMED",
             grossTiyin: 1_000_000n,
             createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
           },
         ],
         partnerEarnings: [
@@ -236,6 +312,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
             status: "REFUNDED",
             grossTiyin: 1_000_000n,
             createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
           },
         ],
         partnerEarnings: [
@@ -267,6 +344,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
             status: "CANCELLED",
             grossTiyin: 1_000_000n,
             createdAt: new Date(),
+            payoutOwnerType: "PARTNER",
           },
         ],
         partnerEarnings: [
@@ -318,6 +396,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
           status: "CONFIRMED",
           grossTiyin: 1_000_000n,
           createdAt: new Date(),
+          payoutOwnerType: "PARTNER",
         },
         {
           id: "missing",
@@ -325,6 +404,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
           status: "CONFIRMED",
           grossTiyin: 500_000n,
           createdAt: new Date(),
+          payoutOwnerType: "PARTNER",
         },
       ],
       partnerEarnings: [
@@ -354,5 +434,29 @@ describe("reconcileLedgerPartnerEarnings", () => {
     );
     expect(driftOf(report, "SUM_MISMATCH")).toHaveLength(0);
     expect(driftOf(report, "REVERSAL_INCOMPLETE")).toHaveLength(0);
+  });
+
+  it("POLICY only for unclassified legacy (null payoutOwnerType)", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        bookings: [
+          {
+            id: "bk_legacy",
+            bookingType: "HOTEL",
+            status: "CONFIRMED",
+            grossTiyin: 1_000_000n,
+            createdAt: new Date(),
+            payoutOwnerType: null,
+          },
+        ],
+        partnerEarnings: [pe({ id: "pe_legacy", bookingId: "bk_legacy" })],
+        ledgerTxs: [paymentTx("bk_legacy")],
+        knownBookingIds: new Set(["bk_legacy"]),
+      }),
+    );
+    // has PE so MISSING not raised; POLICY note for unclassified
+    expect(driftOf(report, "POLICY")).toHaveLength(1);
+    expect(report.policyNotes[0]).toBe(LEGACY_UNCLASSIFIED_PAYOUT_NOTE);
+    expect(report.clean).toBe(true);
   });
 });

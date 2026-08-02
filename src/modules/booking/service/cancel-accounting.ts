@@ -25,9 +25,13 @@ export async function postCancelAccountingInTx(
     partnerUserId: string | null;
     refund: RefundBreakdown;
     ratePercent: number;
+    /** When PLATFORM, no PartnerEarning reverse; ledger claws back from revenue. */
+    payoutOwnerType?: "PLATFORM" | "PARTNER";
   },
 ): Promise<void> {
   if (opts.refund.refundTiyin <= 0n) return;
+
+  const payoutOwnerType = opts.payoutOwnerType ?? "PARTNER";
 
   const grossPaidApprox =
     opts.refund.refundPercent > 0
@@ -46,19 +50,23 @@ export async function postCancelAccountingInTx(
         bookingId: opts.bookingId,
         refundTiyin: opts.refund.refundTiyin,
         refundPercent: opts.refund.refundPercent,
-        originalCommissionTiyin: platformTotal,
+        originalCommissionTiyin:
+          payoutOwnerType === "PLATFORM" ? opts.refund.refundTiyin : platformTotal,
         partnerUserId: opts.partnerUserId,
         allowUnattributed: false,
+        payoutOwnerType,
       },
       tx,
     );
 
-    await reversePartnerEarningInTx(
-      tx,
-      opts.bookingType,
-      opts.bookingId,
-      opts.refund.refundPercent,
-    );
+    if (payoutOwnerType !== "PLATFORM") {
+      await reversePartnerEarningInTx(
+        tx,
+        opts.bookingType,
+        opts.bookingId,
+        opts.refund.refundPercent,
+      );
+    }
   } catch (err) {
     console.error("ALERT cancel_accounting_failed", {
       bookingType: opts.bookingType,

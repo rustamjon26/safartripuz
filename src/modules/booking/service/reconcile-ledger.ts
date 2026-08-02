@@ -4,10 +4,10 @@ import { LedgerTxType } from "@/src/modules/ledger";
 
 // TODO(taxi): DriverEarning ↔ ledger needs the same reconcile treatment later.
 
-/** Step 2 has no explicit platform-owned flag — every paid booking expects a PE. */
-export const PLATFORM_OWNED_POLICY_NOTE =
-  "Step 2 left platform-owned inventory implicit (MissingPartnerError on success); " +
-  "no bookingType/flag exempts PartnerEarning. All successful-payment bookings are expected to have PE.";
+/** Legacy rows without a stamped payoutOwnerType (should be rare after migration default). */
+export const LEGACY_UNCLASSIFIED_PAYOUT_NOTE =
+  "LEGACY_UNCLASSIFIED_PAYOUT_OWNER: booking has no payoutOwnerType; " +
+  "cannot distinguish platform-owned from missing PartnerEarning — set PLATFORM or PARTNER.";
 
 export type ReconcileCheck =
   | "MISSING_PARTNER_EARNING"
@@ -36,6 +36,8 @@ export type ReconcileReport = {
   clean: boolean;
 };
 
+export type ReconcilePayoutOwnerType = "PLATFORM" | "PARTNER";
+
 export type ReconcileBookingRow = {
   id: string;
   bookingType: "HOTEL" | "HOMESTAY" | "GUIDE";
@@ -43,6 +45,11 @@ export type ReconcileBookingRow = {
   /** Gross in tiyin (from booking total). */
   grossTiyin: bigint;
   createdAt: Date;
+  /**
+   * Stamped payout routing. null = unclassified legacy (POLICY only).
+   * PLATFORM = PE not expected; PARTNER = PE required after successful payment.
+   */
+  payoutOwnerType: ReconcilePayoutOwnerType | null;
 };
 
 export type ReconcilePartnerEarningRow = {
@@ -118,13 +125,7 @@ export function reconcileLedgerPartnerEarnings(
   input: ReconcileInput,
 ): ReconcileReport {
   const findings: ReconcileFinding[] = [];
-  const policyNotes = [PLATFORM_OWNED_POLICY_NOTE];
-
-  findings.push({
-    check: "POLICY",
-    bookingId: "*",
-    detail: PLATFORM_OWNED_POLICY_NOTE,
-  });
+  const policyNotes: string[] = [];
 
   const peByBookingId = new Map<string, ReconcilePartnerEarningRow[]>();
   for (const pe of input.partnerEarnings) {
@@ -157,6 +158,23 @@ export function reconcileLedgerPartnerEarnings(
     const hasPaymentTx = (paymentTxByBooking.get(booking.id) ?? []).length > 0;
     const paidLike = PAID_LIKE.has(booking.status);
     if (!hasPaymentTx && !paidLike) continue;
+
+    if (booking.payoutOwnerType === "PLATFORM") {
+      continue;
+    }
+
+    if (booking.payoutOwnerType == null) {
+      findings.push({
+        check: "POLICY",
+        bookingId: booking.id,
+        bookingType: booking.bookingType,
+        detail: LEGACY_UNCLASSIFIED_PAYOUT_NOTE,
+      });
+      if (!policyNotes.includes(LEGACY_UNCLASSIFIED_PAYOUT_NOTE)) {
+        policyNotes.push(LEGACY_UNCLASSIFIED_PAYOUT_NOTE);
+      }
+      // Still flag missing PE — unclassified must not silent-pass.
+    }
 
     const pes = peByBookingId.get(booking.id) ?? [];
     const typed = pes.filter((p) => p.bookingType === booking.bookingType);
@@ -206,13 +224,15 @@ export function reconcileLedgerPartnerEarnings(
 
   // --- 3. Sum mismatch (non-reversed) ---
   for (const booking of input.bookings) {
+    if (booking.payoutOwnerType === "PLATFORM") continue;
+
     const reversals = reversalTxByBooking.get(booking.id) ?? [];
     const pes = (peByBookingId.get(booking.id) ?? []).filter(
       (p) => p.bookingType === booking.bookingType,
     );
     if (pes.length !== 1) continue;
-    const pe = pes[0]!;
-    if (pe.status === "CANCELLED") continue;
+    const pe = pes[0];
+    if (!pe || pe.status === "CANCELLED") continue;
     if (reversals.length > 0) continue;
 
     const payments = paymentTxByBooking.get(booking.id) ?? [];
@@ -305,6 +325,9 @@ export function reconcileLedgerPartnerEarnings(
   // --- 4. Reversal completeness ---
   for (const [bookingId, reversals] of reversalTxByBooking) {
     if (reversals.length === 0) continue;
+    const booking = bookingById.get(bookingId);
+    if (booking?.payoutOwnerType === "PLATFORM") continue;
+
     const pes = peByBookingId.get(bookingId) ?? [];
     if (pes.length === 0) {
       findings.push({
@@ -379,7 +402,7 @@ export function reconcileLedgerPartnerEarnings(
     counts[f.check] += 1;
   }
 
-  // POLICY note alone does not fail the run
+  // POLICY (legacy unclassified) alone does not fail the run
   const driftFindings = findings.filter((f) => f.check !== "POLICY");
 
   return {
@@ -421,6 +444,7 @@ export async function loadReconcileInput(
           status: true,
           totalAmount: true,
           createdAt: true,
+          payoutOwnerType: true,
         },
       }),
       client.homeStayBooking.findMany({
@@ -430,6 +454,7 @@ export async function loadReconcileInput(
           status: true,
           totalPrice: true,
           createdAt: true,
+          payoutOwnerType: true,
         },
       }),
       client.guideBooking.findMany({
@@ -439,6 +464,7 @@ export async function loadReconcileInput(
           status: true,
           totalPrice: true,
           createdAt: true,
+          payoutOwnerType: true,
         },
       }),
       client.booking.findMany({
@@ -488,6 +514,7 @@ export async function loadReconcileInput(
       status: b.status,
       grossTiyin: somDecimalToTiyin(b.totalAmount),
       createdAt: b.createdAt,
+      payoutOwnerType: b.payoutOwnerType,
     })),
     ...homestays.map((b) => ({
       id: b.id,
@@ -495,6 +522,7 @@ export async function loadReconcileInput(
       status: b.status,
       grossTiyin: somDecimalToTiyin(b.totalPrice),
       createdAt: b.createdAt,
+      payoutOwnerType: b.payoutOwnerType,
     })),
     ...guides.map((b) => ({
       id: b.id,
@@ -502,6 +530,7 @@ export async function loadReconcileInput(
       status: b.status,
       grossTiyin: somDecimalToTiyin(b.totalPrice),
       createdAt: b.createdAt,
+      payoutOwnerType: b.payoutOwnerType,
     })),
   ];
 
@@ -562,7 +591,9 @@ export function formatReconcileReportHuman(report: ReconcileReport): string {
   for (const note of report.policyNotes) {
     lines.push(`POLICY: ${note}`);
   }
-  lines.push("");
+  if (report.policyNotes.length > 0) {
+    lines.push("");
+  }
   lines.push("Counts:");
   for (const [k, v] of Object.entries(report.counts)) {
     if (k === "POLICY") continue;

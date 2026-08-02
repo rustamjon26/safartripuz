@@ -70,8 +70,34 @@ export async function completeSuccessfulPaymentInTx(
 
     const hotel = await tx.hotel.findUnique({
       where: { id: booking.hotelId },
-      select: { partner: { select: { userId: true } } },
+      select: {
+        ownerType: true,
+        partner: { select: { userId: true } },
+      },
     });
+    const payoutOwnerType = hotel?.ownerType ?? "PARTNER";
+    await tx.hotelBooking.update({
+      where: { id: booking.id },
+      data: { payoutOwnerType },
+    });
+
+    const grossTiyin = Money.fromSomNumber(
+      booking.totalAmount.toString(),
+    ).toTiyin();
+
+    if (payoutOwnerType === "PLATFORM") {
+      await ledgerService.record(
+        {
+          idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+          bookingId: booking.id,
+          grossTiyin,
+          payoutOwnerType: "PLATFORM",
+        },
+        tx,
+      );
+      continue;
+    }
+
     const partnerUserId = hotel?.partner?.userId;
     if (!partnerUserId) {
       throw new MissingPartnerError(
@@ -79,9 +105,6 @@ export async function completeSuccessfulPaymentInTx(
       );
     }
 
-    const grossTiyin = Money.fromSomNumber(
-      booking.totalAmount.toString(),
-    ).toTiyin();
     await createPartnerEarningIfMissing(tx, {
       partnerId: partnerUserId,
       bookingType: "HOTEL",
@@ -95,6 +118,7 @@ export async function completeSuccessfulPaymentInTx(
         bookingId: booking.id,
         grossTiyin,
         partnerUserId,
+        payoutOwnerType: "PARTNER",
         ratePercent: rates.HOTEL,
       },
       tx,
@@ -126,34 +150,53 @@ export async function completeSuccessfulPaymentInTx(
     for (const booking of pendingHomeStayBookings) {
       const listing = await tx.homeStayListing.findUnique({
         where: { id: booking.listingId },
-        select: { hostId: true },
+        select: { hostId: true, ownerType: true },
       });
-      if (!listing?.hostId) {
-        throw new MissingPartnerError(
-          `Homestay host missing for booking ${booking.id}`,
-        );
-      }
+      const payoutOwnerType = listing?.ownerType ?? "PARTNER";
+      await tx.homeStayBooking.update({
+        where: { id: booking.id },
+        data: { payoutOwnerType },
+      });
 
       const grossTiyin = Money.fromSomNumber(
         booking.totalPrice.toString(),
       ).toTiyin();
-      await createPartnerEarningIfMissing(tx, {
-        partnerId: listing.hostId,
-        bookingType: "HOMESTAY",
-        bookingId: booking.id,
-        grossTiyin,
-        rate: rates.HOMESTAY,
-      });
-      await ledgerService.record(
-        {
-          idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+
+      if (payoutOwnerType === "PLATFORM") {
+        await ledgerService.record(
+          {
+            idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+            bookingId: booking.id,
+            grossTiyin,
+            payoutOwnerType: "PLATFORM",
+          },
+          tx,
+        );
+      } else {
+        if (!listing?.hostId) {
+          throw new MissingPartnerError(
+            `Homestay host missing for booking ${booking.id}`,
+          );
+        }
+        await createPartnerEarningIfMissing(tx, {
+          partnerId: listing.hostId,
+          bookingType: "HOMESTAY",
           bookingId: booking.id,
           grossTiyin,
-          partnerUserId: listing.hostId,
-          ratePercent: rates.HOMESTAY,
-        },
-        tx,
-      );
+          rate: rates.HOMESTAY,
+        });
+        await ledgerService.record(
+          {
+            idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+            bookingId: booking.id,
+            grossTiyin,
+            partnerUserId: listing.hostId,
+            payoutOwnerType: "PARTNER",
+            ratePercent: rates.HOMESTAY,
+          },
+          tx,
+        );
+      }
 
       const existingAvailability = await tx.homeStayAvailability.findFirst({
         where: {
@@ -195,7 +238,7 @@ export async function completeSuccessfulPaymentInTx(
       travelPlanId,
       status: "PENDING",
     },
-    select: { id: true, guideId: true, totalPrice: true },
+    select: { id: true, guideId: true, listingId: true, totalPrice: true },
   });
 
   if (pendingGuideBookings.length) {
@@ -205,14 +248,38 @@ export async function completeSuccessfulPaymentInTx(
     });
 
     for (const booking of pendingGuideBookings) {
+      const listing = await tx.guideListing.findUnique({
+        where: { id: booking.listingId },
+        select: { ownerType: true },
+      });
+      const payoutOwnerType = listing?.ownerType ?? "PARTNER";
+      await tx.guideBooking.update({
+        where: { id: booking.id },
+        data: { payoutOwnerType },
+      });
+
+      const grossTiyin = Money.fromSomNumber(
+        booking.totalPrice.toString(),
+      ).toTiyin();
+
+      if (payoutOwnerType === "PLATFORM") {
+        await ledgerService.record(
+          {
+            idempotencyKey: `payment:${paymentId}:booking:${booking.id}:success`,
+            bookingId: booking.id,
+            grossTiyin,
+            payoutOwnerType: "PLATFORM",
+          },
+          tx,
+        );
+        continue;
+      }
+
       if (!booking.guideId) {
         throw new MissingPartnerError(
           `Guide id missing for booking ${booking.id}`,
         );
       }
-      const grossTiyin = Money.fromSomNumber(
-        booking.totalPrice.toString(),
-      ).toTiyin();
       await createPartnerEarningIfMissing(tx, {
         partnerId: booking.guideId,
         bookingType: "GUIDE",
@@ -226,6 +293,7 @@ export async function completeSuccessfulPaymentInTx(
           bookingId: booking.id,
           grossTiyin,
           partnerUserId: booking.guideId,
+          payoutOwnerType: "PARTNER",
           ratePercent: rates.GUIDE,
         },
         tx,

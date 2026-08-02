@@ -17,13 +17,14 @@ export {
   reconcileLedgerPartnerEarnings,
   loadReconcileInput,
   formatReconcileReportHuman,
-  PLATFORM_OWNED_POLICY_NOTE,
+  LEGACY_UNCLASSIFIED_PAYOUT_NOTE,
 } from "./service/reconcile-ledger";
 export type {
   ReconcileReport,
   ReconcileFinding,
   ReconcileCheck,
   ReconcileInput,
+  ReconcilePayoutOwnerType,
 } from "./service/reconcile-ledger";
 export {
   TRANSITIONS,

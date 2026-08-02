@@ -577,6 +577,7 @@ export class BookingService {
       );
 
       if (refund.refundTiyin > 0n) {
+        const payoutOwnerType = locked.payoutOwnerType ?? "PARTNER";
         const hotel = await tx.hotel.findUnique({
           where: { id: locked.hotelId },
           select: {
@@ -584,7 +585,7 @@ export class BookingService {
           },
         });
         const partnerUserId = hotel?.partner?.userId ?? null;
-        if (!partnerUserId) {
+        if (payoutOwnerType === "PARTNER" && !partnerUserId) {
           throw new MissingPartnerError(
             `Hotel partner missing for cancel accounting on booking ${bookingId}`,
           );
@@ -596,6 +597,7 @@ export class BookingService {
           partnerUserId,
           refund,
           ratePercent: rates.HOTEL,
+          payoutOwnerType,
         });
       }
 
@@ -646,7 +648,12 @@ export class BookingService {
         where: { id: booking.listingId },
         select: { hostId: true },
       });
-      if (refund.refundTiyin > 0n && !listing?.hostId) {
+      const payoutOwnerType = booking.payoutOwnerType ?? "PARTNER";
+      if (
+        refund.refundTiyin > 0n &&
+        payoutOwnerType === "PARTNER" &&
+        !listing?.hostId
+      ) {
         throw new MissingPartnerError(
           `Homestay host missing for cancel accounting on booking ${booking.id}`,
         );
@@ -659,6 +666,7 @@ export class BookingService {
         partnerUserId: listing?.hostId ?? null,
         refund,
         ratePercent: rates.HOMESTAY,
+        payoutOwnerType,
       });
 
       const linkedAvailability = await tx.homeStayAvailability.findFirst({
@@ -748,7 +756,12 @@ export class BookingService {
         },
       });
 
-      if (refund.refundTiyin > 0n && !booking.guideId) {
+      const payoutOwnerType = booking.payoutOwnerType ?? "PARTNER";
+      if (
+        refund.refundTiyin > 0n &&
+        payoutOwnerType === "PARTNER" &&
+        !booking.guideId
+      ) {
         throw new MissingPartnerError(
           `Guide id missing for cancel accounting on booking ${booking.id}`,
         );
@@ -761,6 +774,7 @@ export class BookingService {
         partnerUserId: booking.guideId,
         refund,
         ratePercent: rates.GUIDE,
+        payoutOwnerType,
       });
 
       const linkedBlockedSlot = await tx.guideBlockedSlot.findFirst({

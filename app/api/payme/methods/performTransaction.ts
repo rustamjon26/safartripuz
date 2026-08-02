@@ -52,14 +52,17 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
   }
 
-  const partnerUserId = await prisma.hotel
-    .findUnique({
-      where: { id: transaction.booking.hotelId },
-      select: { partner: { select: { userId: true } } },
-    })
-    .then((h) => h?.partner?.userId);
+  const hotel = await prisma.hotel.findUnique({
+    where: { id: transaction.booking.hotelId },
+    select: {
+      ownerType: true,
+      partner: { select: { userId: true } },
+    },
+  });
+  const payoutOwnerType = hotel?.ownerType ?? "PARTNER";
+  const partnerUserId = hotel?.partner?.userId ?? null;
 
-  if (!partnerUserId) {
+  if (payoutOwnerType === "PARTNER" && !partnerUserId) {
     console.error("ALERT payme_legacy_missing_partner", {
       paymeId,
       bookingId: expired.bookingId,
@@ -81,31 +84,49 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
 
       await tx.booking.update({
         where: { id: expired.bookingId },
-        data: { status: "PAID" },
+        data: { status: "PAID", payoutOwnerType },
       });
 
       const rates = await getCommissionRates(tx);
       const grossTiyin = BigInt(expired.amount);
 
-      // Dual-write: PartnerEarning + ledger in the same transaction.
-      await createPartnerEarningIfMissing(tx, {
-        partnerId: partnerUserId,
-        bookingType: "HOTEL",
-        bookingId: expired.bookingId,
-        grossTiyin,
-        rate: rates.HOTEL,
-      });
-
-      await ledgerService.record(
-        {
-          idempotencyKey: `payme:${paymeId}`,
+      if (payoutOwnerType === "PLATFORM") {
+        await ledgerService.record(
+          {
+            idempotencyKey: `payme:${paymeId}`,
+            bookingId: expired.bookingId,
+            grossTiyin,
+            payoutOwnerType: "PLATFORM",
+          },
+          tx,
+        );
+      } else {
+        if (!partnerUserId) {
+          throw new MissingPartnerError(
+            `Hotel partner missing for booking ${expired.bookingId}`,
+          );
+        }
+        // Dual-write: PartnerEarning + ledger in the same transaction.
+        await createPartnerEarningIfMissing(tx, {
+          partnerId: partnerUserId,
+          bookingType: "HOTEL",
           bookingId: expired.bookingId,
           grossTiyin,
-          partnerUserId,
-          ratePercent: rates.HOTEL,
-        },
-        tx,
-      );
+          rate: rates.HOTEL,
+        });
+
+        await ledgerService.record(
+          {
+            idempotencyKey: `payme:${paymeId}`,
+            bookingId: expired.bookingId,
+            grossTiyin,
+            partnerUserId,
+            payoutOwnerType: "PARTNER",
+            ratePercent: rates.HOTEL,
+          },
+          tx,
+        );
+      }
 
       return performed;
     });
