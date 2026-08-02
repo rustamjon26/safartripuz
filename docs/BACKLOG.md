@@ -47,9 +47,11 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 - **CI build gate / restore-test verify** — scripts exist; cron + verified restore still ops (next ops candidate alongside regionCode).
 - ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh` (always `pm2 restart` all three; previously `reload` on stopped outbox was swallowed).
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
-- Post-deploy smoke: `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'` after catch-up (deploy backlog CPU spike is normal).
+- Post-deploy smoke (human, Contabo — after outbox catch-up CPU drops):  
+  `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`  
+  Empty grep = good. Brief ~100%+ CPU right after restart is backlog drain, not a hang.
 
 ## Next pick (choose one)
 
-1. **Planner:** `MAX_INTRA_DAY_LEG_KM` map by `regionCode` (product, unlocks Buxoro/Xiva / Tashkent spread).
-2. **Ops:** verified `restore-test.sh` + cron install / CI build-on-server gate clarification.
+1. **Planner (recommended if product):** `MAX_INTRA_DAY_LEG_KM` → map by `regionCode` — unlocks Buxoro/Xiva / Tashkent spread; pairs with day-trip day-start work.
+2. **Ops (recommended if hardening):** verified `restore-test.sh` + cron / CI build gate — scripts exist; still not verified end-to-end on Contabo.
