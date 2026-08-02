@@ -48,6 +48,7 @@ export async function postCancelAccountingInTx(
       {
         idempotencyKey: `refund:${opts.bookingType}:${opts.bookingId}:${opts.refund.refundPercent}`,
         bookingId: opts.bookingId,
+        bookingType: opts.bookingType,
         refundTiyin: opts.refund.refundTiyin,
         refundPercent: opts.refund.refundPercent,
         originalCommissionTiyin:

@@ -124,7 +124,7 @@ Do **not** interpret “remove PartnerEarning reads” as “never query Partner
 | Line items / per-booking breakdown / CSV detail / dispute audit | **PartnerEarning** | Subsidiary ledger; Ledger txs intentionally lack booking-type drill-down |
 
 - Partner dashboards (`/api/hotel|homestay|guide/earnings`): Ledger → `totalNet` / `pendingNet` / `totalCommission`; PE → `earnings[]` + `pendingCount`.
-- Admin revenue: Ledger → `totalPlatformCommission`; PE `groupBy(bookingType)` → `commissionSummary` / per-type `platformFee` until Ledger grows a `bookingType` dimension (not added yet).
+- Admin revenue: Ledger → `totalPlatformCommission` + per-type `platformFee` via `LedgerTransaction.bookingType` (includes PLATFORM-owned); PE `groupBy` → `commissionSummary` (partner-side detail only).
 - Taxi/`DriverEarning` remains separate (`TODO(taxi)`).
 - Never recompute partner net/commission on-the-fly from `booking.totalPrice` + `getCommissionRates` for display.
 

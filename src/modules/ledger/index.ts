@@ -11,3 +11,4 @@ export {
 } from "./domain/commission";
 export { LedgerTxType, UNATTRIBUTED_OWNER } from "./domain/types";
 export { ledgerRepository } from "./repository/ledger.repository";
+export type { LedgerBookingType } from "./repository/ledger.repository";

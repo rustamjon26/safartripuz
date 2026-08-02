@@ -1,7 +1,8 @@
-import type { AccountType } from "@prisma/client";
+import type { AccountType, PartnerEarningType } from "@prisma/client";
 import { db, type DbClient } from "@/src/modules/payment/repository/db";
 
 export type Tx = DbClient;
+export type LedgerBookingType = PartnerEarningType;
 
 export class LedgerRepository {
   async findTransactionByIdempotencyKey(key: string, client: DbClient = db) {
@@ -43,6 +44,7 @@ export class LedgerRepository {
   async createTransactionWithEntries(
     input: {
       bookingId?: string | null;
+      bookingType?: LedgerBookingType | null;
       type: string;
       idempotencyKey: string;
       entries: Array<{ accountId: string; amount: bigint; direction: string }>;
@@ -52,6 +54,7 @@ export class LedgerRepository {
     return client.ledgerTransaction.create({
       data: {
         bookingId: input.bookingId ?? null,
+        bookingType: input.bookingType ?? null,
         type: input.type,
         idempotencyKey: input.idempotencyKey,
         entries: {
@@ -119,6 +122,50 @@ export class LedgerRepository {
       bal += e.direction === "CREDIT" ? amt : -amt;
     }
     return bal;
+  }
+
+  /**
+   * Platform REVENUE net (CREDIT − DEBIT) grouped by LedgerTransaction.bookingType.
+   * Includes PLATFORM-owned bookings (100% revenue, no PartnerEarning).
+   */
+  async sumPlatformRevenueByBookingTypeTiyin(
+    opts: { from?: Date; to?: Date } = {},
+    client: DbClient = db,
+  ): Promise<Map<LedgerBookingType, bigint>> {
+    const revenue = await this.ensureAccount(
+      { type: "REVENUE", ownerType: "PLATFORM", ownerId: "" },
+      client,
+    );
+    const entries = await client.ledgerEntry.findMany({
+      where: {
+        accountId: revenue.id,
+        ...(opts.from || opts.to
+          ? {
+              transaction: {
+                createdAt: {
+                  ...(opts.from ? { gte: opts.from } : {}),
+                  ...(opts.to ? { lte: opts.to } : {}),
+                },
+              },
+            }
+          : {}),
+      },
+      select: {
+        amount: true,
+        direction: true,
+        transaction: { select: { bookingType: true } },
+      },
+    });
+
+    const out = new Map<LedgerBookingType, bigint>();
+    for (const e of entries) {
+      const bt = e.transaction.bookingType;
+      if (!bt) continue;
+      const amt = BigInt(e.amount.toString());
+      const signed = e.direction === "CREDIT" ? amt : -amt;
+      out.set(bt, (out.get(bt) ?? 0n) + signed);
+    }
+    return out;
   }
 
   async getPartnerPayableTiyin(
