@@ -43,15 +43,11 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 ## Knowledge / catalog
 
 - When seeding Bukhara Sites: publish verified lat/lng for a historic-core reference Site (Ark or Kalyan) **and** Chor-Bakr — not the ad-hoc pair once used for the leg-budget estimate.
-- **Three restaurants blocked on Maps identity (Places mismatch — do not invent).** Not in `tourism_data.json` yet; seed stays DRAFT-only with real `sourceUrl`. Rustam must paste Google Maps `place_id` (or share URL) for exactly one venue each:
-
-  | Backlog name | Likely city | Leading candidates (verify in Google Maps — Yandex alone is not enough for `sourceUrl`) | Collision / skip reason |
-  |--------------|-------------|----------------------------------------------------------------------------------------|-------------------------|
-  | Plov Centre | Samarqand | (A) Samarqand Osh Markazi N1 / Plov Center No.1 — Ibn Sino 12; (B) Plov Tsentr — Registon 38A; (C) Plov Tsentr — Ibn Sino 32B | Multiple “Plov Centre” listings |
-  | Bibi-Xonim | Samarqand | (A) Bibikhanum Teahouse — ~22A near mosque; (B) Bibixonim café — Bibi-Xonim ko‘chasi 48; (C) Bibikhanum Hotel Restaurant — Toshkent St 10 | Must **not** reuse mosque `Bibi-Xonim Masjidi` (`ChIJSYwab7kYTT8RnhlpOyOfDXE`) |
-  | Lyabi-Hauz | Buxoro | (A) Lyabi Hauz / Labi Hovuz restaurant — Mekhtar Anbar / Nakshbandi ~100 (poolside) | Name collides with UNESCO Lyabi-Hauz **square** (not a RESTORAN) |
-
-  After pick: add three `RESTORAN` rows to `tourism_data.json` with `sourceUrl=https://www.google.com/maps/place/?q=place_id:…`, null dining facets OK, then run seed pipeline.
+- ~~Three unresolved restaurants (Maps links)~~ — resolved 2026-08-02 into `tourism_data.json` as DRAFT rows with Google `cid` `sourceUrl`:
+  - Plov Centre → `Samarqand Osh Markazi N1` (`cid=14268127267228355785`)
+  - Bibi-Xonim → `Bibixonim Choyxona` / Bibikhanum Teahouse (`cid=5531354908977729096`) — not the mosque
+  - Lyabi-Hauz → `Lyabi House` Buxoro (`cid=16248639576405358982`) — not UNESCO square / not Tashkent namesake
+  Next: Contabo `npm run seed:knowledge` (end-to-end DRAFT seed).
 - Restaurant + `BOSHQA` publish policy — manual decision for now.
 
 ## Ops — still OPEN (do not mark closed yet)
@@ -68,6 +64,6 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 ## Next pick
 
-1. **Knowledge (gate before SafarAI DRAFT seed pipeline):** Rustam picks Google Maps `place_id` for Plov Centre / Bibi-Xonim / Lyabi-Hauz (table above) — then seed rows + end-to-end `seed:knowledge`.
+1. **Knowledge:** Contabo end-to-end `npm run seed:knowledge` for the three new dining DRAFTs (+ full catalog idempotent re-run).
 2. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
 3. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
