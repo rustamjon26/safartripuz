@@ -23,24 +23,40 @@ type Booking = {
   listing: { title: string } | null;
 };
 
+type EarningsSummary = {
+  totalNet: number;
+  pendingNet: number;
+  totalCommission: number;
+};
+
 export default function GuidePartnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState<Listing[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [onboarding, setOnboarding] = useState(false);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [lRes, bRes] = await Promise.all([
+        const [lRes, bRes, eRes] = await Promise.all([
           fetch("/api/guide/partner/listings"),
           fetch("/api/guide/partner/bookings?limit=200"),
+          fetch("/api/guide/earnings"),
         ]);
         const lData = await lRes.json();
         const bData = await bRes.json();
-        setOnboarding(Boolean(lData?.onboarding || bData?.onboarding));
+        const eData = await eRes.json();
+        setOnboarding(Boolean(lData?.onboarding || bData?.onboarding || eData?.onboarding));
         if (lRes.ok && lData.success) setListings((lData.data?.data || []) as Listing[]);
         if (bRes.ok && bData.success) setBookings((bData.data?.data || []) as Booking[]);
+        if (eRes.ok && eData?.summary) {
+          setEarnings({
+            totalNet: Number(eData.summary.totalNet ?? 0),
+            pendingNet: Number(eData.summary.pendingNet ?? 0),
+            totalCommission: Number(eData.summary.totalCommission ?? 0),
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -52,15 +68,14 @@ export default function GuidePartnerDashboardPage() {
     const activeListings = listings.filter((l) => l.status === "ACTIVE").length;
     const pendingBookings = bookings.filter((b) => b.status === "PENDING").length;
     const confirmedBookings = bookings.filter((b) => b.status === "CONFIRMED").length;
-    const now = new Date();
-    const monthRevenue = bookings
-      .filter((b) => {
-        const d = new Date(b.date);
-        return b.status === "COMPLETED" && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      })
-      .reduce((sum, b) => sum + Number(b.totalPrice), 0);
-    return { activeListings, pendingBookings, confirmedBookings, monthRevenue };
-  }, [listings, bookings]);
+    return {
+      activeListings,
+      pendingBookings,
+      confirmedBookings,
+      /** Ledger payable SoT — not booking.totalPrice gross. */
+      totalNet: earnings?.totalNet ?? 0,
+    };
+  }, [listings, bookings, earnings]);
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const todaysSchedule = useMemo(
@@ -102,7 +117,7 @@ export default function GuidePartnerDashboardPage() {
         <StatCard icon={ListChecks} label="Active listings" value={stats.activeListings} />
         <StatCard icon={Clock} label="Pending bookings" value={stats.pendingBookings} />
         <StatCard icon={CalendarCheck} label="Confirmed bookings" value={stats.confirmedBookings} />
-        <StatCard icon={Wallet} label="Revenue (month)" value={`${stats.monthRevenue.toLocaleString()} UZS`} />
+        <StatCard icon={Wallet} label="Net earnings (payable)" value={`${stats.totalNet.toLocaleString()} UZS`} />
       </div>
 
       {(onboarding || !hasActiveListing) && (

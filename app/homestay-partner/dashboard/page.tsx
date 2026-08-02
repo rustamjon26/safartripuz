@@ -25,24 +25,40 @@ type Listing = {
   status?: "PENDING" | "ACTIVE" | "INACTIVE" | "REJECTED" | "BLOCKED";
 };
 
+type EarningsSummary = {
+  totalNet: number;
+  pendingNet: number;
+  totalCommission: number;
+};
+
 export default function HomeStayPartnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [onboarding, setOnboarding] = useState(false);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [bRes, lRes] = await Promise.all([
+        const [bRes, lRes, eRes] = await Promise.all([
           fetch("/api/homestay/host/bookings"),
           fetch("/api/homestay/host/listings"),
+          fetch("/api/homestay/earnings"),
         ]);
         const bData = await bRes.json();
         const lData = await lRes.json();
-        setOnboarding(Boolean(bData?.onboarding || lData?.onboarding));
+        const eData = await eRes.json();
+        setOnboarding(Boolean(bData?.onboarding || lData?.onboarding || eData?.onboarding));
         setBookings((bData?.data?.data || []) as Booking[]);
         setListings((lData?.data?.data || []) as Listing[]);
+        if (eRes.ok && eData?.summary) {
+          setEarnings({
+            totalNet: Number(eData.summary.totalNet ?? 0),
+            pendingNet: Number(eData.summary.pendingNet ?? 0),
+            totalCommission: Number(eData.summary.totalCommission ?? 0),
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -53,21 +69,14 @@ export default function HomeStayPartnerDashboardPage() {
   const stats = useMemo(() => {
     const pending = bookings.filter((b) => b.status === "PENDING").length;
     const confirmed = bookings.filter((b) => b.status === "CONFIRMED").length;
-    const thisMonth = new Date().getMonth();
-    const thisYear = new Date().getFullYear();
-    const monthRevenue = bookings
-      .filter((b) => {
-        const d = new Date(b.createdAt);
-        return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
-      })
-      .reduce((sum, b) => sum + Number(b.totalPrice), 0);
     return {
       totalListings: listings.length,
       pendingBookings: pending,
       confirmedBookings: confirmed,
-      monthRevenue,
+      /** Ledger payable SoT — not booking.totalPrice gross. */
+      totalNet: earnings?.totalNet ?? 0,
     };
-  }, [bookings, listings]);
+  }, [bookings, listings, earnings]);
 
   const listingsAwaitingApproval = useMemo(
     () => listings.filter((l) => l.status === "PENDING").length,
@@ -111,7 +120,7 @@ export default function HomeStayPartnerDashboardPage() {
         <StatCard icon={Home} label="Faol listinglar" value={stats.totalListings} />
         <StatCard icon={Clock} label="Kutilayotgan bronlar" value={stats.pendingBookings} />
         <StatCard icon={CalendarCheck} label="Tasdiqlangan bronlar" value={stats.confirmedBookings} />
-        <StatCard icon={Wallet} label="Jami daromad" value={`${stats.monthRevenue.toLocaleString()} UZS`} />
+        <StatCard icon={Wallet} label="Sof daromad (kutilayotgan)" value={`${stats.totalNet.toLocaleString()} UZS`} />
       </div>
 
       {listings.length === 0 ? (

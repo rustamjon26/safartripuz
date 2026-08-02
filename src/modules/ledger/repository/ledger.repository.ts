@@ -135,6 +135,52 @@ export class LedgerRepository {
     );
     return this.getAccountSignedBalanceTiyin(payable.id, client);
   }
+
+  /**
+   * Platform REVENUE (CREDIT − DEBIT) on ledger txs that also touch this
+   * partner's payable — attributed commission for that partner's bookings.
+   * PLATFORM-owned payments (no partner payable line) are excluded.
+   */
+  async sumPartnerAttributedCommissionTiyin(
+    partnerUserId: string,
+    client: DbClient = db,
+  ): Promise<bigint> {
+    const payable = await this.ensureAccount(
+      {
+        type: "LIABILITY",
+        ownerType: "PARTNER",
+        ownerId: partnerUserId,
+      },
+      client,
+    );
+    const revenue = await this.ensureAccount(
+      { type: "REVENUE", ownerType: "PLATFORM", ownerId: "" },
+      client,
+    );
+
+    const partnerTxRows = await client.ledgerEntry.findMany({
+      where: { accountId: payable.id },
+      select: { transactionId: true },
+      distinct: ["transactionId"],
+    });
+    const txIds = partnerTxRows.map((r: { transactionId: string }) => r.transactionId);
+    if (txIds.length === 0) return 0n;
+
+    const revEntries = await client.ledgerEntry.findMany({
+      where: {
+        accountId: revenue.id,
+        transactionId: { in: txIds },
+      },
+      select: { amount: true, direction: true },
+    });
+
+    let bal = 0n;
+    for (const e of revEntries) {
+      const amt = BigInt(e.amount.toString());
+      bal += e.direction === "CREDIT" ? amt : -amt;
+    }
+    return bal;
+  }
 }
 
 export const ledgerRepository = new LedgerRepository();

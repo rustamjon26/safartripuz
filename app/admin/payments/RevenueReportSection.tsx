@@ -143,7 +143,9 @@ export function RevenueReportSection() {
                 <td className="py-3 pl-6 font-black text-slate-900">{LABELS[b.type] ?? b.type}</td>
                 <td className="py-3 font-bold text-slate-600">{b.count}</td>
                 <td className="py-3 font-black text-slate-900">{b.total.toLocaleString()} UZS</td>
-                <td className="py-3 pr-6 font-bold text-slate-600">{b.platformFee.toLocaleString()} UZS</td>
+                <td className="py-3 pr-6 font-bold text-slate-600">
+                  {Number(b.platformFee ?? 0).toLocaleString()} UZS
+                </td>
               </tr>
             ))}
             <tr className="bg-slate-50 font-black">

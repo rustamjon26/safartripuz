@@ -392,6 +392,28 @@ export class LedgerService {
     return ledgerRepository.getPartnerPayableTiyin(partnerUserId);
   }
 
+  /**
+   * Ledger balance aggregates for partner dashboards (general ledger SoT).
+   * pendingNet = outstanding payable; totalCommission = attributed platform share.
+   */
+  async getPartnerBalanceSummary(partnerUserId: string): Promise<{
+    payableTiyin: bigint;
+    pendingNetTiyin: bigint;
+    attributedCommissionTiyin: bigint;
+  }> {
+    const [payableTiyin, attributedCommissionTiyin] = await Promise.all([
+      ledgerRepository.getPartnerPayableTiyin(partnerUserId),
+      ledgerRepository.sumPartnerAttributedCommissionTiyin(partnerUserId),
+    ]);
+    const pendingNetTiyin = payableTiyin < 0n ? 0n : payableTiyin;
+    return {
+      payableTiyin,
+      pendingNetTiyin,
+      attributedCommissionTiyin:
+        attributedCommissionTiyin < 0n ? 0n : attributedCommissionTiyin,
+    };
+  }
+
   async sumPlatformRevenueTiyin(opts?: {
     from?: Date;
     to?: Date;

@@ -15,6 +15,10 @@ function parseDay(value: string | null, endOfDay: boolean) {
   return d;
 }
 
+function somDecimalToNumber(value: { toString(): string }): number {
+  return Money.fromSomNumber(value.toString()).toSomNumber();
+}
+
 export async function GET(req: Request) {
   try {
     await requireRole(["admin", "super_admin"]);
@@ -25,7 +29,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "startDate va endDate kerak (YYYY-MM-DD)" }, { status: 400 });
     }
 
-    const [payments, rates, platformRevenueTiyin] = await Promise.all([
+    const [payments, rates, platformRevenueTiyin, peGroups] = await Promise.all([
       prisma.payment.findMany({
         where: {
           status: "SUCCESS",
@@ -53,6 +57,21 @@ export async function GET(req: Request) {
       }),
       getCommissionRates(),
       ledgerService.sumPlatformRevenueTiyin({ from: start, to: end }),
+      // Subledger detail by booking type — LedgerEntry has no bookingType dimension.
+      prisma.partnerEarning.groupBy({
+        by: ["bookingType"],
+        where: {
+          createdAt: { gte: start, lte: end },
+          status: { not: "CANCELLED" },
+          bookingType: { not: "TAXI" },
+        },
+        _count: { _all: true },
+        _sum: {
+          grossAmount: true,
+          commissionFee: true,
+          netAmount: true,
+        },
+      }),
     ]);
 
     const buckets: Record<
@@ -79,7 +98,28 @@ export async function GET(req: Request) {
       buckets[cat].total += amt;
     }
 
-    // Platform fee SoT = ledger REVENUE balance in range (not PartnerEarning).
+    const peFeeByType = new Map<string, number>();
+    const commissionSummary = peGroups.map((g) => {
+      const totalGross = somDecimalToNumber(g._sum.grossAmount ?? { toString: () => "0" });
+      const totalCommission = somDecimalToNumber(
+        g._sum.commissionFee ?? { toString: () => "0" },
+      );
+      const totalNet = somDecimalToNumber(g._sum.netAmount ?? { toString: () => "0" });
+      peFeeByType.set(g.bookingType, totalCommission);
+      return {
+        type: g.bookingType,
+        count: g._count._all,
+        totalGross,
+        totalCommission,
+        totalNet,
+      };
+    });
+
+    // Per-type platform fee from PartnerEarning (subledger). Aggregate total from Ledger.
+    for (const type of ["HOTEL", "HOMESTAY", "GUIDE"] as const) {
+      buckets[type].platformFee = peFeeByType.get(type) ?? 0;
+    }
+
     const totalPlatformCommission = Money.fromTiyin(
       platformRevenueTiyin < 0n ? 0n : platformRevenueTiyin,
     ).toSomNumber();
@@ -88,7 +128,7 @@ export async function GET(req: Request) {
       type,
       count: buckets[type].count,
       total: buckets[type].total,
-      platformFee: type === "OTHER" ? 0 : undefined,
+      platformFee: buckets[type].platformFee,
     }));
 
     const grandTotal = breakdown.reduce((s, b) => s + b.total, 0);
@@ -97,13 +137,22 @@ export async function GET(req: Request) {
       {
         startDate: start.toISOString(),
         endDate: end.toISOString(),
-        source: "ledger",
+        /**
+         * Hybrid: Ledger for total platform revenue; PartnerEarning for
+         * per-type commissionSummary / breakdown.platformFee (Ledger has no bookingType).
+         */
+        source: "ledger+partner_earning",
         breakdown,
         grandTotal,
         totalPlatformFee: totalPlatformCommission,
         totalPlatformCommission,
         platformRevenueTiyin: platformRevenueTiyin.toString(),
+        commissionSummary,
         commissionRates: rates,
+        notes: {
+          ledgerBookingType:
+            "LedgerEntry/LedgerTransaction have no bookingType dimension; per-type fees use PartnerEarning subledger until a schema addition is approved.",
+        },
       },
       { status: 200 },
     );
