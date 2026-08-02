@@ -23,7 +23,7 @@ Production host: Contabo VPS, app path `/var/www/safar`, PM2 app name `safartrip
 
 Workflow job name is **`test`** (check run name: `test`). A green Actions run alone does **not** block merges unless this is required.
 
-**Prerequisite (2026-08-02):** private repos on **GitHub Free** cannot use branch protection / rulesets — UI and admin API return *Upgrade to GitHub Pro or make this repository public* (HTTP 403). Choose **GitHub Pro** or make the repo **public**, then:
+**Prerequisite (2026-08-02):** private repos on **GitHub Free** cannot use branch protection / rulesets — UI and admin API return *Upgrade to GitHub Pro or make this repository public* (HTTP 403). Options: make the repo **public**, or upgrade — **personal account → GitHub Pro**; **organization → GitHub Team** (orgs have no “Pro”; Team is the minimum). Then:
 
 1. GitHub → **Settings** → **Branches** → **Branch protection rules** → rule for `main` (create if missing).
 2. Enable **Require a pull request before merging** (recommended).
