@@ -4,6 +4,11 @@ import {
   parseHmm,
   type OpeningHours,
 } from "@/src/modules/knowledge";
+import {
+  classifyDayTripIds,
+  dayTripStartBudget,
+  reservedDayTripStartIndexes,
+} from "./dayTrip";
 import { haversine, travelMinutesBetween } from "./distance";
 import { getMaxIntraDayLegKm } from "./maxIntraDayLegKm";
 import { compareByProminence, prominenceRank } from "./prominence";
@@ -16,6 +21,14 @@ import type {
 } from "./types";
 
 export { getMaxIntraDayLegKm, MAX_INTRA_DAY_LEG_KM } from "./maxIntraDayLegKm";
+export {
+  classifyDayTripIds,
+  dayTripStartBudget,
+  distanceToPrimaryCoreKm,
+  isDayTripCandidate,
+  primaryCoreAnchors,
+  reservedDayTripStartIndexes,
+} from "./dayTrip";
 
 /** Target stops per calendar day. Unfilled slots become NO_DATA. */
 export const SLOTS_PER_DAY = 3;
@@ -249,8 +262,9 @@ function tryScheduleCandidate(
  * Each site is used at most once per plan. Sites are spread evenly across
  * days; remaining capacity → NO_DATA (days keep SLOTS_PER_DAY slots).
  *
- * Within a day: slot 1 by prominence; later slots by nearest to the last
- * placed site (see {@link orderCandidatesForSlot}).
+ * Within a day: slot 1 by prominence (or a reserved day-trip open on later
+ * days — see {@link dayTripStartBudget}); later slots by nearest to the last
+ * placed site within the region leg cap (see {@link orderCandidatesForSlot}).
  */
 export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
   const dayDates = buildDayDates(input.startDate, input.dayCount);
@@ -265,6 +279,13 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
     }
     usable.push(c);
   }
+
+  const dayTripIds = classifyDayTripIds(usable, maxIntraDayLegKm);
+  const tripBudget = dayTripStartBudget(dayDates.length, dayTripIds.size);
+  const reservedStarts = reservedDayTripStartIndexes(
+    dayDates.length,
+    tripBudget,
+  );
 
   const targets = evenSlotTargets(usable.length, dayDates.length);
   const placed = new Set<string>();
@@ -286,8 +307,17 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
       );
       if (remaining.length === 0) break;
 
+      // Slot 1 on a reserved day: prefer unplaced day-trips so far SECONDARY
+      // sites (e.g. Imom al-Buxoriy) can open a day instead of staying
+      // unreachable behind PRIMARY-first starts + leg caps.
+      let pool = remaining;
+      if (last == null && reservedStarts.has(i)) {
+        const dayTripsLeft = remaining.filter((c) => dayTripIds.has(c.id));
+        if (dayTripsLeft.length > 0) pool = dayTripsLeft;
+      }
+
       const ordered = orderCandidatesForSlot(
-        remaining,
+        pool,
         last,
         maxIntraDayLegKm,
       );
@@ -307,6 +337,25 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
           last,
         );
         if (attempt) break;
+      }
+      // Reserved day-trip open failed hours/fit — fall back to normal pool.
+      if (!attempt && last == null && pool !== remaining) {
+        const fallback = orderCandidatesForSlot(
+          remaining,
+          null,
+          maxIntraDayLegKm,
+        );
+        for (const candidate of fallback) {
+          attempt = tryScheduleCandidate(
+            candidate,
+            dayDate,
+            dayOpen,
+            dayClose,
+            cursor,
+            null,
+          );
+          if (attempt) break;
+        }
       }
       if (!attempt) break;
 

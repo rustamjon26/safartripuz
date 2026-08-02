@@ -25,15 +25,14 @@ Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqs
 
 ## Planner (open)
 
-### Far / day-trip sites never get a day-start
+### ~~Far / day-trip sites never get a day-start~~ — fixed (domain)
 
-Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day failed in prod: day-starts stay `PRIMARY`-first; slots 2+ are capped by `MAX_INTRA_DAY_LEG_KM` (~12 km, Samarqand-tuned). Result: Imom is **unreachable** in a 3×3 plan.
+Auto day-trip = farther than `getMaxIntraDayLegKm(regionCode)` from every PRIMARY; optional `ScheduleCandidateInput.isDayTrip` override. Reserves later day-starts: **1** on 3-day plans, up to `dayCount - 2` on 4+. No schema migration. See `dayTrip.ts` + `scheduleDays`.
 
-**Directions:**
+Still open (optional follow-ups):
 
-- Mark day-trips (`isDayTrip` editorial flag and/or auto by distance from region centroid / PRIMARY cluster).
-- Reserve a day-start (or a whole day) for them — especially on **4+ day** plans.
-- Pair with per-`regionCode` leg budget (below).
+- Persist editorial `isDayTrip` on `Site` (Prisma) for seed/admin.
+- Whole-day reservation (not just day-start) when a day-trip has nearby companions.
 
 ### Other planner follow-ups
 
@@ -64,6 +63,6 @@ Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day 
 
 ## Next pick
 
-1. **Knowledge:** Contabo end-to-end `npm run seed:knowledge` for the three new dining DRAFTs (+ full catalog idempotent re-run).
-2. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
-3. **Planner:** day-trip day-start reservation; optional `toshkent` map entry.
+1. **Ops (still open):** (i) personal **GitHub Pro** or public → require check `test`; (ii) nightly `[backup] OK` after 02:15.
+2. **Knowledge:** dining DRAFT publish policy / `BOSHQA`; Contabo seed for three dining DRAFTs already run (`created=3`).
+3. **Planner:** optional `toshkent` leg-km map entry; optional `Site.isDayTrip` column.
