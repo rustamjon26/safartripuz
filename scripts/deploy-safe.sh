@@ -95,11 +95,24 @@ if [ -f .env.local ]; then
   cp .env.local ./.next/standalone/.env.local
 fi
 
-# Always restart (not reload): reload on a stopped process fails and was previously
-# swallowed for outbox (`|| true`), leaving workers down after deploy.
-echo "==> Restarting PM2 apps: ${PM2_APPS[*]} ..."
-if ! pm2 restart "${PM2_APPS[@]}" --update-env; then
-  echo "==> restart failed — starting from ecosystem.config.js ..."
+# Always stop → free :3000 → start. Plain `pm2 restart` can report online while the
+# new Node process dies with EADDRINUSE and an orphan keeps serving the old .next
+# (HTML references deleted chunk hashes → /_next/static/... 500).
+echo "==> Stopping PM2 apps before bind: ${PM2_APPS[*]} ..."
+pm2 stop "${PM2_APPS[@]}" || true
+sleep 1
+if command -v fuser >/dev/null 2>&1; then
+  echo "==> Freeing TCP :3000 if still held..."
+  fuser -k 3000/tcp 2>/dev/null || true
+  sleep 1
+elif command -v ss >/dev/null 2>&1; then
+  # Best-effort: show leftover listeners (manual kill if fuser absent).
+  ss -lptn 'sport = :3000' || true
+fi
+
+echo "==> Starting PM2 apps: ${PM2_APPS[*]} ..."
+if ! pm2 start "${PM2_APPS[@]}" --update-env 2>/dev/null; then
+  echo "==> start by name failed — starting from ecosystem.config.js ..."
   pm2 start ecosystem.config.js
   pm2 restart "${PM2_APPS[@]}" --update-env
 fi
@@ -108,4 +121,28 @@ pm2 save
 echo "==> PM2 status:"
 pm2 status
 
-echo "==> Done (deploy-safe)."
+# Fail deploy if the process on :3000 is still serving a stale build.
+EXPECTED_BUILD_ID="$(tr -d '[:space:]' < .next/BUILD_ID)"
+echo "==> Verifying runtime serves on-disk trip-builder chunk (BUILD_ID=${EXPECTED_BUILD_ID})..."
+VERIFY_OK=0
+for _try in 1 2 3 4 5 6 7 8 9 10; do
+  sleep 1
+  HTML="$(curl -fsS --max-time 5 http://127.0.0.1:3000/trip-builder 2>/dev/null || true)"
+  CHUNK="$(printf '%s' "$HTML" | grep -oE 'trip-builder/page-[a-f0-9]+\.js' | head -1 || true)"
+  if [[ -n "$CHUNK" && -f ".next/static/chunks/app/${CHUNK}" ]]; then
+    echo "==> Runtime serves ${CHUNK} (on disk) — OK"
+    VERIFY_OK=1
+    break
+  fi
+  echo "==> verify attempt ${_try}: chunk='${CHUNK:-none}' not on disk yet..."
+done
+if [[ "$VERIFY_OK" != "1" ]]; then
+  echo "==> FATAL: :3000 still serving stale/missing trip-builder chunk after restart." >&2
+  echo "    Expected files under .next/static/chunks/app/trip-builder/:" >&2
+  ls -la .next/static/chunks/app/trip-builder/ >&2 || true
+  echo "    Recent safartrip logs:" >&2
+  pm2 logs safartrip --lines 30 --nostream >&2 || true
+  exit 1
+fi
+
+echo "==> Done (deploy-safe). BUILD_ID=${EXPECTED_BUILD_ID}"
