@@ -94,7 +94,7 @@ CREATE TABLE `ChannelRoomMapping` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
-    UNIQUE INDEX `ChannelRoomMapping_hotelId_providerKey_roomTypeId_externalRateCode_key`(`hotelId`, `providerKey`, `roomTypeId`, `externalRateCode`),
+    UNIQUE INDEX `ChannelRoomMapping_hotel_provider_room_rate_key`(`hotelId`, `providerKey`, `roomTypeId`, `externalRateCode`),
     INDEX `ChannelRoomMapping_hotelId_providerKey_active_idx`(`hotelId`, `providerKey`, `active`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -131,7 +131,7 @@ CREATE TABLE `ChannelReservationInbox` (
     `receivedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `processedAt` DATETIME(3) NULL,
 
-    UNIQUE INDEX `ChannelReservationInbox_hotelId_providerKey_externalReservationId_key`(`hotelId`, `providerKey`, `externalReservationId`),
+    UNIQUE INDEX `ChannelReservationInbox_hotel_provider_extRes_key`(`hotelId`, `providerKey`, `externalReservationId`),
     INDEX `ChannelReservationInbox_hotelId_status_receivedAt_idx`(`hotelId`, `status`, `receivedAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

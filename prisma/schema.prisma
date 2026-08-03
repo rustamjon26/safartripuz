@@ -2227,7 +2227,7 @@ model ChannelRoomMapping {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  @@unique([hotelId, providerKey, roomTypeId, externalRateCode])
+  @@unique([hotelId, providerKey, roomTypeId, externalRateCode], map: "ChannelRoomMapping_hotel_provider_room_rate_key")
   @@index([hotelId, providerKey, active])
 }
 
@@ -2267,6 +2267,6 @@ model ChannelReservationInbox {
   receivedAt            DateTime                       @default(now())
   processedAt           DateTime?
 
-  @@unique([hotelId, providerKey, externalReservationId])
+  @@unique([hotelId, providerKey, externalReservationId], map: "ChannelReservationInbox_hotel_provider_extRes_key")
   @@index([hotelId, status, receivedAt])
 }
