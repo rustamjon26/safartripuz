@@ -380,7 +380,10 @@ export async function POST(req: Request) {
         if (heldHotelBookingId) {
           await tx.hotelBooking.update({
             where: { id: heldHotelBookingId },
-            data: { note: `TravelPlan: ${createdPlan.id}` },
+            data: {
+              travelPlanId: createdPlan.id,
+              note: `TravelPlan: ${createdPlan.id}`,
+            },
           });
         }
 

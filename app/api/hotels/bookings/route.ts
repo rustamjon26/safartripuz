@@ -162,7 +162,7 @@ export async function POST(req: Request) {
 
       await prisma.hotelBooking.update({
         where: { id: booking.id },
-        data: { note: `TravelPlan: ${plan.id}` },
+        data: { travelPlanId: plan.id, note: `TravelPlan: ${plan.id}` },
       });
 
       const payment = await prisma.payment.create({

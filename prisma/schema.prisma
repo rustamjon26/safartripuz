@@ -649,6 +649,9 @@ model HotelBooking {
   status          BookingStatus           @default(PENDING)
   /// Soft hold deadline for HELD bookings (15 minutes). Cleared after payment confirm.
   holdExpiresAt   DateTime?
+  /// Real FK to TravelPlan (replaces fragile `note contains` linkage).
+  travelPlanId    String?
+  travelPlan      TravelPlan?             @relation(fields: [travelPlanId], references: [id], onDelete: SetNull)
   note            String?
   /// Opaque quote breakdown from RatesService (tiyin line items).
   pricingSnapshot Json?
@@ -672,6 +675,7 @@ model HotelBooking {
   @@index([status, holdExpiresAt])
   @@index([cancellationPolicyId])
   @@index([payoutOwnerType])
+  @@index([travelPlanId])
 }
 
 /// Audit trail for HotelBooking status transitions (immutable append-only).
@@ -800,6 +804,7 @@ model TravelPlan {
   homeStayBookings HomeStayBooking[]
   taxiOrders       TaxiOrder[]
   guideBookings    GuideBooking[]
+  hotelBookings    HotelBooking[]
 
   @@index([userId, createdAt])
   @@index([status])

@@ -10,12 +10,14 @@ import { Money } from "@/src/shared/money";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 
 /**
- * Marks payment SUCCESS, confirms travel plan, and confirms linked hotel / homestay / guide bookings.
- * Used by user payment confirm and admin manual confirm.
+ * Marks payment SUCCESS and confirms linked hotel / homestay / guide bookings.
+ * The travel plan becomes CONFIRMED only when EVERY linked booking confirmed;
+ * if any booking hit a terminal state (hold expired before payment), the plan
+ * keeps its current status and a PAYMENT_SUCCESS_MANUAL_REVIEW audit row +
+ * ALERT log is written for ops (refund or re-book manually).
  *
  * Payme auto-cancels an unconfirmed transaction after 12 hours (state -1, reason 4).
- * Our 15-minute hold is intentionally shorter. If payment arrives after EXPIRED,
- * BookingService re-checks inventory; on failure flags MANUAL_REVIEW (does not blind-confirm).
+ * Our 15-minute hold is intentionally shorter — never blind-confirm after expiry.
  */
 export async function completeSuccessfulPaymentInTx(
   tx: Prisma.TransactionClient,
@@ -30,27 +32,30 @@ export async function completeSuccessfulPaymentInTx(
 
   setMoneyPathContext({ paymentId });
 
+  // Money really arrived — payment is SUCCESS regardless of booking outcome.
   const updatedPayment = await tx.payment.update({
     where: { id: paymentId },
     data: { status: "SUCCESS", paidAt: new Date() },
   });
 
-  const updatedPlan = await tx.travelPlan.update({
-    where: { id: travelPlanId },
-    data: { status: "CONFIRMED" },
-    select: { id: true, status: true },
-  });
+  // Plan is confirmed ONLY after every linked booking actually confirms.
+  // If any booking hit a terminal state (e.g. hold expired before payment),
+  // the plan stays un-confirmed and ops must resolve (refund or re-book).
+  let manualReviewCount = 0;
 
   const rates = await getCommissionRates(tx);
 
   const pendingHotelBookings = await tx.hotelBooking.findMany({
     where: {
-      note: { contains: travelPlanId },
+      // FK first; note-contains covers rows created before the FK migration.
+      OR: [{ travelPlanId }, { note: { contains: travelPlanId } }],
       status: { in: ["PENDING", "HELD", "PAID", "EXPIRED", "CANCELLED"] },
       source: "SAFARTRIP",
     },
     select: { id: true, hotelId: true, totalAmount: true, status: true },
   });
+
+  const confirmedHotelBookings: typeof pendingHotelBookings = [];
 
   for (const booking of pendingHotelBookings) {
     const result = await bookingService.confirmPaymentForHotelBooking(
@@ -60,6 +65,7 @@ export async function completeSuccessfulPaymentInTx(
     );
 
     if (!result.ok) {
+      manualReviewCount += 1;
       console.error("ALERT hotel_booking_manual_review_after_payment", {
         bookingId: booking.id,
         paymentId,
@@ -67,6 +73,7 @@ export async function completeSuccessfulPaymentInTx(
       });
       continue;
     }
+    confirmedHotelBookings.push(booking);
 
     const hotel = await tx.hotel.findUnique({
       where: { id: booking.hotelId },
@@ -141,15 +148,35 @@ export async function completeSuccessfulPaymentInTx(
     },
   });
 
-  if (pendingHomeStayBookings.length) {
-    await tx.homeStayBooking.updateMany({
-      where: {
-        id: { in: pendingHomeStayBookings.map((b) => b.id) },
-      },
-      data: { status: "CONFIRMED", holdExpiresAt: null },
-    });
+  const confirmedHomeStayBookings: typeof pendingHomeStayBookings = [];
 
+  if (pendingHomeStayBookings.length) {
     for (const booking of pendingHomeStayBookings) {
+      // Conditional confirm — a concurrent hold-expiry may have CANCELLED this
+      // row between our read and now. Never resurrect terminal bookings.
+      const confirmed = await tx.homeStayBooking.updateMany({
+        where: { id: booking.id, status: "PENDING" },
+        data: { status: "CONFIRMED", holdExpiresAt: null },
+      });
+      if (confirmed.count === 0) {
+        manualReviewCount += 1;
+        console.error("ALERT homestay_booking_manual_review_after_payment", {
+          bookingId: booking.id,
+          paymentId,
+          travelPlanId,
+        });
+        await tx.auditLog.create({
+          data: {
+            action: "PAYMENT_AFTER_EXPIRED_MANUAL_REVIEW",
+            entity: "HomeStayBooking",
+            entityId: booking.id,
+            newData: { reason: "TERMINAL_STATUS", paymentId },
+          },
+        });
+        continue;
+      }
+      confirmedHomeStayBookings.push(booking);
+
       const listing = await tx.homeStayListing.findUnique({
         where: { id: booking.listingId },
         select: { hostId: true, ownerType: true },
@@ -245,13 +272,34 @@ export async function completeSuccessfulPaymentInTx(
     select: { id: true, guideId: true, listingId: true, totalPrice: true },
   });
 
-  if (pendingGuideBookings.length) {
-    await tx.guideBooking.updateMany({
-      where: { id: { in: pendingGuideBookings.map((b) => b.id) } },
-      data: { status: "CONFIRMED" },
-    });
+  const confirmedGuideBookings: typeof pendingGuideBookings = [];
 
+  if (pendingGuideBookings.length) {
     for (const booking of pendingGuideBookings) {
+      // Conditional confirm — never resurrect expired/cancelled guide bookings.
+      const confirmed = await tx.guideBooking.updateMany({
+        where: { id: booking.id, status: "PENDING" },
+        data: { status: "CONFIRMED" },
+      });
+      if (confirmed.count === 0) {
+        manualReviewCount += 1;
+        console.error("ALERT guide_booking_manual_review_after_payment", {
+          bookingId: booking.id,
+          paymentId,
+          travelPlanId,
+        });
+        await tx.auditLog.create({
+          data: {
+            action: "PAYMENT_AFTER_EXPIRED_MANUAL_REVIEW",
+            entity: "GuideBooking",
+            entityId: booking.id,
+            newData: { reason: "TERMINAL_STATUS", paymentId },
+          },
+        });
+        continue;
+      }
+      confirmedGuideBookings.push(booking);
+
       const listing = await tx.guideListing.findUnique({
         where: { id: booking.listingId },
         select: { ownerType: true },
@@ -306,15 +354,47 @@ export async function completeSuccessfulPaymentInTx(
       );
     }
 
-    await tx.guideBookingLog.createMany({
-      data: pendingGuideBookings.map((booking) => ({
-        bookingId: booking.id,
+    if (confirmedGuideBookings.length) {
+      await tx.guideBookingLog.createMany({
+        data: confirmedGuideBookings.map((booking) => ({
+          bookingId: booking.id,
+          actorId,
+          actorRole: "system",
+          fromStatus: "PENDING",
+          toStatus: "CONFIRMED",
+          note: "Confirmed after payment success",
+        })),
+      });
+    }
+  }
+
+  // Plan status: CONFIRMED only when nothing needs manual review.
+  const updatedPlan =
+    manualReviewCount === 0
+      ? await tx.travelPlan.update({
+          where: { id: travelPlanId },
+          data: { status: "CONFIRMED" },
+          select: { id: true, status: true },
+        })
+      : await tx.travelPlan.findUniqueOrThrow({
+          where: { id: travelPlanId },
+          select: { id: true, status: true },
+        });
+
+  if (manualReviewCount > 0) {
+    console.error("ALERT payment_success_manual_review", {
+      paymentId,
+      travelPlanId,
+      manualReviewCount,
+    });
+    await tx.auditLog.create({
+      data: {
         actorId,
-        actorRole: "system",
-        fromStatus: "PENDING",
-        toStatus: "CONFIRMED",
-        note: "Confirmed after payment success",
-      })),
+        action: "PAYMENT_SUCCESS_MANUAL_REVIEW",
+        entity: "TravelPlan",
+        entityId: travelPlanId,
+        newData: { paymentId, manualReviewCount },
+      },
     });
   }
 
@@ -328,6 +408,7 @@ export async function completeSuccessfulPaymentInTx(
       newData: {
         status: updatedPayment.status,
         travelPlanStatus: updatedPlan.status,
+        manualReviewCount,
       },
     },
   });
@@ -358,7 +439,7 @@ export async function completeSuccessfulPaymentInTx(
     },
   });
 
-  for (const booking of pendingHotelBookings) {
+  for (const booking of confirmedHotelBookings) {
     await outboxService.enqueueInTx(tx, {
       aggregateType: "HotelBooking",
       aggregateId: booking.id,
@@ -394,7 +475,7 @@ export async function completeSuccessfulPaymentInTx(
     }
   }
 
-  for (const booking of pendingHomeStayBookings) {
+  for (const booking of confirmedHomeStayBookings) {
     await outboxService.enqueueInTx(tx, {
       aggregateType: "HomeStayBooking",
       aggregateId: booking.id,
@@ -429,7 +510,7 @@ export async function completeSuccessfulPaymentInTx(
     }
   }
 
-  for (const booking of pendingGuideBookings) {
+  for (const booking of confirmedGuideBookings) {
     await outboxService.enqueueInTx(tx, {
       aggregateType: "GuideBooking",
       aggregateId: booking.id,

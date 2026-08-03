@@ -3,6 +3,7 @@ import {
   extractDidoxDocumentId,
   sendDidoxInvoice,
 } from "@/lib/didox/didox.service";
+import { Money } from "@/src/shared/money";
 
 function formatContractDate(date: Date): string {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
@@ -60,18 +61,33 @@ export async function emitDidoxInvoiceForPayment(paymentId: string): Promise<voi
     if (!payment || payment.status !== "SUCCESS") return;
     if (payment.didoxDocumentId) return;
 
+    // Factura buyer must be a real legal counterparty. Placeholder TINs
+    // produce invalid EDO documents — refuse to emit without a configured TIN.
+    const buyerTin = process.env.DIDOX_DEFAULT_BUYER_TIN;
+    if (!buyerTin) {
+      console.warn(
+        "[Didox] DIDOX_DEFAULT_BUYER_TIN is not set — skipping factura for payment",
+        paymentId,
+      );
+      return;
+    }
+
     const plan = payment.travelPlan;
     const hotelBooking = await prisma.hotelBooking.findFirst({
-      where: { note: { contains: payment.travelPlanId } },
+      where: {
+        OR: [
+          { travelPlanId: payment.travelPlanId },
+          { note: { contains: payment.travelPlanId } },
+        ],
+      },
       include: { hotel: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
     });
 
+    // Buyer is the paying customer — the hotel/listing is the product, not
+    // the counterparty.
     const buyerName =
-      hotelBooking?.hotel.name ??
-      plan.homeStayBookings[0]?.listing.title ??
-      plan.guideBookings[0]?.listing.title ??
-      (`${plan.user.first_name} ${plan.user.last_name}`.trim() || "Mehmon");
+      `${plan.user.first_name} ${plan.user.last_name}`.trim() || "Mehmon";
 
     const productName = buildProductName({
       destination: plan.destination,
@@ -90,10 +106,11 @@ export async function emitDidoxInvoiceForPayment(paymentId: string): Promise<voi
       sellerAddress: process.env.DIDOX_SELLER_ADDRESS ?? "Toshkent sh.",
       sellerBankAccount: process.env.DIDOX_SELLER_BANK_ACCOUNT ?? "",
       sellerBankId: process.env.DIDOX_SELLER_BANK_ID ?? "",
-      buyerTin: "000000000",
+      buyerTin,
       buyerName,
       productName,
-      amount: Number(payment.amount),
+      // Decimal som → exact 2dp via Money (no float noise from Number(Decimal)).
+      amount: Money.fromSomNumber(payment.amount.toString()).toSomNumber(),
       catalogCode: process.env.DIDOX_CATALOG_CODE ?? "10523001001000000",
     });
 
