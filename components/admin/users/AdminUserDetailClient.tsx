@@ -42,6 +42,10 @@ const ROLE_LABELS: Record<Role, string> = {
   restaurant_manager: "Restaurant",
   home_stay_partner: "Home Stay",
   support: "Support",
+  cleaner: "Cleaner",
+  receptionist: "Receptionist",
+  waiter: "Waiter",
+  hotel_staff: "Hotel Staff",
 };
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -55,6 +59,10 @@ const ROLE_BADGE: Record<Role, string> = {
   restaurant_manager: "bg-amber-50 text-amber-700 ring-amber-100",
   home_stay_partner: "bg-blue-50 text-blue-700 ring-blue-100",
   support: "bg-cyan-50 text-cyan-700 ring-cyan-100",
+  cleaner: "bg-lime-50 text-lime-700 ring-lime-100",
+  receptionist: "bg-sky-50 text-sky-700 ring-sky-100",
+  waiter: "bg-orange-50 text-orange-800 ring-orange-100",
+  hotel_staff: "bg-teal-50 text-teal-800 ring-teal-100",
 };
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
@@ -64,6 +72,10 @@ const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "guide", label: "Guide" },
   { value: "home_stay_partner", label: "Home Stay" },
   { value: "support", label: "Support" },
+  { value: "cleaner", label: "Cleaner" },
+  { value: "receptionist", label: "Receptionist" },
+  { value: "waiter", label: "Waiter" },
+  { value: "hotel_staff", label: "Hotel Staff" },
   { value: "admin", label: "Admin" },
 ];
 

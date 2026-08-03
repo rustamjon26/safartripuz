@@ -15,7 +15,11 @@ type Role =
   | "guide"
   | "restaurant_manager"
   | "home_stay_partner"
-  | "support";
+  | "support"
+  | "cleaner"
+  | "receptionist"
+  | "waiter"
+  | "hotel_staff";
 
 type UserRow = {
   id: string;
@@ -37,6 +41,10 @@ const ROLE_SELECT_OPTIONS: { value: Role; label: string }[] = [
   { value: "home_stay_partner", label: "Uy Mehmonxona" },
   { value: "guide", label: "Gid" },
   { value: "support", label: "Support" },
+  { value: "cleaner", label: "Cleaner" },
+  { value: "receptionist", label: "Receptionist" },
+  { value: "waiter", label: "Waiter" },
+  { value: "hotel_staff", label: "Hotel Staff" },
   { value: "admin", label: "Admin" },
   { value: "super_admin", label: "Super Admin" },
 ];
@@ -52,6 +60,10 @@ const ROLE_LABELS: Record<Role, string> = {
   restaurant_manager: "Restoran",
   home_stay_partner: "Uy Mehmonxona",
   support: "Support",
+  cleaner: "Cleaner",
+  receptionist: "Receptionist",
+  waiter: "Waiter",
+  hotel_staff: "Hotel Staff",
 };
 
 export default function AdminUsersPage() {

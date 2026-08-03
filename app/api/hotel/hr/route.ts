@@ -42,8 +42,18 @@ export async function POST(req: Request) {
       let user = await tx.user.findUnique({ where: { email } });
       
       if (!user) {
-        // Map staff role to platform role
-        const platformRole: Role = "user";
+        // Map HotelStaff job role → platform Role (Staff PWA login)
+        const job = String(role ?? "").toUpperCase();
+        const platformRole: Role =
+          job === "CLEANER"
+            ? "cleaner"
+            : job === "RECEPTION" || job === "RECEPTIONIST"
+              ? "receptionist"
+              : job === "WAITER"
+                ? "waiter"
+                : job === "MANAGER" || job === "ADMIN"
+                  ? "hotel_staff"
+                  : "hotel_staff";
 
         user = await tx.user.create({
           data: {
@@ -52,8 +62,23 @@ export async function POST(req: Request) {
             email: email,
             phone: phone || `+998${Math.floor(Math.random()*1000000000)}`,
             password: passwordHash,
-            role: platformRole, 
+            role: platformRole,
           }
+        });
+      } else if (!user.role || user.role === "user") {
+        // Upgrade legacy staff users so /staff PWA gate works
+        const job = String(role ?? "").toUpperCase();
+        const platformRole: Role =
+          job === "CLEANER"
+            ? "cleaner"
+            : job === "RECEPTION" || job === "RECEPTIONIST"
+              ? "receptionist"
+              : job === "WAITER"
+                ? "waiter"
+                : "hotel_staff";
+        user = await tx.user.update({
+          where: { id: user.id },
+          data: { role: platformRole },
         });
       }
 

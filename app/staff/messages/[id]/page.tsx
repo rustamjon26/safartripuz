@@ -1,39 +1,66 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Mic, Paperclip, Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
-import { CHAT_MESSAGES, THREADS } from "../../mock-data";
+
+type Msg = {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  me: boolean;
+};
 
 export default function StaffChatDetailPage() {
   const params = useParams();
   const id = String(params?.id ?? "");
-  const thread = THREADS.find((t) => t.id === id);
+  const [title, setTitle] = useState("Chat");
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [text, setText] = useState("");
-  const [messages, setMessages] = useState(CHAT_MESSAGES);
+  const [loading, setLoading] = useState(true);
 
-  const title = useMemo(
-    () => thread?.name ?? "Chat",
-    [thread],
-  );
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/staff/chat/threads/${id}/messages`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      setTitle(json.thread?.name ?? "Chat");
+      setMessages(json.messages ?? []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Xato");
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  function send() {
+  useEffect(() => {
+    if (id) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function send() {
     const value = text.trim();
     if (!value) return;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `local-${Date.now()}`,
-        from: "Men",
-        me: true,
-        text: value,
-        time: "Hozir",
-      },
-    ]);
-    setText("");
-    toast.success("Yuborildi (lokal demo)");
+    try {
+      const res = await fetch(`/api/staff/chat/threads/${id}/messages`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: value }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      setMessages((prev) => [...prev, json.message]);
+      setText("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Yuborilmadi");
+    }
   }
 
   return (
@@ -55,50 +82,48 @@ export default function StaffChatDetailPage() {
         </header>
 
         <div className="flex-1 overflow-auto px-4 py-4 space-y-3">
-          <div className="text-center text-[11px] font-bold text-[#94A3B8]">Bugun</div>
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex flex-col max-w-[85%] ${m.me ? "ml-auto items-end" : "items-start"}`}
-            >
-              {!m.me ? (
-                <div className="text-[10px] font-bold text-[#94A3B8] mb-1 px-1">{m.from}</div>
-              ) : null}
-              <div className={`px-3.5 py-2.5 text-[13px] font-semibold leading-relaxed ${m.me ? "st-bubble-me" : "st-bubble-them"}`}>
-                {m.text}
+          {loading ? (
+            <div className="text-center text-[12px] font-bold text-[#94A3B8]">Yuklanmoqda…</div>
+          ) : (
+            messages.map((m) => (
+              <div
+                key={m.id}
+                className={`flex flex-col max-w-[85%] ${m.me ? "ml-auto items-end" : "items-start"}`}
+              >
+                {!m.me ? (
+                  <div className="text-[10px] font-bold text-[#94A3B8] mb-1 px-1">
+                    {m.authorName}
+                  </div>
+                ) : null}
+                <div
+                  className={`px-3.5 py-2.5 text-[13px] font-semibold leading-relaxed ${m.me ? "st-bubble-me" : "st-bubble-them"}`}
+                >
+                  {m.body}
+                </div>
+                <div className="text-[10px] font-bold text-[#94A3B8] mt-1 px-1">
+                  {new Date(m.createdAt).toLocaleTimeString("uz-UZ", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
-              <div className="text-[10px] font-bold text-[#94A3B8] mt-1 px-1">{m.time}</div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="shrink-0 border-t border-[#d8e3fb] bg-white p-3 flex items-center gap-2 pb-[calc(12px+env(safe-area-inset-bottom))]">
-          <button
-            type="button"
-            className="p-2.5 rounded-xl border border-[#d8e3fb] text-[#64748B]"
-            onClick={() => toast.message("Fayl — backend keyin")}
-          >
-            <Paperclip size={18} />
-          </button>
           <input
             className="st-input flex-1"
             placeholder="Xabar yozing..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") send();
+              if (e.key === "Enter") void send();
             }}
           />
           <button
             type="button"
-            className="p-2.5 rounded-xl border border-[#d8e3fb] text-[#64748B]"
-            onClick={() => toast.message("Mikrofon — demo")}
-          >
-            <Mic size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={send}
+            onClick={() => void send()}
             className="p-2.5 rounded-xl bg-[#006781] text-white"
           >
             <Send size={18} />
