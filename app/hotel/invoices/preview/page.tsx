@@ -1,23 +1,152 @@
 "use client";
 
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Printer } from "lucide-react";
 import { DEMO_INVOICE } from "../../mock-pack10";
+
+type InvoiceLine = {
+  name: string;
+  description: string | null;
+  quantity: number;
+  unitPriceSom: number;
+  lineTotalSom: number;
+};
+
+type Invoice = {
+  id: string;
+  number: string;
+  status: string;
+  clientName: string;
+  clientAddress: string | null;
+  clientCity: string | null;
+  clientCountry: string | null;
+  clientTin: string | null;
+  project: string | null;
+  terms: string | null;
+  vatRateBps: number;
+  subtotalSom: number;
+  vatSom: number;
+  totalSom: number;
+  issuedAt: string | null;
+  createdAt: string;
+  lines: InvoiceLine[];
+};
 
 function formatSom(n: number): string {
   return `${n.toLocaleString("uz-UZ")} UZS`;
 }
 
+function statusLabel(status: string): string {
+  switch (status) {
+    case "DRAFT":
+      return "Qoralama";
+    case "ISSUED":
+      return "Chiqarilgan";
+    case "SENT":
+      return "Yuborilgan";
+    case "PAID":
+      return "To‘langan";
+    case "VOID":
+      return "Bekor";
+    default:
+      return status;
+  }
+}
+
 export default function InvoicePreviewPage() {
-  const curated = [
-    { name: "Deluxe Room Blocks", desc: "Standard corporate accommodation package", qty: 12, price: 1_200_000 },
-    { name: "Event Space: Grand Ballroom", desc: "Full-day conference hall rental", qty: 1, price: 5_500_000 },
-    { name: "Xavfsizlik xizmati (Security)", desc: "Additional specialized security personnel", qty: 4, price: 450_000 },
-  ];
-  const rows = curated.map((r) => ({ ...r, total: r.qty * r.price }));
-  const subtotal = rows.reduce((a, r) => a + r.total, 0);
-  const vat = Math.round((subtotal * DEMO_INVOICE.vatRate) / 100);
-  const total = subtotal + vat;
+  return (
+    <Suspense
+      fallback={
+        <p className="text-[13px] font-semibold text-[#64748B] p-6">
+          Yuklanmoqda…
+        </p>
+      }
+    >
+      <InvoicePreviewInner />
+    </Suspense>
+  );
+}
+
+function InvoicePreviewInner() {
+  const search = useSearchParams();
+  const id = search.get("id");
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(id));
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/hotel/invoices/${id}`);
+        const data = (await res.json()) as {
+          invoice?: Invoice;
+          message?: string;
+        };
+        if (!res.ok || !data.invoice) {
+          throw new Error(data.message || "Invoys topilmadi");
+        }
+        if (!cancelled) setInvoice(data.invoice);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Xatolik");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const vatRate = invoice
+    ? invoice.vatRateBps / 100
+    : DEMO_INVOICE.vatRate;
+  const rows = invoice
+    ? invoice.lines.map((l) => ({
+        name: l.name,
+        desc: l.description || "",
+        qty: l.quantity,
+        price: l.unitPriceSom,
+        total: l.lineTotalSom,
+      }))
+    : [
+        {
+          name: "Deluxe Room Blocks",
+          desc: "Standard corporate accommodation package",
+          qty: 12,
+          price: 1_200_000,
+          total: 14_400_000,
+        },
+      ];
+  const subtotal = invoice
+    ? invoice.subtotalSom
+    : rows.reduce((a, r) => a + r.total, 0);
+  const vat = invoice ? invoice.vatSom : Math.round((subtotal * vatRate) / 100);
+  const total = invoice ? invoice.totalSom : subtotal + vat;
+  const number = invoice?.number ?? DEMO_INVOICE.number;
+  const clientName = invoice?.clientName ?? DEMO_INVOICE.client.name;
+  const clientCity = invoice?.clientCity ?? DEMO_INVOICE.client.city;
+  const clientCountry =
+    invoice?.clientCountry ?? DEMO_INVOICE.client.country;
+  const clientTin = invoice?.clientTin ?? DEMO_INVOICE.client.stir;
+  const clientAddress =
+    invoice?.clientAddress ?? DEMO_INVOICE.client.address;
+  const terms = invoice?.terms ?? DEMO_INVOICE.terms;
+  const dateLabel = invoice?.issuedAt
+    ? new Date(invoice.issuedAt).toLocaleDateString("uz-UZ")
+    : invoice?.createdAt
+      ? new Date(invoice.createdAt).toLocaleDateString("uz-UZ")
+      : DEMO_INVOICE.dateLabel;
+  const status = invoice ? statusLabel(invoice.status) : DEMO_INVOICE.status;
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-16">
@@ -49,6 +178,19 @@ export default function InvoicePreviewPage() {
         </div>
       </div>
 
+      {loading ? (
+        <p className="text-[13px] font-semibold text-[#64748B]">Yuklanmoqda…</p>
+      ) : null}
+      {error ? (
+        <p className="text-[13px] font-semibold text-rose-600">{error}</p>
+      ) : null}
+      {!id && !loading ? (
+        <p className="text-[12px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          Demo ko‘rinish — yangi invoys yarating, yoki URL ga{" "}
+          <code>?id=…</code> qo‘shing.
+        </p>
+      ) : null}
+
       <article className="bg-white border border-[#d8e3fb] rounded-2xl shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
         <div className="bg-[#0d2137] text-white px-6 sm:px-8 py-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -57,13 +199,15 @@ export default function InvoicePreviewPage() {
             </div>
             <h1 className="font-display text-[32px] font-bold mt-1">INVOYS</h1>
             <div className="text-[14px] font-semibold text-white/80 mt-1">
-              #{DEMO_INVOICE.number}
+              #{number}
             </div>
           </div>
           <div className="text-left sm:text-right">
-            <div className="text-[12px] font-semibold text-white/70">{DEMO_INVOICE.dateLabel}</div>
+            <div className="text-[12px] font-semibold text-white/70">
+              {dateLabel}
+            </div>
             <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-amber-400/20 text-amber-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wide">
-              {DEMO_INVOICE.status}
+              {status}
             </div>
           </div>
         </div>
@@ -94,17 +238,17 @@ export default function InvoicePreviewPage() {
               Mijoz
             </div>
             <div className="mt-2 text-[15px] font-bold text-[#0d2137]">
-              {DEMO_INVOICE.client.name}
+              {clientName}
             </div>
             <p className="mt-1 text-[13px] font-semibold text-[#64748B] leading-relaxed">
-              {DEMO_INVOICE.client.address}
+              {clientAddress}
               <br />
-              {DEMO_INVOICE.client.city}
+              {clientCity}
               <br />
-              {DEMO_INVOICE.client.country}
+              {clientCountry}
             </p>
             <p className="mt-2 text-[12px] font-bold text-[#0d2137]">
-              STIR: {DEMO_INVOICE.client.stir}
+              STIR: {clientTin || "—"}
             </p>
           </div>
         </div>
@@ -121,12 +265,20 @@ export default function InvoicePreviewPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.name} className="border-b border-[#eef2ff]">
+                <tr key={`${r.name}-${r.qty}`} className="border-b border-[#eef2ff]">
                   <td className="py-3.5 pr-3">
-                    <div className="text-[13px] font-bold text-[#111c2d]">{r.name}</div>
-                    <div className="text-[12px] font-semibold text-[#94A3B8]">{r.desc}</div>
+                    <div className="text-[13px] font-bold text-[#111c2d]">
+                      {r.name}
+                    </div>
+                    {r.desc ? (
+                      <div className="text-[12px] font-semibold text-[#94A3B8]">
+                        {r.desc}
+                      </div>
+                    ) : null}
                   </td>
-                  <td className="py-3.5 px-3 text-[13px] font-bold text-[#64748B]">{r.qty}</td>
+                  <td className="py-3.5 px-3 text-[13px] font-bold text-[#64748B]">
+                    {r.qty}
+                  </td>
                   <td className="py-3.5 px-3 text-[13px] font-bold text-right">
                     {formatSom(r.price)}
                   </td>
@@ -145,7 +297,7 @@ export default function InvoicePreviewPage() {
               To‘lov shartlari
             </div>
             <p className="mt-2 text-[13px] font-semibold text-[#475569] leading-relaxed">
-              “{DEMO_INVOICE.terms}”
+              “{terms}”
             </p>
             <div className="mt-4 text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
               Bank rekvizitlari
@@ -164,27 +316,14 @@ export default function InvoicePreviewPage() {
               <span>{formatSom(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#64748B]">Soliq (VAT {DEMO_INVOICE.vatRate}%)</span>
+              <span className="text-[#64748B]">Soliq (VAT {vatRate}%)</span>
               <span>{formatSom(vat)}</span>
             </div>
             <div className="flex justify-between border-t border-[#d8e3fb] pt-3 text-[18px] font-black text-[#0d2137]">
               <span>Jami summa</span>
               <span>{formatSom(total)}</span>
             </div>
-            <div className="mt-4 rounded-xl bg-[#0d2137] text-white p-4 text-center">
-              <div className="mx-auto mb-2 w-16 h-16 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center text-[10px] font-bold tracking-widest">
-                QR
-              </div>
-              <div className="text-[11px] font-semibold text-white/80">
-                Raqamli tekshiruv — demo QR
-              </div>
-            </div>
           </div>
-        </div>
-
-        <div className="px-6 sm:px-8 py-4 border-t border-[#d8e3fb] text-[11px] font-semibold text-[#94A3B8] flex flex-wrap justify-between gap-2">
-          <span>Silk Road Modernity · SafarTrip B2B Portal v2.4.0</span>
-          <span>Xizmatlarimizdan foydalanganingiz uchun tashakkur!</span>
         </div>
       </article>
     </div>

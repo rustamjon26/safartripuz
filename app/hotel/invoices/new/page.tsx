@@ -10,6 +10,7 @@ import { DEMO_INVOICE, INVOICE_LINE_PRESETS } from "../../mock-pack10";
 type Line = { id: string; name: string; qty: number; price: number };
 
 const STEPS = ["Mijoz", "Xizmatlar", "Shartlar", "Ko‘rib chiqish"] as const;
+const VAT_RATE = DEMO_INVOICE.vatRate;
 
 function formatSom(n: number): string {
   return `${n.toLocaleString("uz-UZ")} UZS`;
@@ -18,8 +19,10 @@ function formatSom(n: number): string {
 export default function InvoiceWizardPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [clientName, setClientName] = useState(DEMO_INVOICE.client.name);
   const [clientCity, setClientCity] = useState("Toshkent, O‘zbekiston");
+  const [clientTin, setClientTin] = useState(DEMO_INVOICE.client.stir);
   const [project, setProject] = useState(DEMO_INVOICE.project);
   const [terms, setTerms] = useState(DEMO_INVOICE.terms);
   const [notes, setNotes] = useState("");
@@ -36,7 +39,7 @@ export default function InvoiceWizardPage() {
     () => lines.reduce((acc, l) => acc + l.qty * l.price, 0),
     [lines],
   );
-  const vat = Math.round((subtotal * DEMO_INVOICE.vatRate) / 100);
+  const vat = Math.round((subtotal * VAT_RATE) / 100);
   const total = subtotal + vat;
 
   function addLine() {
@@ -56,9 +59,53 @@ export default function InvoiceWizardPage() {
     setLines((prev) => prev.filter((l) => l.id !== id));
   }
 
-  function finish() {
-    toast.success("Invoys yuborildi (frontend demo)");
-    router.push("/hotel/invoices/preview");
+  async function finish() {
+    if (saving) return;
+    if (!clientName.trim() || lines.length === 0) {
+      toast.error("Mijoz va kamida 1 ta xizmat kerak");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/hotel/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientName: clientName.trim(),
+          clientCity: clientCity.trim() || undefined,
+          clientTin: clientTin.trim() || undefined,
+          project: project.trim() || undefined,
+          terms: terms.trim() || undefined,
+          notes: notes.trim() || undefined,
+          vatRateBps: VAT_RATE * 100,
+          issue: true,
+          lines: lines.map((l) => ({
+            name: l.name,
+            quantity: l.qty,
+            unitPriceSom: l.price,
+          })),
+        }),
+      });
+      const data = (await res.json()) as {
+        invoice?: { id: string };
+        message?: string;
+      };
+      if (!res.ok || !data.invoice) {
+        throw new Error(data.message || "Invoys saqlanmadi");
+      }
+      // ISSUED → SENT for "yuborish"
+      await fetch(`/api/hotel/invoices/${data.invoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SENT" }),
+      });
+      toast.success("Invoys yaratildi va yuborildi");
+      router.push(`/hotel/invoices/preview?id=${data.invoice.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Xatolik");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -72,7 +119,7 @@ export default function InvoiceWizardPage() {
             Invoys yaratish
           </h1>
           <p className="text-[13px] font-semibold text-[#64748B] mt-1">
-            Frontend wizard — saqlash/yuborish keyin backendga ulanadi.
+            B2B invoys — summalar tiyin sifatida saqlanadi, status: DRAFT→ISSUED→SENT.
           </p>
         </div>
         <Link
@@ -128,6 +175,16 @@ export default function InvoiceWizardPage() {
                   className="mt-1.5 w-full rounded-xl border border-[#d8e3fb] bg-[#f9f9ff] px-4 py-3 text-[13px] font-bold"
                   value={clientCity}
                   onChange={(e) => setClientCity(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                  STIR
+                </span>
+                <input
+                  className="mt-1.5 w-full rounded-xl border border-[#d8e3fb] bg-[#f9f9ff] px-4 py-3 text-[13px] font-bold"
+                  value={clientTin}
+                  onChange={(e) => setClientTin(e.target.value)}
                 />
               </label>
               <label className="block">
@@ -334,10 +391,11 @@ export default function InvoiceWizardPage() {
             ) : (
               <button
                 type="button"
-                onClick={finish}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0d2137] text-white text-[13px] font-bold"
+                disabled={saving}
+                onClick={() => void finish()}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0d2137] text-white text-[13px] font-bold disabled:opacity-50"
               >
-                Invoysni yuborish
+                {saving ? "Saqlanmoqda…" : "Invoysni yuborish"}
               </button>
             )}
           </div>
@@ -359,7 +417,7 @@ export default function InvoiceWizardPage() {
               <span>{formatSom(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#64748B]">Soliq (VAT {DEMO_INVOICE.vatRate}%)</span>
+              <span className="text-[#64748B]">Soliq (VAT {VAT_RATE}%)</span>
               <span>{formatSom(vat)}</span>
             </div>
             <div className="flex justify-between border-t border-[#d8e3fb] pt-2 text-[16px] font-black text-[#0d2137]">
@@ -367,12 +425,6 @@ export default function InvoiceWizardPage() {
               <span>{formatSom(total)}</span>
             </div>
           </div>
-          <Link
-            href="/hotel/invoices/preview"
-            className="mt-5 w-full inline-flex justify-center px-4 py-2.5 rounded-xl border border-[#d8e3fb] text-[12px] font-bold text-[#0d2137] hover:bg-[#f9f9ff]"
-          >
-            PDF shablonini ko‘rish
-          </Link>
         </aside>
       </div>
     </div>
