@@ -1,4 +1,4 @@
-import type { DbClient } from "@/src/modules/payment/repository/db";
+import type { DbClient } from "@/src/shared/db/client";
 import type { EnqueueEventInput } from "../domain/types";
 import { outboxRepository } from "../repository/outbox.repository";
 

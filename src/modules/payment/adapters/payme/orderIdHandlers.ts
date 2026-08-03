@@ -131,23 +131,31 @@ export async function handleOrderIdMethod(
       );
     }
 
+    const response = paymeRpcSuccess(rpcId, {
+      perform_time: Date.now(),
+      transaction: payment.externalRef ?? String(paymeTransId),
+      state: 2,
+    });
+
     await paymentRepository.runTransaction(async (tx) => {
-      // Ledger + outbox (Didox/receipts) inside completeSuccessfulPaymentInTx
+      // Ledger + outbox (Didox/receipts) inside completeSuccessfulPaymentInTx.
+      // The payment row lock inside serializes concurrent PerformTransaction.
       await completeSuccessfulPaymentInTx(tx, {
         paymentId: payment.id,
         travelPlanId: payment.travelPlanId,
         actorId: payment.travelPlan.userId,
         previousPaymentStatus: payment.status,
       });
+
+      // ProcessedEvent commits atomically with the business effects — a crash
+      // between "work done" and "dedup recorded" can no longer double-apply.
+      await paymentService.storeProcessedResponse(
+        { provider: "PAYME", providerEventId, rawBody, response },
+        tx,
+      );
     });
 
-    return respond(
-      paymeRpcSuccess(rpcId, {
-        perform_time: Date.now(),
-        transaction: payment.externalRef ?? String(paymeTransId),
-        state: 2,
-      }),
-    );
+    return response;
   }
 
   if (method === "CancelTransaction") {

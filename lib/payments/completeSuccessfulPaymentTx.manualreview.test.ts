@@ -47,8 +47,15 @@ const som = (v: string) => ({ toString: () => v });
 
 function makeTx(overrides: Record<string, unknown> = {}) {
   const tx = {
+    // Row lock SELECT ... FOR UPDATE — payment still pending by default.
+    $queryRaw: vi.fn(async () => [{ id: "pay1", status: "PENDING" }]),
     payment: {
       update: vi.fn(async () => ({
+        id: "pay1",
+        status: "SUCCESS",
+        amount: som("100000.00"),
+      })),
+      findUniqueOrThrow: vi.fn(async () => ({
         id: "pay1",
         status: "SUCCESS",
         amount: som("100000.00"),
@@ -248,5 +255,21 @@ describe("completeSuccessfulPaymentInTx — manual review safety", () => {
     );
     expect(tx.travelPlan.update).toHaveBeenCalled();
     expect(ledgerRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it("replays idempotently when payment row is already SUCCESS (webhook race)", async () => {
+    const tx = makeTx();
+    (tx.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: "pay1", status: "SUCCESS" },
+    ]);
+
+    const result = await completeSuccessfulPaymentInTx(tx, baseOpts);
+
+    // Second concurrent webhook: no re-application of side effects.
+    expect(tx.payment.update).not.toHaveBeenCalled();
+    expect(tx.travelPlan.update).not.toHaveBeenCalled();
+    expect(ledgerRecord).not.toHaveBeenCalled();
+    expect(enqueueInTx).not.toHaveBeenCalled();
+    expect(result.payment.status).toBe("SUCCESS");
   });
 });

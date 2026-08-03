@@ -32,6 +32,46 @@ function mapShift(row: {
 }
 
 export class StaffRepository {
+  /** Active HotelStaff record (with hotel status) for the logged-in user. */
+  async findActiveStaffForUser(userId: string): Promise<{
+    id: string;
+    hotelId: string;
+    role: string;
+    firstName: string;
+    lastName: string | null;
+    hotelStatus: string;
+  } | null> {
+    const staff = await prisma.hotelStaff.findFirst({
+      where: { userId, isActive: true },
+      select: {
+        id: true,
+        hotelId: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        hotel: { select: { status: true } },
+      },
+    });
+    if (!staff) return null;
+    return {
+      id: staff.id,
+      hotelId: staff.hotelId,
+      role: staff.role,
+      firstName: staff.firstName,
+      lastName: staff.lastName,
+      hotelStatus: staff.hotel.status,
+    };
+  }
+
+  /** Hotel owned by a partner user (manager shift-create path). */
+  async findHotelIdOwnedByUser(userId: string): Promise<string | null> {
+    const owned = await prisma.hotel.findFirst({
+      where: { partner: { userId } },
+      select: { id: true },
+    });
+    return owned?.id ?? null;
+  }
+
   async listShiftsForStaff(input: {
     staffId: string;
     from?: Date;

@@ -1,4 +1,5 @@
-import { db, type DbClient } from "@/src/modules/payment/repository/db";
+import type { Prisma } from "@prisma/client";
+import { db, type DbClient } from "@/src/shared/db/client";
 import type { EnqueueEventInput } from "../domain/types";
 
 export type OutboxEventRow = {
@@ -19,28 +20,29 @@ const LEASE_MS = 30_000;
 
 export class OutboxRepository {
   async enqueueInTx(tx: DbClient, event: EnqueueEventInput): Promise<OutboxEventRow> {
-    return tx.outboxEvent.create({
+    const row = await tx.outboxEvent.create({
       data: {
         aggregateType: event.aggregateType,
         aggregateId: event.aggregateId,
         eventType: event.eventType,
-        payload: event.payload,
+        payload: event.payload as Prisma.InputJsonValue,
         status: "PENDING",
         attempts: 0,
         availableAt: new Date(),
       },
     });
+    return row as unknown as OutboxEventRow;
   }
 
   /**
    * Claim a batch with MySQL SKIP LOCKED + short lease on availableAt.
    */
-  async claimBatch(limit: number, client: DbClient = db): Promise<OutboxEventRow[]> {
+  async claimBatch(limit: number, client: typeof db = db): Promise<OutboxEventRow[]> {
     const now = new Date();
     const leaseUntil = new Date(now.getTime() + LEASE_MS);
     const n = Math.max(1, Math.min(100, limit));
 
-    return client.$transaction(async (tx: DbClient) => {
+    return client.$transaction(async (tx: Prisma.TransactionClient) => {
       const rows = (await tx.$queryRawUnsafe(
         `SELECT id FROM OutboxEvent
          WHERE status = 'PENDING' AND availableAt <= ?
@@ -64,7 +66,7 @@ export class OutboxRepository {
       const claimed = await tx.outboxEvent.findMany({
         where: { id: { in: ids } },
       });
-      return claimed as OutboxEventRow[];
+      return claimed as unknown as OutboxEventRow[];
     });
   }
 

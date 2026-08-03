@@ -28,13 +28,22 @@ export async function reversePartnerEarningInTx(
     return;
   }
 
-  const remain = 100 - refundPercent;
   const gross = Money.fromSomNumber(earning.grossAmount.toString()).toTiyin();
   const fee = Money.fromSomNumber(earning.commissionFee.toString()).toTiyin();
   const net = Money.fromSomNumber(earning.netAmount.toString()).toTiyin();
-  const nextGross = (gross * BigInt(remain)) / 100n;
-  const nextFee = (fee * BigInt(remain)) / 100n;
-  const nextNet = (net * BigInt(remain)) / 100n;
+
+  // Mirror computeRefund's truncation exactly: refund share is truncated,
+  // PE keeps the complement. `(x * remain) / 100n` would truncate the OTHER
+  // way and drift 1 tiyin from the ledger's refundTiyin on odd amounts.
+  const pct = BigInt(refundPercent);
+  const refundGross = (gross * pct) / 100n;
+  const refundFee = (fee * pct) / 100n;
+  // Net refund is the remainder so fee+net == gross stays true post-reverse.
+  const refundNet = refundGross - refundFee;
+
+  const nextGross = gross - refundGross;
+  const nextFee = fee - refundFee;
+  const nextNet = net - refundNet;
 
   await tx.partnerEarning.update({
     where: { id: earning.id },

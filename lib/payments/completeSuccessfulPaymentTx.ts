@@ -32,6 +32,27 @@ export async function completeSuccessfulPaymentInTx(
 
   setMoneyPathContext({ paymentId });
 
+  // Serialize concurrent webhooks on the payment row. The second caller
+  // blocks here until the first commits, then sees SUCCESS and returns
+  // idempotently — side effects (ledger/outbox/booking confirm) run once.
+  const lockedRows = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+    SELECT id, status FROM \`Payment\` WHERE id = ${paymentId} FOR UPDATE
+  `;
+  const lockedPayment = lockedRows[0];
+  if (!lockedPayment) {
+    throw new Error(`Payment not found: ${paymentId}`);
+  }
+  if (lockedPayment.status === "SUCCESS") {
+    const payment = await tx.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    const plan = await tx.travelPlan.findUniqueOrThrow({
+      where: { id: travelPlanId },
+      select: { id: true, status: true },
+    });
+    return { payment, plan };
+  }
+
   // Money really arrived — payment is SUCCESS regardless of booking outcome.
   const updatedPayment = await tx.payment.update({
     where: { id: paymentId },

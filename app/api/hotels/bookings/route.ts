@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { requireUserWithProfile } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { fail, handleApiError, ok } from "../_utils";
@@ -9,18 +10,18 @@ import {
 } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
 
-type Body = {
-  hotelId?: string;
-  roomTypeId?: string;
-  checkIn?: string;
-  checkOut?: string;
-  guests?: number;
-  roomCount?: number;
-  guestName?: string;
-  guestPhone?: string;
-  note?: string;
-  provider?: "MOCK" | "CLICK" | "PAYME" | "UZUM" | "MANUAL";
-};
+const createBookingSchema = z.object({
+  hotelId: z.string().min(1),
+  roomTypeId: z.string().min(1),
+  checkIn: z.string().min(1),
+  checkOut: z.string().min(1),
+  guests: z.number().int().min(1).max(20).optional(),
+  roomCount: z.number().int().min(1).max(20).optional(),
+  guestName: z.string().trim().max(191).optional(),
+  guestPhone: z.string().trim().max(32).optional(),
+  note: z.string().trim().max(2000).optional(),
+  provider: z.enum(["MOCK", "CLICK", "PAYME", "UZUM", "MANUAL"]).optional(),
+});
 
 function calcNights(start: Date, end: Date) {
   const diff = end.getTime() - start.getTime();
@@ -30,11 +31,11 @@ function calcNights(start: Date, end: Date) {
 export async function POST(req: Request) {
   try {
     const actor = await requireUserWithProfile();
-    const body = (await req.json()) as Body;
-
-    if (!body.hotelId || !body.roomTypeId || !body.checkIn || !body.checkOut) {
+    const parsed = createBookingSchema.safeParse(await req.json());
+    if (!parsed.success) {
       return fail("hotelId, roomTypeId, checkIn, checkOut majburiy", 400);
     }
+    const body = parsed.data;
 
     const checkIn = new Date(body.checkIn);
     const checkOut = new Date(body.checkOut);
