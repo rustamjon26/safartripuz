@@ -103,10 +103,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!prompt || prompt.trim().length < 5) {
+    if (!prompt || prompt.trim().length < 2) {
       return NextResponse.json(
-        { message: "Iltimos, safar haqida batafsilroq yozing." },
-        { status: 400 },
+        {
+          success: true,
+          needsClarification: true,
+          message: "Xabar yozing — qayerga va necha kunga sayohat qilmoqchisiz?",
+        },
+        { status: 200 },
       );
     }
 
@@ -126,13 +130,17 @@ export async function POST(req: NextRequest) {
     const parsed = await parseWithClaude(prompt, availableCities);
 
     if (!parsed.destination) {
+      // Conversational clarify — 200 so the client can show a chat bubble (not toast.error).
       return NextResponse.json(
         {
+          success: true,
+          needsClarification: true,
           message:
-            parsed.message ||
-            "Shaharni aniqlay olmadim. Samarqand, Buxoro yoki Xiva kabi shahar nomini yozing.",
+            typeof parsed.message === "string" && parsed.message.trim()
+              ? parsed.message.trim()
+              : "Shaharni aniqlay olmadim. Samarqand, Buxoro, Xiva yoki boshqa manzil nomini yozing.",
         },
-        { status: 404 },
+        { status: 200 },
       );
     }
 
