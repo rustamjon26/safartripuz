@@ -1,6 +1,7 @@
-import { requireUser } from "@/lib/authz";
+import { getActorSnapshot, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
+import { feedbackService } from "@/src/modules/feedback";
 import { fail, handleApiError, ok } from "../../../_utils";
 
 type ReviewInput = {
@@ -56,6 +57,23 @@ export async function POST(
       });
 
       return created;
+    });
+
+    const actorProfile = await getActorSnapshot(actor.id);
+    const authorName = actorProfile
+      ? `${actorProfile.first_name}${actorProfile.last_name ? ` ${actorProfile.last_name}` : ""}`.trim()
+      : "Mehmon";
+    void feedbackService.ingestSafe({
+      channel: "taxi",
+      sourceType: "TaxiReview",
+      sourceId: review.id,
+      authorUserId: actor.id,
+      authorName,
+      rating: review.rating,
+      body: review.comment ?? `(Reyting: ${review.rating})`,
+      serviceLabel: "Transport",
+      subjectId: order.driverId,
+      createdAt: review.createdAt,
     });
 
     return ok(review, 201);

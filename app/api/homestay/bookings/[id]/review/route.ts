@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/authz";
+import { getActorSnapshot, requireUser } from "@/lib/authz";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
+import { feedbackService } from "@/src/modules/feedback";
 import { fail, handleApiError, ok } from "../../../host/_utils";
 
 type ReviewInput = {
@@ -27,6 +28,7 @@ export async function POST(
         id: true,
         status: true,
         listingId: true,
+        listing: { select: { title: true } },
       },
     });
 
@@ -63,6 +65,23 @@ export async function POST(
           rating: review.rating,
         },
       },
+    });
+
+    const actorProfile = await getActorSnapshot(actor.id);
+    const authorName = actorProfile
+      ? `${actorProfile.first_name}${actorProfile.last_name ? ` ${actorProfile.last_name}` : ""}`.trim()
+      : "Mehmon";
+    void feedbackService.ingestSafe({
+      channel: "homestay",
+      sourceType: "HomeStayReview",
+      sourceId: review.id,
+      authorUserId: actor.id,
+      authorName,
+      rating: review.rating,
+      body: review.comment ?? `(Reyting: ${review.rating})`,
+      serviceLabel: booking.listing.title,
+      subjectId: booking.listingId,
+      createdAt: review.createdAt,
     });
 
     return ok(review, 201);

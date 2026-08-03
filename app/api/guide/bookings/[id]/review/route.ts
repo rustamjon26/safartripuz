@@ -1,6 +1,7 @@
-import { requireUser } from "@/lib/authz";
+import { getActorSnapshot, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { feedbackService } from "@/src/modules/feedback";
 import { fail, handleApiError, ok } from "../../../_utils";
 
 type ReviewInput = {
@@ -27,6 +28,7 @@ export async function POST(
         status: true,
         listingId: true,
         guideId: true,
+        listing: { select: { title: true } },
       },
     });
     if (!booking) return fail(GUIDE_ERRORS.BOOKING_NOT_FOUND, 404);
@@ -62,6 +64,23 @@ export async function POST(
       });
 
       return created;
+    });
+
+    const actorProfile = await getActorSnapshot(actor.id);
+    const authorName = actorProfile
+      ? `${actorProfile.first_name}${actorProfile.last_name ? ` ${actorProfile.last_name}` : ""}`.trim()
+      : "Mehmon";
+    void feedbackService.ingestSafe({
+      channel: "guide",
+      sourceType: "GuideReview",
+      sourceId: review.id,
+      authorUserId: actor.id,
+      authorName,
+      rating: review.rating,
+      body: review.comment ?? `(Reyting: ${review.rating})`,
+      serviceLabel: booking.listing.title,
+      subjectId: booking.listingId,
+      createdAt: review.createdAt,
     });
 
     return ok(review, 201);

@@ -41,6 +41,7 @@ const ROLE_LABELS: Record<Role, string> = {
   guide: "Guide",
   restaurant_manager: "Restaurant",
   home_stay_partner: "Home Stay",
+  support: "Support",
 };
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -53,6 +54,7 @@ const ROLE_BADGE: Record<Role, string> = {
   guide: "bg-purple-50 text-purple-700 ring-purple-100",
   restaurant_manager: "bg-amber-50 text-amber-700 ring-amber-100",
   home_stay_partner: "bg-blue-50 text-blue-700 ring-blue-100",
+  support: "bg-cyan-50 text-cyan-700 ring-cyan-100",
 };
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
@@ -61,6 +63,7 @@ const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "taxi_partner", label: "Taxi Partner" },
   { value: "guide", label: "Guide" },
   { value: "home_stay_partner", label: "Home Stay" },
+  { value: "support", label: "Support" },
   { value: "admin", label: "Admin" },
 ];
 
