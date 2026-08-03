@@ -76,12 +76,14 @@ Or in one shot (same ordering, including stop PM2/MySQL around build):
 
 ```bash
 cd /var/www/safar
-sudo -u safartrip -H bash -lc 'cd /var/www/safar && bash scripts/deploy-safe.sh'
-# deploy-safe stops MySQL via systemctl; may need a root helper for systemctl if
-# safartrip cannot stop the service — run the MySQL stop/start as root around the script if needed.
+# As root: deploy-safe can stop/start MySQL for RAM during build.
+bash scripts/deploy-safe.sh
+
+# As safartrip (no passwordless sudo for systemctl): skip MySQL stop — avoids polkit hang.
+sudo -u safartrip -H bash -lc 'cd /var/www/safar && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
 ```
 
-`STOP_MYSQL_FOR_BUILD=0` skips the MySQL stop if you must keep the DB up (not recommended on 8 GB during cutover).
+`STOP_MYSQL_FOR_BUILD=0` keeps MySQL up during build (safer when not root; use on 8 GB only if RAM allows).
 
 ## Verify
 
