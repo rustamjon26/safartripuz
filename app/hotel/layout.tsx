@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
   LogOut, Menu, X, Bell, ChevronLeft, ChevronRight,
   Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2,
-  LifeBuoy, Plus,
+  LifeBuoy, Plus, FileText,
 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 
@@ -37,6 +37,7 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/guests",        label: t("nav.guests"), icon: Users, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/finance",       label: t("nav.finance"),       icon: Receipt, roles: ["hotel_manager", "admin", "receptionist"] },
+      { href: "/hotel/invoices/new",  label: "Invoys",               icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/revenue",       label: t("nav.revenue"),       icon: TrendingUp, roles: ["hotel_manager", "admin"] },
     ]
   },
@@ -453,7 +454,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
             {(isOwner || isReceptionist) && (
               <Link
-                href="/hotel/bookings"
+                href="/hotel/check-in"
                 className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#006781] hover:bg-[#005a71] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold transition-colors"
               >
                 <Plus size={14} strokeWidth={2.5} />
