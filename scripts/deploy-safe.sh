@@ -51,19 +51,62 @@ fi
 # frees RAM on ~8 GB hosts. Cost: site DOWN for the build window.
 STOP_MYSQL_FOR_BUILD="${STOP_MYSQL_FOR_BUILD:-1}"
 MYSQL_WAS_STOPPED=0
+MYSQL_UNIT=""
+
+# Bare `systemctl stop` as non-root triggers polkit interactive auth, hangs the
+# deploy, then times out — leaving PM2 stopped. Only stop MySQL as root or via
+# passwordless sudo (-n). Otherwise build with MySQL still up.
+can_manage_mysql_unit() {
+  local unit="$1"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    return 0
+  fi
+  sudo -n systemctl status "$unit" >/dev/null 2>&1
+}
+
+stop_mysql_unit() {
+  local unit="$1"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    systemctl stop "$unit"
+    return $?
+  fi
+  sudo -n systemctl stop "$unit"
+}
+
+start_mysql_unit() {
+  local unit="$1"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    systemctl start "$unit"
+    return $?
+  fi
+  sudo -n systemctl start "$unit"
+}
 
 if [[ "$STOP_MYSQL_FOR_BUILD" == "1" ]]; then
   # MySQL down → workers will fail; stop the full PM2 set.
-  echo "==> Stopping all PM2 apps (MySQL will stop for build)..."
+  echo "==> Stopping all PM2 apps (MySQL may stop for build)..."
   pm2 stop all || true
-  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet mysql 2>/dev/null; then
-    echo "==> Stopping MySQL for build (set STOP_MYSQL_FOR_BUILD=0 to skip)..."
-    systemctl stop mysql
-    MYSQL_WAS_STOPPED=1
-  elif command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet mysqld 2>/dev/null; then
-    echo "==> Stopping MySQL (mysqld) for build (set STOP_MYSQL_FOR_BUILD=0 to skip)..."
-    systemctl stop mysqld
-    MYSQL_WAS_STOPPED=1
+
+  if command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-active --quiet mysql 2>/dev/null; then
+      MYSQL_UNIT="mysql"
+    elif systemctl is-active --quiet mysqld 2>/dev/null; then
+      MYSQL_UNIT="mysqld"
+    fi
+  fi
+
+  if [[ -n "$MYSQL_UNIT" ]]; then
+    if can_manage_mysql_unit "$MYSQL_UNIT"; then
+      echo "==> Stopping ${MYSQL_UNIT} for build (set STOP_MYSQL_FOR_BUILD=0 to skip)..."
+      if stop_mysql_unit "$MYSQL_UNIT"; then
+        MYSQL_WAS_STOPPED=1
+      else
+        echo "==> WARN: failed to stop ${MYSQL_UNIT}; continuing build with MySQL up." >&2
+      fi
+    else
+      echo "==> WARN: cannot stop MySQL as $(id -un) (no root / sudo -n systemctl)." >&2
+      echo "    Building with MySQL up. Re-run as root, or: STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh" >&2
+    fi
   fi
 else
   # Keep outbox + expire-holds running; only free RAM from the Next.js process.
@@ -79,9 +122,12 @@ export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3072}"
 echo "==> Building with NODE_OPTIONS=$NODE_OPTIONS ..."
 npm run build
 
-if [[ "$MYSQL_WAS_STOPPED" == "1" ]]; then
-  echo "==> Starting MySQL after build..."
-  systemctl start mysql 2>/dev/null || systemctl start mysqld
+if [[ "$MYSQL_WAS_STOPPED" == "1" && -n "$MYSQL_UNIT" ]]; then
+  echo "==> Starting ${MYSQL_UNIT} after build..."
+  if ! start_mysql_unit "$MYSQL_UNIT"; then
+    echo "==> FATAL: could not start ${MYSQL_UNIT} after build." >&2
+    exit 1
+  fi
 fi
 
 echo "==> Copying standalone assets..."
