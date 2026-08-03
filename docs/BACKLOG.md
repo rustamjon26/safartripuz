@@ -64,5 +64,5 @@ Still open (optional follow-ups):
 ## Next pick
 
 1. **Ops (last open):** nightly `[backup] OK` after **2026-08-03 02:15** (manual path already green).
-2. **Knowledge:** Contabo re-seed + `publishSite` for Osh Markazi + Bibixonim (Lyabi House stays DRAFT — hotel, no hours).
+2. **Knowledge:** Admin → Knowledge UI (list/create/edit + publish) — in progress / shipping. Lyabi House stays DRAFT (hotel, no hours).
 3. **Planner:** optional `Site.isDayTrip` column; whole-day day-trip reservation follow-up.

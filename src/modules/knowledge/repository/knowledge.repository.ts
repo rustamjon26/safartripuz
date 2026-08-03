@@ -1,11 +1,11 @@
-import type {
-  ClaimKind,
-  ClaimLevel,
+import {
   Prisma,
-  SiteCategory,
-  SiteProminence,
-  SiteStatus,
-  SourceTier,
+  type ClaimKind,
+  type ClaimLevel,
+  type SiteCategory,
+  type SiteProminence,
+  type SiteStatus,
+  type SourceTier,
 } from "@prisma/client";
 import { prisma } from "@/src/shared/db/prisma";
 import { deriveClaimLevel } from "../domain/deriveClaimLevel";
@@ -43,11 +43,17 @@ export class KnowledgeRepository {
     });
   }
 
+  async findSiteBySlug(slug: string, client: DbClient = prisma) {
+    return client.site.findUnique({ where: { slug } });
+  }
+
   async listSites(
     params: {
       regionCode?: string;
       districtCode?: string;
       status?: SiteStatus;
+      category?: SiteCategory;
+      q?: string;
       take?: number;
       skip?: number;
     },
@@ -57,6 +63,15 @@ export class KnowledgeRepository {
     if (params.regionCode) where.regionCode = params.regionCode;
     if (params.districtCode) where.districtCode = params.districtCode;
     if (params.status) where.status = params.status;
+    if (params.category) where.category = params.category;
+    const q = params.q?.trim();
+    if (q) {
+      where.OR = [
+        { name: { contains: q } },
+        { nameEn: { contains: q } },
+        { slug: { contains: q } },
+      ];
+    }
     const take = params.take ?? 50;
     const skip = params.skip ?? 0;
     const [items, total] = await Promise.all([
@@ -118,6 +133,48 @@ export class KnowledgeRepository {
     return client.site.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async updateSite(
+    id: string,
+    data: {
+      name?: string;
+      nameRu?: string | null;
+      nameEn?: string | null;
+      regionCode?: string;
+      districtCode?: string | null;
+      category?: SiteCategory;
+      lat?: number | null;
+      lng?: number | null;
+      openingHours?: Prisma.InputJsonValue | typeof Prisma.DbNull | null;
+      dining?: Prisma.InputJsonValue | typeof Prisma.DbNull | null;
+      sourceUrl?: string | null;
+      prominence?: SiteProminence | null;
+    },
+    client: DbClient = prisma,
+  ) {
+    const patch: Prisma.SiteUpdateInput = {};
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.nameRu !== undefined) patch.nameRu = data.nameRu;
+    if (data.nameEn !== undefined) patch.nameEn = data.nameEn;
+    if (data.regionCode !== undefined) patch.regionCode = data.regionCode;
+    if (data.districtCode !== undefined) patch.districtCode = data.districtCode;
+    if (data.category !== undefined) patch.category = data.category;
+    if (data.lat !== undefined) patch.lat = data.lat;
+    if (data.lng !== undefined) patch.lng = data.lng;
+    if (data.sourceUrl !== undefined) patch.sourceUrl = data.sourceUrl;
+    if (data.prominence !== undefined) patch.prominence = data.prominence;
+    if (data.openingHours !== undefined) {
+      patch.openingHours =
+        data.openingHours === null ? Prisma.DbNull : data.openingHours;
+    }
+    if (data.dining !== undefined) {
+      patch.dining = data.dining === null ? Prisma.DbNull : data.dining;
+    }
+    return client.site.update({
+      where: { id },
+      data: patch,
     });
   }
 
