@@ -105,6 +105,10 @@ enum BookingSource {
   CORPORATE
   ADMIN
   RECEPTION
+  /// Inbound from channel manager / OTA adapters
+  BOOKING_COM
+  EXPEDIA
+  AIRBNB
 }
 
 enum BookingStatus {
@@ -613,6 +617,11 @@ model Hotel {
   staffOpsTasks       StaffOpsTask[]
   staffChatThreads    StaffChatThread[]
   staffCourses        StaffCourse[]
+  integrations        HotelIntegration[]
+  invoices            HotelInvoice[]
+  channelRoomMappings ChannelRoomMapping[]
+  channelSyncJobs     ChannelSyncJob[]
+  channelReservations ChannelReservationInbox[]
 
   @@index([status])
   @@index([latitude, longitude])
@@ -640,6 +649,9 @@ model HotelBooking {
   status          BookingStatus           @default(PENDING)
   /// Soft hold deadline for HELD bookings (15 minutes). Cleared after payment confirm.
   holdExpiresAt   DateTime?
+  /// Real FK to TravelPlan (replaces fragile `note contains` linkage).
+  travelPlanId    String?
+  travelPlan      TravelPlan?             @relation(fields: [travelPlanId], references: [id], onDelete: SetNull)
   note            String?
   /// Opaque quote breakdown from RatesService (tiyin line items).
   pricingSnapshot Json?
@@ -663,6 +675,7 @@ model HotelBooking {
   @@index([status, holdExpiresAt])
   @@index([cancellationPolicyId])
   @@index([payoutOwnerType])
+  @@index([travelPlanId])
 }
 
 /// Audit trail for HotelBooking status transitions (immutable append-only).
@@ -791,6 +804,7 @@ model TravelPlan {
   homeStayBookings HomeStayBooking[]
   taxiOrders       TaxiOrder[]
   guideBookings    GuideBooking[]
+  hotelBookings    HotelBooking[]
 
   @@index([userId, createdAt])
   @@index([status])
@@ -819,7 +833,10 @@ model Payment {
   travelPlan     TravelPlan      @relation(fields: [travelPlanId], references: [id], onDelete: Cascade)
   provider       PaymentProvider @default(MOCK)
   status         PaymentStatus   @default(INITIATED)
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
   amount         Decimal         @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin    BigInt?
   currency       String          @default("UZS")
   idempotencyKey String?         @unique
   externalRef    String?
@@ -1288,7 +1305,10 @@ model FolioItem {
   hotelId     String
   category    String       @default("ROOM") // ROOM, MINIBAR, RESTAURANT, DAMAGES
   description String
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
   amount      Decimal      @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin BigInt?
   isPaid      Boolean      @default(false)
   createdAt   DateTime     @default(now())
 
@@ -1297,15 +1317,18 @@ model FolioItem {
 }
 
 model HotelPayment {
-  id         String       @id @default(cuid())
-  bookingId  String
-  booking    HotelBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  hotelId    String
-  amount     Decimal      @db.Decimal(12, 2)
-  method     String       @default("CASH") // CASH, CARD, TRANSFER
-  status     String       @default("COMPLETED")
-  receiptUrl String?
-  createdAt  DateTime     @default(now())
+  id          String       @id @default(cuid())
+  bookingId   String
+  booking     HotelBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  hotelId     String
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
+  amount      Decimal      @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin BigInt?
+  method      String       @default("CASH") // CASH, CARD, TRANSFER
+  status      String       @default("COMPLETED")
+  receiptUrl  String?
+  createdAt   DateTime     @default(now())
 
   @@index([bookingId])
   @@index([hotelId])
@@ -2060,4 +2083,190 @@ model FeedbackReply {
 
   @@index([ticketId, createdAt])
   @@index([authorUserId])
+}
+
+// ---------------------------------------------------------------------------
+// Hotel integrations + invoices + channel (OTA) — SiteMinder/Cloudbeds-style
+// ---------------------------------------------------------------------------
+
+enum IntegrationCategory {
+  OTA
+  PAYMENT
+  LOCAL
+}
+
+enum IntegrationConnectionStatus {
+  DISCONNECTED
+  PENDING
+  CONNECTED
+  LICENSE_REQUIRED
+  ERROR
+}
+
+enum HotelInvoiceStatus {
+  DRAFT
+  ISSUED
+  SENT
+  PAID
+  VOID
+}
+
+enum ChannelSyncKind {
+  ARI_PUSH
+  RESERVATION_PULL
+  FULL_REFRESH
+  MAPPING_PULL
+}
+
+enum ChannelSyncJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ChannelReservationInboxStatus {
+  RECEIVED
+  MAPPED
+  BOOKING_CREATED
+  IGNORED
+  FAILED
+}
+
+/// Per-hotel connection to an external provider (OTA / payment / local).
+/// Secrets live in credentialsEnc — never expose via API responses.
+model HotelIntegration {
+  id              String                       @id @default(cuid())
+  hotelId         String
+  hotel           Hotel                        @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  /// Stable catalog key: booking | expedia | airbnb | payme | click | uzum | yandex | guides
+  providerKey     String
+  category        IntegrationCategory
+  status          IntegrationConnectionStatus  @default(DISCONNECTED)
+  externalHotelId String?
+  /// Non-secret config (flags, property codes).
+  configJson      Json?
+  /// Opaque credential blob (encrypt at rest in production). Never return raw.
+  credentialsEnc  String?                      @db.Text
+  lastSyncAt      DateTime?
+  lastError       String?                      @db.Text
+  meta            String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+
+  @@unique([hotelId, providerKey])
+  @@index([hotelId, category])
+  @@index([status])
+}
+
+/// Property B2B / guest invoice (separate from platform Payment Didox factura).
+/// All money fields are TIYIN BigInt.
+model HotelInvoice {
+  id              String             @id @default(cuid())
+  hotelId         String
+  hotel           Hotel              @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  /// Human number unique per hotel, e.g. INV-2026-0001
+  number          String
+  status          HotelInvoiceStatus @default(DRAFT)
+  /// Optional HotelBooking id (no Prisma join — compose in service layer).
+  bookingId       String?
+  clientName      String
+  clientAddress   String?
+  clientCity      String?
+  clientCountry   String?            @default("O‘zbekiston")
+  clientTin       String?
+  project         String?
+  terms           String?            @db.Text
+  notes           String?            @db.Text
+  currency        String             @default("UZS")
+  /// VAT in basis points (800 = 8%).
+  vatRateBps      Int                @default(800)
+  subtotalTiyin   BigInt             @default(0)
+  vatTiyin        BigInt             @default(0)
+  totalTiyin      BigInt             @default(0)
+  issuedAt        DateTime?
+  dueAt           DateTime?
+  paidAt          DateTime?
+  didoxDocumentId String?
+  createdByUserId String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  lines HotelInvoiceLine[]
+
+  @@unique([hotelId, number])
+  @@index([hotelId, status, createdAt])
+  @@index([bookingId])
+}
+
+model HotelInvoiceLine {
+  id              String       @id @default(cuid())
+  invoiceId       String
+  invoice         HotelInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder       Int          @default(0)
+  name            String
+  description     String?
+  quantity        Int          @default(1)
+  unitPriceTiyin  BigInt
+  lineTotalTiyin  BigInt
+
+  @@index([invoiceId, sortOrder])
+}
+
+/// Maps internal RoomType (+ optional rate plan) → OTA room/rate codes.
+model ChannelRoomMapping {
+  id               String   @id @default(cuid())
+  hotelId          String
+  hotel            Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  providerKey      String
+  roomTypeId       String
+  externalRoomCode String
+  externalRateCode String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([hotelId, providerKey, roomTypeId, externalRateCode], map: "ChannelRoomMapping_hotel_provider_room_rate_key")
+  @@index([hotelId, providerKey, active])
+}
+
+/// Outbound ARI / pull jobs — external HTTP only outside DB transactions.
+model ChannelSyncJob {
+  id           String                @id @default(cuid())
+  hotelId      String
+  hotel        Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  providerKey  String
+  kind         ChannelSyncKind
+  status       ChannelSyncJobStatus  @default(QUEUED)
+  payloadJson  Json?
+  resultJson   Json?
+  errorMessage String?               @db.Text
+  attempts     Int                   @default(0)
+  scheduledAt  DateTime              @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime              @default(now())
+
+  @@index([hotelId, status, scheduledAt])
+  @@index([providerKey, status])
+}
+
+/// Inbound OTA reservations — idempotent by external id before booking create.
+model ChannelReservationInbox {
+  id                    String                         @id @default(cuid())
+  hotelId               String
+  hotel                 Hotel                          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  providerKey           String
+  externalReservationId String
+  status                ChannelReservationInboxStatus  @default(RECEIVED)
+  payloadJson           Json
+  /// Set when a HotelBooking is created from this inbox row.
+  hotelBookingId        String?
+  errorMessage          String?                        @db.Text
+  receivedAt            DateTime                       @default(now())
+  processedAt           DateTime?
+
+  @@unique([hotelId, providerKey, externalReservationId], map: "ChannelReservationInbox_hotel_provider_extRes_key")
+  @@index([hotelId, status, receivedAt])
 }

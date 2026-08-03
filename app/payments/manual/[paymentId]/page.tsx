@@ -37,20 +37,12 @@ export default function ManualPaymentPage({ params }: { params: Promise<{ paymen
 
   async function handleConfirm() {
     setConfirming(true);
-    try {
-      const res = await fetch(`/api/payments/webhook/mock/${paymentId}`, {
-         method: "POST"
-      });
-      // Currently using mock webhook for manual confirmation 
-      // which sets status to SUCCESS instantly. Depending on real business logic, it could go to PENDING.
-      if (!res.ok) throw new Error("Xatolik roy berdi");
-      
-      toast.success("To'lov tasdiqlashga yuborildi! Tez orada faollashadi.");
-      router.push("/payments");
-    } catch (err: any) {
-      toast.error(err.message);
-      setConfirming(false);
-    }
+    // Manual transfer stays PENDING until an operator verifies the bank
+    // transfer and confirms via the admin panel. No self-completion.
+    toast.success(
+      "To'lov tekshiruvga yuborildi! Operatorlarimiz 5-10 daqiqada tasdiqlashadi.",
+    );
+    router.push("/payments");
   }
 
   function copyToClipboard(text: string) {

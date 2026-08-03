@@ -1,4 +1,5 @@
 import { Prisma, type TaxiOrderStatus } from "@prisma/client";
+import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { emitToDriver } from "@/lib/socket";
@@ -20,18 +21,18 @@ function isTaxiOrderStatus(s: string): s is TaxiOrderStatus {
   return (TAXI_ORDER_STATUSES as string[]).includes(s);
 }
 
-type CreateOrderInput = {
-  pickupAddress?: string;
-  pickupLat?: number;
-  pickupLng?: number;
-  dropoffAddress?: string;
-  dropoffLat?: number;
-  dropoffLng?: number;
-  serviceId?: string;
-  scheduledAt?: string;
-  customerNote?: string;
-  travelPlanId?: string;
-};
+const createOrderSchema = z.object({
+  pickupAddress: z.string().trim().min(1).max(500),
+  pickupLat: z.number().finite().min(-90).max(90),
+  pickupLng: z.number().finite().min(-180).max(180),
+  dropoffAddress: z.string().trim().min(1).max(500),
+  dropoffLat: z.number().finite().min(-90).max(90),
+  dropoffLng: z.number().finite().min(-180).max(180),
+  serviceId: z.string().min(1),
+  scheduledAt: z.string().datetime().optional(),
+  customerNote: z.string().trim().max(2000).optional(),
+  travelPlanId: z.string().min(1).optional(),
+});
 
 export async function GET(req: Request) {
   try {
@@ -81,18 +82,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
-    const body = (await req.json()) as CreateOrderInput;
-    if (
-      !body.pickupAddress ||
-      typeof body.pickupLat !== "number" ||
-      typeof body.pickupLng !== "number" ||
-      !body.dropoffAddress ||
-      typeof body.dropoffLat !== "number" ||
-      typeof body.dropoffLng !== "number" ||
-      !body.serviceId
-    ) {
+    const parsed = createOrderSchema.safeParse(await req.json());
+    if (!parsed.success) {
       return fail("Majburiy maydonlar to'liq emas", 400);
     }
+    const body = parsed.data;
 
     const service = await prisma.taxiService.findFirst({
       where: { id: body.serviceId, isActive: true },

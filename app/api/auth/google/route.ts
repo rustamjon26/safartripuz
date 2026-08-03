@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { requireEnv } from "@/src/shared/env";
 
 export async function GET() {
-  const clientId = process.env.GOOGLE_CLIENT_ID!;
+  const clientId = requireEnv("GOOGLE_CLIENT_ID");
   const baseUrl = process.env.NEXTAUTH_URL || "https://safartrip.uz";
   const redirectUri = `${baseUrl}/api/auth/google/callback`;
 

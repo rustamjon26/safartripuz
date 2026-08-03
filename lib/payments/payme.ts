@@ -1,6 +1,7 @@
 /**
  * Travel-plan Payme helpers — error codes aligned via payment module.
  */
+import { createHash, timingSafeEqual } from "node:crypto";
 import { PAYME_ERRORS as CORE } from "@/src/modules/payment/domain/errors";
 
 export interface PaymeRpcRequest {
@@ -18,7 +19,10 @@ export interface PaymeRpcRequest {
 export function verifyPaymeAuth(authHeader: string, merchantKey: string): boolean {
   if (!merchantKey) return false;
   const expected = Buffer.from(`Paycom:${merchantKey}`).toString("base64");
-  return authHeader === `Basic ${expected}`;
+  // Constant-time compare — hash first so lengths never leak.
+  const da = createHash("sha256").update(authHeader).digest();
+  const db = createHash("sha256").update(`Basic ${expected}`).digest();
+  return timingSafeEqual(da, db);
 }
 
 /** Legacy key names used by older callers — codes match harden plan. */

@@ -27,5 +27,7 @@ src/modules/<name>/
   index.ts      public API — ONLY file other modules may import
 ```
 
-Existing: inventory, rates, booking, payment, ledger, guest, catalog  
-Planned: channel (OTA sync) — leave room; do not implement yet.
+Existing: inventory, rates, booking, payment, ledger, guest, catalog, invoice, integration, channel, staff, feedback, outbox  
+
+Channel / OTA: foundation + adapter stubs live in `src/modules/channel`.  
+Real OpenTravel/partner HTTP stays inside adapters only — never in routes/services/repos.

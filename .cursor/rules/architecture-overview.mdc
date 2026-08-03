@@ -22,7 +22,18 @@ Invoicing: Didox EDO.
 | ledger | double-entry, commissions, partner payouts, reconciliation |
 | guest | profiles, CRM, booking history |
 | catalog | properties, dachas/homestays, guides, taxi, attractions |
-| channel | *(planned)* OTA sync via OpenTravel XML — do not implement yet |
+| invoice | hotel B2B invoices (tiyin), status machine; Didox emit later via outbox |
+| integration | provider catalog + per-hotel connection registry (OTA/payment/local) |
+| channel | OTA channel manager: room/rate mapping, ARI sync jobs, reservation inbox; adapters stubbed until OpenTravel cert |
+
+### Hotel ops pipeline (invoice / integrations / OTA)
+
+```
+Integrations UI → integration (connect) → channel.onOtaConnected → FULL_REFRESH job
+Inventory/Rates change → channel.enqueue ARI_PUSH → adapter.pushAri (outside DB tx)
+OTA reservation → channel.inbox (idempotent) → booking.create (source BOOKING_COM/…)
+Invoice wizard → invoice.create (tiyin) → later Didox via outbox (no HTTP in tx)
+```
 
 ## Key invariants
 

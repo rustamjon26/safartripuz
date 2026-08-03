@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { PaymentProvider, PaymentStatus, Prisma } from "@prisma/client";
 import { db, type DbClient } from "./db";
 
 export type Tx = DbClient;
@@ -146,7 +146,7 @@ export class PaymentRepository {
 
   async findPaymentByExternalRefAndProvider(
     externalRef: string,
-    provider: string,
+    provider: PaymentProvider,
     client: DbClient = db,
   ) {
     return client.payment.findFirst({
@@ -158,7 +158,7 @@ export class PaymentRepository {
   async updatePaymentFields(
     id: string,
     data: {
-      status?: string;
+      status?: PaymentStatus;
       externalRef?: string | null;
       paidAt?: Date | null;
     },

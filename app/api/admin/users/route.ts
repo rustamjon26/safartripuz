@@ -1,6 +1,33 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+
+const roleSchema = z.enum([
+  "super_admin",
+  "admin",
+  "user",
+  "taxi",
+  "taxi_partner",
+  "hotel_manager",
+  "guide",
+  "restaurant_manager",
+  "home_stay_partner",
+  "support",
+  "cleaner",
+  "receptionist",
+  "waiter",
+  "hotel_staff",
+]);
+
+const createUserSchema = z.object({
+  first_name: z.string().trim().min(1).max(100),
+  last_name: z.string().trim().min(1).max(100),
+  email: z.string().trim().email().max(191),
+  phone: z.string().trim().min(5).max(32),
+  role: roleSchema,
+  password: z.string().min(8).max(128),
+});
 
 export async function GET(req: Request) {
   try {
@@ -54,13 +81,22 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    await requireRole(["admin", "super_admin"]);
-    const body = await req.json();
-    const { first_name, last_name, email, phone, role, password } = body;
+    const actor = await requireRole(["admin", "super_admin"]);
+    const parsed = createUserSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: "Barcha maydonlarni to'g'ri to'ldiring" },
+        { status: 400 },
+      );
+    }
+    const { first_name, last_name, email, phone, role, password } = parsed.data;
 
-    // Basic validation
-    if (!first_name || !last_name || !email || !phone || !password || !role) {
-      return NextResponse.json({ message: "Barcha maydonlarni to'ldiring" }, { status: 400 });
+    // Only super_admin may mint admin-level accounts.
+    if (
+      (role === "super_admin" || role === "admin") &&
+      actor.role !== "super_admin"
+    ) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     // Check unique
@@ -91,6 +127,16 @@ export async function POST(req: Request) {
         phone: true,
         role: true,
         createdAt: true,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: actor.id,
+        action: "USER_CREATED_BY_ADMIN",
+        entity: "User",
+        entityId: user.id,
+        newData: { role: user.role, email: user.email },
       },
     });
 

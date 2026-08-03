@@ -169,7 +169,9 @@ export class BookingService {
         ctx.restoreInventory === true ||
         toStatus === "EXPIRED" ||
         toStatus === "CANCELLED" ||
-        toStatus === "REFUNDED";
+        toStatus === "REFUNDED" ||
+        // Guest never arrived — remaining nights go back on sale.
+        toStatus === "NO_SHOW";
 
       const holdingBefore = holdsInventory(fromStatus);
 
@@ -182,7 +184,8 @@ export class BookingService {
         toStatus === "EXPIRED" ||
         toStatus === "CANCELLED" ||
         toStatus === "REFUNDED" ||
-        toStatus === "COMPLETED"
+        toStatus === "COMPLETED" ||
+        toStatus === "NO_SHOW"
       ) {
         holdExpiresAtPatch.holdExpiresAt = null;
       }
@@ -216,7 +219,8 @@ export class BookingService {
         holdingBefore &&
         (toStatus === "EXPIRED" ||
           toStatus === "CANCELLED" ||
-          toStatus === "REFUNDED") &&
+          toStatus === "REFUNDED" ||
+          toStatus === "NO_SHOW") &&
         booking.roomTypeId
       ) {
         await inventoryService.releaseRoomNightsInTx(

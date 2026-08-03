@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
   authCookieOptions,
@@ -56,15 +57,20 @@ export async function GET() {
   }
 }
 
+const patchMeSchema = z.object({
+  first_name: z.string().trim().min(1).max(100).optional(),
+  last_name: z.string().trim().min(1).max(100).optional(),
+  phone: z.string().trim().min(5).max(32).optional(),
+});
+
 export async function PATCH(req: Request) {
   try {
     const user = await requireUser();
-    const body = await req.json();
-    const { first_name, last_name, phone } = body as {
-      first_name?: string;
-      last_name?: string;
-      phone?: string;
-    };
+    const parsed = patchMeSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ message: "Validation error" }, { status: 400 });
+    }
+    const { first_name, last_name, phone } = parsed.data;
 
     const updated = await prisma.user.update({
       where: { id: user.id },
@@ -72,6 +78,15 @@ export async function PATCH(req: Request) {
         ...(first_name && { first_name }),
         ...(last_name && { last_name }),
         ...(phone && { phone }),
+      },
+      // Never return the full row — it contains the password hash.
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        phone: true,
+        role: true,
       },
     });
 

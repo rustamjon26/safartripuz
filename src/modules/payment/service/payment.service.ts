@@ -6,6 +6,25 @@ export type InboundProcessResult<T> =
   | { kind: "cached"; response: T }
   | { kind: "fresh"; response: T };
 
+/** Never persist merchant credentials / session material in webhook logs. */
+const SENSITIVE_HEADERS = new Set([
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "x-auth-token",
+]);
+
+export function redactSensitiveHeaders(
+  headers: Record<string, string>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(headers)) {
+    out[k] = SENSITIVE_HEADERS.has(k.toLowerCase()) ? "[REDACTED]" : v;
+  }
+  return out;
+}
+
 /**
  * Shared inbound webhook pipeline:
  * 1) Append WebhookLog
@@ -25,7 +44,7 @@ export class PaymentService {
       await paymentRepository.appendWebhookLog({
         provider: input.provider,
         path: input.path,
-        headers: input.headers as Prisma.InputJsonValue,
+        headers: redactSensitiveHeaders(input.headers) as Prisma.InputJsonValue,
         rawBody: input.rawBody,
         verified: input.verified,
         resultNote: input.resultNote,

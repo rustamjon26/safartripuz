@@ -1,4 +1,3 @@
-import { prisma } from "@/src/shared/db/prisma";
 import {
   assertShiftTransition,
   StaffShiftStatusError,
@@ -86,11 +85,8 @@ export class StaffService {
     const managerStaff = await resolveStaffContext(actorUserId).catch(() => null);
     let hotelId = managerStaff?.hotelId;
     if (!hotelId) {
-      const owned = await prisma.hotel.findFirst({
-        where: { partner: { userId: actorUserId } },
-        select: { id: true },
-      });
-      hotelId = owned?.id;
+      hotelId =
+        (await staffRepository.findHotelIdOwnedByUser(actorUserId)) ?? undefined;
     }
     if (!hotelId) throw new StaffContextError("Hotel topilmadi");
 

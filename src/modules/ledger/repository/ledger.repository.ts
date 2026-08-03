@@ -1,5 +1,5 @@
 import type { AccountType, PartnerEarningType } from "@prisma/client";
-import { db, type DbClient } from "@/src/modules/payment/repository/db";
+import { db, type DbClient } from "@/src/shared/db/client";
 
 export type Tx = DbClient;
 export type LedgerBookingType = PartnerEarningType;
@@ -27,7 +27,7 @@ export class LedgerRepository {
         ownerType_ownerId_type_currency: {
           ownerType: input.ownerType,
           ownerId: input.ownerId,
-          type: input.type,
+          type: input.type as AccountType,
           currency,
         },
       },

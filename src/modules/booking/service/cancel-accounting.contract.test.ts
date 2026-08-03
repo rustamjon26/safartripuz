@@ -87,7 +87,7 @@ describe("reversePartnerEarning is fail-loud", () => {
 
 describe("payment success never hardcodes partnerUserId null", () => {
   it("completeSuccessfulPaymentInTx resolves partners", () => {
-    const src = read("lib/payments/completeSuccessfulPaymentTx.ts");
+    const src = read("src/modules/booking/service/payment-confirmation.service.ts");
     expect(src).toContain("MissingPartnerError");
     expect(src).toContain("createPartnerEarningIfMissing");
     expect(src).not.toMatch(/partnerUserId:\s*null/);

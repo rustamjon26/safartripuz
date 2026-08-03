@@ -172,7 +172,7 @@ export class LedgerService {
 
     if (outerTx) return run(outerTx);
 
-    const { db } = await import("@/src/modules/payment/repository/db");
+    const { db } = await import("@/src/shared/db/client");
     return db.$transaction(async (tx: Tx) => run(tx));
   }
 
@@ -309,7 +309,7 @@ export class LedgerService {
 
     if (outerTx) return run(outerTx);
 
-    const { db } = await import("@/src/modules/payment/repository/db");
+    const { db } = await import("@/src/shared/db/client");
     return db.$transaction(async (tx: Tx) => run(tx));
   }
 
@@ -371,7 +371,7 @@ export class LedgerService {
       return { alreadyExisted: false, transactionId: created.id };
     };
     if (outerTx) return run(outerTx);
-    const { db } = await import("@/src/modules/payment/repository/db");
+    const { db } = await import("@/src/shared/db/client");
     return db.$transaction(async (tx: Tx) => run(tx));
   }
 

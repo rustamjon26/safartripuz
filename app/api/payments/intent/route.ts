@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { Money } from "@/src/shared/money";
 
 const schema = z.object({
   travelPlanId: z.string(),
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
         provider,
         status: "PENDING",
         amount: plan.totalAmount,
+        amountTiyin: Money.fromSomNumber(plan.totalAmount.toString()).toTiyin(),
         currency: "UZS",
         idempotencyKey: idempotencyKey ?? null,
         externalRef: `PAY-${Date.now().toString(36).toUpperCase()}`,

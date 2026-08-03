@@ -1,5 +1,5 @@
-import { prisma } from "@/src/shared/db/prisma";
 import type { StaffContext } from "../domain/types";
+import { staffRepository } from "../repository/staff.repository";
 
 export class StaffContextError extends Error {
   constructor(message: string) {
@@ -19,26 +19,14 @@ export function departmentFromStaffRole(role: string): string {
 }
 
 export async function resolveStaffContext(userId: string): Promise<StaffContext> {
-  const staff = await prisma.hotelStaff.findFirst({
-    where: { userId, isActive: true },
-    select: {
-      id: true,
-      hotelId: true,
-      role: true,
-      firstName: true,
-      lastName: true,
-      hotel: { select: { status: true } },
-    },
-  });
+  const staff = await staffRepository.findActiveStaffForUser(userId);
 
   if (!staff) {
     throw new StaffContextError("HotelStaff profil topilmadi");
   }
-  if (staff.hotel.status !== "active" && staff.hotel.status !== "draft") {
-    // allow draft for partner testing; block suspended
-    if (staff.hotel.status === "suspended") {
-      throw new StaffContextError("Mehmonxona suspended");
-    }
+  // allow draft for partner testing; block suspended
+  if (staff.hotelStatus === "suspended") {
+    throw new StaffContextError("Mehmonxona suspended");
   }
 
   return {

@@ -111,9 +111,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Browsers use httpOnly cookies; only native clients get the token in JSON.
+    const isBrowser = Boolean(req.headers.get("sec-fetch-mode"));
     const res = NextResponse.json(
       {
-        accessToken: access,
+        ...(isBrowser ? {} : { accessToken: access }),
         user: {
           id: user.id,
           first_name: user.first_name,
