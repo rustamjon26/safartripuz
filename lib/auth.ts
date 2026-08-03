@@ -19,7 +19,9 @@ export type AppRole =
   | "waiter"
   | "guide"
   | "guide_partner"
-  | "restaurant_manager";
+  | "restaurant_manager"
+  /** Feedback & Support panel — Prisma Role enum backendda keyin qo‘shiladi */
+  | "support";
 
 export type AuthUser = {
   id: string;

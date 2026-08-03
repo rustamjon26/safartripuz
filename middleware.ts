@@ -72,6 +72,12 @@ export async function middleware(req: NextRequest) {
       wrongRoleRedirect: "/dashboard",
     },
     {
+      prefix: "/support",
+      allow: ["support", "admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
+    {
       prefix: "/homestay-partner",
       allow: ["home_stay_partner", "admin", "super_admin"],
       redirectTo: "/login",
@@ -139,6 +145,7 @@ export const config = {
     "/hotel/:path*",
     "/taxi-partner/:path*",
     "/guide-partner/:path*",
+    "/support/:path*",
     "/homestay-partner/:path*",
     "/restaurant/:path*",
     "/user",

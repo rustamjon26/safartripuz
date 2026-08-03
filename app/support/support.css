@@ -1,0 +1,155 @@
+/* SafarTrip Partner — Feedback & Support (Silk Road) */
+
+.sp-root {
+  --sp-navy: #0d2137;
+  --sp-ink: #111c2d;
+  --sp-teal: #006781;
+  --sp-soft: #8fdfff;
+  --sp-soft-bg: #b9eaff;
+  --sp-surface: #f4f6fb;
+  --sp-card: #ffffff;
+  --sp-line: #d8e3fb;
+  --sp-muted: #64748b;
+  --sp-ok: #10b981;
+  --sp-warn: #f59e0b;
+  --sp-danger: #f43f5e;
+  --sp-info: #0ea5e9;
+
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 480px at 10% -10%, rgba(185, 234, 255, 0.55), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, rgba(245, 209, 176, 0.28), transparent 55%),
+    var(--sp-surface);
+  color: var(--sp-ink);
+  font-family: var(--font-nunito), system-ui, sans-serif;
+}
+
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sp-badge-ok { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.sp-badge-wait { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.sp-badge-info { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
+.sp-badge-cancel { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+.sp-badge-muted { background: #f0f3ff; color: #64748b; }
+.sp-badge-high { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+.sp-badge-mid { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.sp-badge-low { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
+
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  transition: 0.2s ease;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+.sp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.sp-btn-primary { background: var(--sp-teal); color: #fff; }
+.sp-btn-primary:hover:not(:disabled) { background: #005a71; }
+.sp-btn-navy { background: var(--sp-navy); color: #fff; }
+.sp-btn-navy:hover:not(:disabled) { background: #16324f; }
+.sp-btn-soft { background: #b9eaff; color: #001f29; }
+.sp-btn-soft:hover:not(:disabled) { filter: brightness(0.97); }
+.sp-btn-ghost {
+  background: #fff;
+  color: var(--sp-muted);
+  border: 1px solid var(--sp-line);
+}
+.sp-btn-ghost:hover:not(:disabled) { background: #f0f3ff; color: var(--sp-ink); }
+
+.sp-card {
+  background: var(--sp-card);
+  border: 1px solid var(--sp-line);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(13, 33, 55, 0.04);
+}
+
+.sp-input,
+.sp-select,
+.sp-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--sp-line);
+  background: #f9f9ff;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sp-ink);
+  outline: none;
+  font-family: inherit;
+}
+.sp-textarea { min-height: 96px; resize: vertical; }
+.sp-input:focus,
+.sp-select:focus,
+.sp-textarea:focus {
+  border-color: var(--sp-teal);
+  box-shadow: 0 0 0 3px rgba(0, 103, 129, 0.12);
+}
+
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+.sp-chip-pos {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.sp-chip-neg {
+  background: rgba(244, 63, 94, 0.1);
+  color: #e11d48;
+}
+.sp-chip-neutral {
+  background: #f0f3ff;
+  color: #64748b;
+}
+
+.sp-bar {
+  height: 8px;
+  border-radius: 9999px;
+  background: #e8eef9;
+  overflow: hidden;
+}
+.sp-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #006781, #8fdfff);
+}
+
+@keyframes sp-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sp-animate {
+  animation: sp-fade-up 0.45s ease both;
+}
+.sp-animate-delay-1 { animation-delay: 0.06s; }
+.sp-animate-delay-2 { animation-delay: 0.12s; }
+.sp-animate-delay-3 { animation-delay: 0.18s; }
+.sp-animate-delay-4 { animation-delay: 0.24s; }
