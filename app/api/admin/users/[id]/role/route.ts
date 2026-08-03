@@ -15,6 +15,10 @@ const schema = z.object({
     "restaurant_manager",
     "home_stay_partner",
     "support",
+    "cleaner",
+    "receptionist",
+    "waiter",
+    "hotel_staff",
   ]),
 });
 

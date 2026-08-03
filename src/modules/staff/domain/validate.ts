@@ -1,0 +1,55 @@
+import { z } from "zod";
+
+export const shiftStatusSchema = z.enum([
+  "SCHEDULED",
+  "ACTIVE",
+  "COMPLETED",
+  "CANCELLED",
+  "NO_SHOW",
+]);
+
+export const taskStatusSchema = z.enum([
+  "PENDING",
+  "IN_PROGRESS",
+  "DONE",
+  "CANCELLED",
+]);
+
+export const taskPrioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]);
+
+export const listShiftsQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+
+export const patchShiftSchema = z.object({
+  status: shiftStatusSchema,
+});
+
+export const listTasksQuerySchema = z.object({
+  status: z
+    .enum(["all", "PENDING", "IN_PROGRESS", "DONE", "CANCELLED"])
+    .default("all"),
+});
+
+export const createTaskSchema = z.object({
+  title: z.string().trim().min(1).max(191),
+  description: z.string().trim().max(5000).optional(),
+  priority: taskPrioritySchema.default("NORMAL"),
+  department: z.string().trim().max(64).optional(),
+  dueAt: z.string().datetime().optional(),
+  staffId: z.string().min(1).optional(),
+});
+
+export const patchTaskSchema = z.object({
+  status: taskStatusSchema.optional(),
+  priority: taskPrioritySchema.optional(),
+});
+
+export const sendMessageSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+export const completeModuleSchema = z.object({
+  moduleId: z.string().min(1),
+});

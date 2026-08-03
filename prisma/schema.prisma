@@ -19,6 +19,40 @@ enum Role {
   home_stay_partner
   /// Feedback & Support inbox agent
   support
+  /// Hotel frontline staff (Staff PWA)
+  cleaner
+  receptionist
+  waiter
+  hotel_staff
+}
+
+/// Staff Ops — shift lifecycle (7shifts / Unifocus pattern)
+enum StaffShiftStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum StaffOpsTaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum StaffOpsTaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum StaffChatThreadKind {
+  DEPARTMENT
+  DIRECT
+  ANNOUNCEMENT
 }
 
 /// Unified support inbox channel (maps UI: hotel / tour / transport).
@@ -296,6 +330,11 @@ model User {
   feedbackTicketsAssigned FeedbackTicket[] @relation("FeedbackTicketAssignee")
   feedbackRepliesAuthored FeedbackReply[]  @relation("FeedbackReplyAuthor")
 
+  staffChatMemberships StaffChatMember[]
+  staffChatMessages    StaffChatMessage[]  @relation("StaffChatMessageAuthor")
+  staffCourseEnrollments StaffCourseEnrollment[]
+  staffOpsTasksCreated StaffOpsTask[]      @relation("StaffOpsTaskCreator")
+
   partnerProfile Partner?
   hotelStaff     HotelStaff?
   partnerEarnings PartnerEarning[] @relation("PartnerEarnings")
@@ -570,6 +609,10 @@ model Hotel {
   menuItems           MenuItem[]
   restaurantOrders    RestaurantOrder[]
   feedbacks           GuestFeedback[]
+  staffShifts         StaffShift[]
+  staffOpsTasks       StaffOpsTask[]
+  staffChatThreads    StaffChatThread[]
+  staffCourses        StaffCourse[]
 
   @@index([status])
   @@index([latitude, longitude])
@@ -1069,9 +1112,173 @@ model HotelStaff {
   updatedAt DateTime @updatedAt
 
   housekeepingTasks HousekeepingTask[]
+  staffShifts       StaffShift[]
+  staffOpsTasks     StaffOpsTask[]
+  courseEnrollments StaffCourseEnrollment[]
 
   @@index([hotelId, role])
   @@index([userId])
+}
+
+/// Scheduled work block for a staff member (property-scoped).
+model StaffShift {
+  id        String           @id @default(cuid())
+  hotelId   String
+  hotel     Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  staffId   String
+  staff     HotelStaff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  title     String
+  location  String?
+  startsAt  DateTime
+  endsAt    DateTime
+  status    StaffShiftStatus @default(SCHEDULED)
+  notes     String?          @db.Text
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([hotelId, startsAt])
+  @@index([staffId, startsAt])
+  @@index([status, startsAt])
+}
+
+/// General ops task (HelloShift/HotSOS style). May optionally reference housekeeping.
+model StaffOpsTask {
+  id                 String               @id @default(cuid())
+  hotelId            String
+  hotel              Hotel                @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  staffId            String?
+  staff              HotelStaff?          @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdByUserId    String?
+  createdBy          User?                @relation("StaffOpsTaskCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  title              String
+  description        String?              @db.Text
+  department         String?
+  priority           StaffOpsTaskPriority @default(NORMAL)
+  status             StaffOpsTaskStatus   @default(PENDING)
+  dueAt              DateTime?
+  /// Soft link to existing HousekeepingTask (no cross-module join required).
+  housekeepingTaskId String?
+  completedAt        DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([hotelId, status])
+  @@index([staffId, status])
+  @@index([hotelId, dueAt])
+}
+
+/// Property chat thread (department / DM / announcement) — Unifocus/hotelkit pattern.
+model StaffChatThread {
+  id         String              @id @default(cuid())
+  hotelId    String
+  hotel      Hotel               @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  name       String
+  kind       StaffChatThreadKind @default(DEPARTMENT)
+  department String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  members  StaffChatMember[]
+  messages StaffChatMessage[]
+
+  @@index([hotelId, kind])
+  @@unique([hotelId, kind, department])
+}
+
+model StaffChatMember {
+  id         String         @id @default(cuid())
+  threadId   String
+  thread     StaffChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?
+  joinedAt   DateTime       @default(now())
+
+  @@unique([threadId, userId])
+  @@index([userId])
+}
+
+/// Immutable chat messages (append-only).
+model StaffChatMessage {
+  id           String         @id @default(cuid())
+  threadId     String
+  thread       StaffChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author       User           @relation("StaffChatMessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  body         String         @db.Text
+  createdAt    DateTime       @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([authorUserId])
+}
+
+/// Micro-learning catalog (Weldon / 7shifts training pattern).
+model StaffCourse {
+  id          String   @id @default(cuid())
+  /// null = platform-wide catalog; set = hotel-specific SOP course
+  hotelId     String?
+  hotel       Hotel?   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  category    String   @default("STANDARDS")
+  durationMin Int      @default(15)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules     StaffCourseModule[]
+  enrollments StaffCourseEnrollment[]
+
+  @@index([hotelId, isPublished])
+  @@index([category])
+}
+
+model StaffCourseModule {
+  id        String      @id @default(cuid())
+  courseId  String
+  course    StaffCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sortOrder Int         @default(0)
+  title     String
+  body      String?     @db.Text
+  videoUrl  String?
+  createdAt DateTime    @default(now())
+
+  progress StaffModuleProgress[]
+
+  @@index([courseId, sortOrder])
+}
+
+model StaffCourseEnrollment {
+  id          String      @id @default(cuid())
+  courseId    String
+  course      StaffCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId     String?
+  staff       HotelStaff? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  progressPct Int         @default(0)
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  moduleProgress StaffModuleProgress[]
+
+  @@unique([courseId, userId])
+  @@index([userId])
+  @@index([staffId])
+}
+
+model StaffModuleProgress {
+  id           String               @id @default(cuid())
+  enrollmentId String
+  enrollment   StaffCourseEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  moduleId     String
+  module       StaffCourseModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  completed    Boolean              @default(false)
+  completedAt  DateTime?
+
+  @@unique([enrollmentId, moduleId])
+  @@index([moduleId])
 }
 
 model FolioItem {
