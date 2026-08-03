@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+
+function statusBadge(status: string): string {
+  if (status === "COMPLETED") return "tp-badge tp-badge-ok";
+  if (status === "CANCELLED" || status === "DISPUTE") return "tp-badge tp-badge-cancel";
+  if (status === "PENDING") return "tp-badge tp-badge-wait";
+  if (["ACCEPTED", "ARRIVED", "IN_PROGRESS"].includes(status)) return "tp-badge tp-badge-info";
+  return "tp-badge tp-badge-muted";
+}
 
 type Order = {
   id: string;
@@ -21,12 +30,19 @@ type Order = {
 const tabs = ["ACTIVE", "HISTORY"] as const;
 
 export default function TaxiOrdersPage() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<(typeof tabs)[number]>("ACTIVE");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [items, setItems] = useState<Order[]>([]);
   const [completeTarget, setCompleteTarget] = useState<Order | null>(null);
   const [completeData, setCompleteData] = useState({ finalPrice: "", distanceKm: "" });
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("q");
+    if (fromUrl != null) setQ(fromUrl);
+  }, [searchParams]);
 
   async function load() {
     setLoading(true);
@@ -44,13 +60,18 @@ export default function TaxiOrdersPage() {
   }, []);
 
   const activeStatuses = new Set(["PENDING", "ACCEPTED", "ARRIVED", "IN_PROGRESS"]);
-  const filtered = useMemo(
-    () =>
-      items.filter((o) =>
-        tab === "ACTIVE" ? activeStatuses.has(o.status) : ["COMPLETED", "CANCELLED"].includes(o.status),
-      ),
-    [items, tab],
-  );
+  const filtered = useMemo(() => {
+    const byTab = items.filter((o) =>
+      tab === "ACTIVE" ? activeStatuses.has(o.status) : ["COMPLETED", "CANCELLED"].includes(o.status),
+    );
+    const query = q.trim().toLowerCase();
+    if (!query) return byTab;
+    return byTab.filter((o) =>
+      `${o.pickupAddress} ${o.dropoffAddress} ${o.id} ${o.customer?.first_name ?? ""} ${o.customer?.last_name ?? ""}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [items, tab, q]);
 
   async function runAction(order: Order, status: string, extra?: Record<string, unknown>) {
     setSaving(order.id);
@@ -83,118 +104,202 @@ export default function TaxiOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200/80 pb-3">
-        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Orders</h1>
-        <p className="text-[13px] font-semibold text-slate-500 mt-1">Active va history buyurtmalar</p>
+      <div>
+        <h1 className="text-[26px] sm:text-[30px] font-display font-bold text-[#0d2137] tracking-tight">
+          Safarlar
+        </h1>
+        <p className="text-[13px] font-medium text-[#64748B] mt-1.5">
+          Aktiv buyurtmalar va tarix
+        </p>
       </div>
 
       <div className="flex gap-2">
         {tabs.map((t) => (
           <button
             key={t}
+            type="button"
             onClick={() => setTab(t)}
-            className={`px-3 py-2 rounded-lg text-xs font-black border ${
+            className={`px-3.5 py-2 rounded-xl text-[12px] font-[family-name:var(--font-sora)] font-semibold border ${
               tab === t
-                ? "bg-[var(--bg-light-blue)] text-[var(--accent)] border-[var(--accent)]/30"
-                : "bg-white text-slate-500 border-slate-200"
+                ? "bg-[#006781]/10 text-[#006781] border-[#006781]/25"
+                : "bg-white text-[#64748B] border-[#d8e3fb]"
             }`}
           >
-            {t}
+            {t === "ACTIVE" ? "Faol" : "Tarix"}
           </button>
         ))}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-[#d8e3fb] rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-6 space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
         ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">{tab === "ACTIVE" ? "Customer" : "Date"}</th>
-                <th className="py-3 px-5">Pickup</th>
-                <th className="py-3 px-5">Dropoff</th>
-                <th className="py-3 px-5">{tab === "ACTIVE" ? "Estimated" : "Final"}</th>
-                <th className="py-3 px-5">{tab === "ACTIVE" ? "Status" : "Rating"}</th>
-                <th className="py-3 px-5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13px]">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-6 px-5">
-                    <EmptyState
-                      title={tab === "ACTIVE" ? "Aktiv buyurtmalar yo'q" : "Tarix bo'sh"}
-                      message={tab === "ACTIVE" ? "Yangi buyurtmalar kelishini kuting." : "Hozircha yakunlangan yoki bekor qilingan buyurtmalar yo'q."}
-                      ctaHref="/taxi-partner/dashboard"
-                      ctaLabel="Dashboardga o'tish"
-                    />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left">
+              <thead>
+                <tr className="bg-[#f0f3ff] text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#64748B] uppercase tracking-wider">
+                  <th className="py-3 px-5">{tab === "ACTIVE" ? "Mijoz" : "Sana"}</th>
+                  <th className="py-3 px-5">Qayerdan</th>
+                  <th className="py-3 px-5">Qayerga</th>
+                  <th className="py-3 px-5">{tab === "ACTIVE" ? "Taxminiy" : "Yakuniy"}</th>
+                  <th className="py-3 px-5">{tab === "ACTIVE" ? "Holat" : "Reyting"}</th>
+                  <th className="py-3 px-5 text-right">Amal</th>
                 </tr>
-              ) : (
-                filtered.map((o) => (
-                  <tr key={o.id} className="border-b border-slate-50 last:border-0">
-                    <td className="py-3 px-5 font-bold text-slate-700">
-                      {tab === "ACTIVE" ? (o.customer ? `${o.customer.first_name} ${o.customer.last_name}` : "-") : new Date(o.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-5">{o.pickupAddress}</td>
-                    <td className="py-3 px-5">{o.dropoffAddress}</td>
-                    <td className="py-3 px-5 font-black">{Number(tab === "ACTIVE" ? o.estimatedPrice : (o.finalPrice ?? o.estimatedPrice)).toLocaleString()}</td>
-                    <td className="py-3 px-5">{tab === "ACTIVE" ? o.status : (o.review?.rating ? `${o.review.rating}★` : "-")}</td>
-                    <td className="py-3 px-5 text-right">
-                      <div className="inline-flex gap-2 items-center">
-                        {tab === "ACTIVE" ? (
-                          <>
-                            {o.status === "PENDING" && <button disabled={saving === o.id} onClick={() => void runAction(o, "ACCEPTED")} className="px-2.5 py-1 text-xs font-black rounded bg-green-600 text-white">Qabul qilish</button>}
-                            {o.status === "ACCEPTED" && <button disabled={saving === o.id} onClick={() => void runAction(o, "ARRIVED")} className="px-2.5 py-1 text-xs font-black rounded bg-amber-500 text-white">Yetib keldim</button>}
-                            {o.status === "ARRIVED" && <button disabled={saving === o.id} onClick={() => void runAction(o, "IN_PROGRESS")} className="px-2.5 py-1 text-xs font-black rounded bg-blue-600 text-white">Yo'lga chiqdik</button>}
-                            {o.status === "IN_PROGRESS" && (
-                              <button
-                                disabled={saving === o.id}
-                                onClick={() => {
-                                  setCompleteTarget(o);
-                                  setCompleteData({ finalPrice: String(Number(o.estimatedPrice)), distanceKm: "" });
-                                }}
-                                className="px-2.5 py-1 text-xs font-black rounded bg-slate-700 text-white"
-                              >
-                                Yetkazib berdim
-                              </button>
-                            )}
-                          </>
-                        ) : null}
-                        <Link href={`/taxi-partner/orders/${o.id}`} className="px-2.5 py-1 text-xs font-black rounded border border-slate-200 text-slate-600">Detail</Link>
-                      </div>
+              </thead>
+              <tbody className="text-[13px] divide-y divide-[#d8e3fb]">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-6 px-5">
+                      <EmptyState
+                        title={tab === "ACTIVE" ? "Aktiv buyurtmalar yo'q" : "Tarix bo'sh"}
+                        message={
+                          tab === "ACTIVE"
+                            ? "Yangi buyurtmalar kelishini kuting."
+                            : "Hozircha yakunlangan yoki bekor qilingan buyurtmalar yo'q."
+                        }
+                        ctaHref="/taxi-partner/dashboard"
+                        ctaLabel="Dashboardga o'tish"
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filtered.map((o) => (
+                    <tr key={o.id} className="hover:bg-[#f9f9ff]">
+                      <td className="py-3 px-5 font-bold text-[#111c2d]">
+                        {tab === "ACTIVE"
+                          ? o.customer
+                            ? `${o.customer.first_name} ${o.customer.last_name}`
+                            : "-"
+                          : new Date(o.createdAt).toLocaleDateString("uz-UZ")}
+                      </td>
+                      <td className="py-3 px-5 text-[#64748B]">{o.pickupAddress}</td>
+                      <td className="py-3 px-5 text-[#64748B]">{o.dropoffAddress}</td>
+                      <td className="py-3 px-5 font-bold tabular-nums">
+                        {Number(
+                          tab === "ACTIVE" ? o.estimatedPrice : (o.finalPrice ?? o.estimatedPrice),
+                        ).toLocaleString("uz-UZ")}
+                      </td>
+                      <td className="py-3 px-5">
+                        {tab === "ACTIVE" ? (
+                          <span className={statusBadge(o.status)}>{o.status}</span>
+                        ) : o.review?.rating ? (
+                          `${o.review.rating}★`
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-3 px-5 text-right">
+                        <div className="inline-flex gap-2 items-center">
+                          {tab === "ACTIVE" ? (
+                            <>
+                              {o.status === "PENDING" && (
+                                <button
+                                  type="button"
+                                  disabled={saving === o.id}
+                                  onClick={() => void runAction(o, "ACCEPTED")}
+                                  className="px-2.5 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold rounded-lg bg-emerald-600 text-white"
+                                >
+                                  Qabul qilish
+                                </button>
+                              )}
+                              {o.status === "ACCEPTED" && (
+                                <button
+                                  type="button"
+                                  disabled={saving === o.id}
+                                  onClick={() => void runAction(o, "ARRIVED")}
+                                  className="px-2.5 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold rounded-lg bg-amber-500 text-white"
+                                >
+                                  Yetib keldim
+                                </button>
+                              )}
+                              {o.status === "ARRIVED" && (
+                                <button
+                                  type="button"
+                                  disabled={saving === o.id}
+                                  onClick={() => void runAction(o, "IN_PROGRESS")}
+                                  className="px-2.5 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold rounded-lg bg-[#006781] text-white"
+                                >
+                                  Yo&apos;lga chiqdik
+                                </button>
+                              )}
+                              {o.status === "IN_PROGRESS" && (
+                                <button
+                                  type="button"
+                                  disabled={saving === o.id}
+                                  onClick={() => {
+                                    setCompleteTarget(o);
+                                    setCompleteData({
+                                      finalPrice: String(Number(o.estimatedPrice)),
+                                      distanceKm: "",
+                                    });
+                                  }}
+                                  className="px-2.5 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold rounded-lg bg-[#0d2137] text-white"
+                                >
+                                  Yetkazib berdim
+                                </button>
+                              )}
+                            </>
+                          ) : null}
+                          <Link
+                            href={`/taxi-partner/orders/${o.id}`}
+                            className="px-2.5 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold rounded-lg border border-[#d8e3fb] text-[#64748B]"
+                          >
+                            Detail
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {completeTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-5 space-y-4">
-            <h3 className="text-lg font-black text-[var(--primary)]">Trip complete</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#000917]/45 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-[#d8e3fb] shadow-xl p-5 space-y-4">
+            <h3 className="text-lg font-display font-semibold text-[#0d2137]">Safarni yakunlash</h3>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Final price</label>
-              <input className="h-input" type="number" value={completeData.finalPrice} onChange={(e) => setCompleteData((p) => ({ ...p, finalPrice: e.target.value }))} />
+              <label className="text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1 block">
+                Yakuniy narx
+              </label>
+              <input
+                className="tp-input"
+                type="number"
+                value={completeData.finalPrice}
+                onChange={(e) => setCompleteData((p) => ({ ...p, finalPrice: e.target.value }))}
+              />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Distance (km)</label>
-              <input className="h-input" type="number" value={completeData.distanceKm} onChange={(e) => setCompleteData((p) => ({ ...p, distanceKm: e.target.value }))} />
+              <label className="text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1 block">
+                Masofa (km)
+              </label>
+              <input
+                className="tp-input"
+                type="number"
+                value={completeData.distanceKm}
+                onChange={(e) => setCompleteData((p) => ({ ...p, distanceKm: e.target.value }))}
+              />
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setCompleteTarget(null)} className="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700">Bekor qilish</button>
+              <button type="button" onClick={() => setCompleteTarget(null)} className="tp-btn tp-btn-ghost">
+                Bekor qilish
+              </button>
               <button
+                type="button"
                 onClick={() =>
                   void runAction(completeTarget, "COMPLETED", {
                     finalPrice: Number(completeData.finalPrice),
                     distanceKm: Number(completeData.distanceKm),
                   })
                 }
-                className="px-4 py-2 rounded-lg bg-[var(--primary)] text-sm font-bold text-white"
+                className="tp-btn tp-btn-primary"
               >
                 Tasdiqlash
               </button>
