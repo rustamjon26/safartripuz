@@ -140,10 +140,14 @@ export default function AdminPaymentsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Moliyaviy To&apos;lovlar</h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">Barcha tranzaksiyalarni monitoring qilish va statistikani ko&apos;rish</p>
+          <h1 className="text-[28px] sm:text-[32px] font-display font-bold text-[#0d2137] tracking-tight">
+            Iqtisodiy tahlil
+          </h1>
+          <p className="text-[13px] font-medium text-[#64748B] mt-1.5 max-w-xl">
+            Platformaning joriy moliyaviy holati va komissiya daromadlari
+          </p>
         </div>
       </div>
 

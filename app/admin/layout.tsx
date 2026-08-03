@@ -21,6 +21,8 @@ import {
   Bell,
   Percent,
   BookOpen,
+  Shield,
+  Search,
 } from "lucide-react";
 import { DirectionsCarIcon } from "@/components/admin/taxi/DirectionsCarIcon";
 import { ExploreMapIcon } from "@/components/admin/guide/ExploreMapIcon";
@@ -195,19 +197,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="admin-root bg-slate-50">
+    <div className="admin-root bg-[#f4f6fb]">
       <aside className="adm-sidebar hidden lg:flex">
         <AdminSidebarNav {...sidebarProps} />
       </aside>
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-[260px] bg-white shadow-2xl flex flex-col">
+          <div className="absolute inset-0 bg-[#000917]/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-[280px] bg-[#0d2137] shadow-2xl flex flex-col">
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 text-slate-500"
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/10 text-white/80 z-10"
             >
               <X size={18} />
             </button>
@@ -216,44 +218,91 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <div className="adm-main lg:ml-64 flex-1">
-        <header className="adm-topbar sticky top-0 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="adm-main lg:ml-[280px] flex-1 min-w-0">
+        <header className="adm-topbar sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-[#d8e3fb] px-4 sm:px-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="lg:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-600"
+              className="lg:hidden p-2 rounded-xl hover:bg-[#f0f3ff] text-[#64748B]"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu size={22} />
             </button>
-            <div>
-              <h1 className="adm-topbar-title text-xl font-black text-slate-900 tracking-tight">
+            <div className="min-w-0">
+              <p className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#94A3B8]">
+                SafarTrip Operator
+              </p>
+              <h1 className="adm-topbar-title text-[17px] font-display font-bold text-[#0d2137] tracking-tight truncate">
                 {pageItem?.label ?? "Boshqaruv"}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center flex-1 max-w-md mx-4">
+            <div className="relative w-full">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+              <input
+                type="search"
+                placeholder="Qidiruv..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#f0f3ff] border-0 text-[12px] font-[family-name:var(--font-sora)] font-semibold text-[#111c2d] outline-none focus:ring-2 focus:ring-[#006781]/25"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const q = (e.target as HTMLInputElement).value.trim();
+                    if (q) router.push(`/admin/partners?q=${encodeURIComponent(q)}`);
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               href="/"
-              className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-100 text-slate-600 text-sm font-bold hover:bg-slate-100 transition-all"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f0f3ff] text-[#64748B] text-[12px] font-[family-name:var(--font-sora)] font-semibold hover:text-[#0d2137] transition-colors"
             >
               <MapPin size={14} />
               Sayt
             </Link>
 
-            <button type="button" className="p-2.5 rounded-xl bg-white border border-slate-100 text-slate-500 hover:bg-slate-50">
-              <Bell size={20} />
+            <button
+              type="button"
+              className="relative p-2.5 rounded-xl bg-white border border-[#d8e3fb] text-[#64748B] hover:text-[#0d2137] hover:bg-[#f9f9ff]"
+            >
+              <Bell size={18} />
             </button>
+            <Link
+              href="/admin/audit"
+              className="p-2.5 rounded-xl bg-white border border-[#d8e3fb] text-[#64748B] hover:text-[#0d2137] hover:bg-[#f9f9ff]"
+              title="Xavfsizlik / Audit"
+            >
+              <Shield size={18} />
+            </Link>
+            <Link
+              href="/admin/settings"
+              className="p-2.5 rounded-xl bg-white border border-[#d8e3fb] text-[#64748B] hover:text-[#0d2137] hover:bg-[#f9f9ff]"
+              title="Sozlamalar"
+            >
+              <Settings size={18} />
+            </Link>
 
-            <div className="adm-user-avatar shadow-lg shadow-slate-900/10">{initials}</div>
+            <div className="hidden sm:flex items-center gap-2 pl-1">
+              <div className="text-right leading-tight">
+                <div className="text-[12px] font-semibold text-[#111c2d]">
+                  {user ? `${user.first_name}` : "Admin"}
+                </div>
+                <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide">
+                  {user?.role === "super_admin" ? "Super Admin" : "Boshqaruvchi"}
+                </div>
+              </div>
+              <div className="adm-user-avatar">{initials}</div>
+            </div>
           </div>
         </header>
 
-        <main className="adm-content px-6 py-8 pb-20">
+        <main className="adm-content px-4 sm:px-6 py-6 sm:py-8 pb-20">
           <Suspense
             fallback={
-              <div className="flex min-h-[40vh] items-center justify-center text-slate-500 text-sm font-semibold">
+              <div className="flex min-h-[40vh] items-center justify-center text-[#64748B] text-sm font-semibold">
                 Yuklanmoqda…
               </div>
             }

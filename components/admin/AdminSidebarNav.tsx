@@ -2,7 +2,7 @@
 
 import type { ElementType } from "react";
 import Link from "next/link";
-import { ChevronRight, LogOut, Shield } from "lucide-react";
+import { FileBarChart2, HelpCircle, LogOut, Shield } from "lucide-react";
 
 export type AdminNavItem = {
   href: string;
@@ -52,14 +52,14 @@ export function AdminSidebarNav({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-[#0d2137] text-white">
       <div className="adm-sidebar-brand">
         <div className="adm-sidebar-logo">
-          <Shield size={20} />
+          <Shield size={20} strokeWidth={2.25} />
         </div>
         <div>
-          <div className="adm-sidebar-title">SafarTrip</div>
-          <div className="adm-sidebar-subtitle">Super Admin</div>
+          <div className="adm-sidebar-title">Global Admin</div>
+          <div className="adm-sidebar-subtitle">Silk Road HQ</div>
         </div>
       </div>
 
@@ -85,7 +85,6 @@ export function AdminSidebarNav({
                   </span>
                   <span style={{ flex: 1 }}>{item.label}</span>
                   {badge ? <span className="adm-nav-badge">{badge > 9 ? "9+" : badge}</span> : null}
-                  {isActive ? <ChevronRight size={14} className="opacity-50" /> : null}
                 </Link>
               );
             })}
@@ -94,6 +93,20 @@ export function AdminSidebarNav({
       </nav>
 
       <div className="adm-sidebar-footer">
+        <Link
+          href="/admin/payments"
+          onClick={() => onNavigate?.()}
+          className="adm-report-btn"
+        >
+          <FileBarChart2 size={16} />
+          Hisobot yaratish
+        </Link>
+
+        <Link href="/admin/settings" onClick={() => onNavigate?.()} className="adm-sidebar-link">
+          <HelpCircle size={16} />
+          Yordam / Sozlamalar
+        </Link>
+
         <div className="adm-user-card">
           <div className="adm-user-avatar">{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
