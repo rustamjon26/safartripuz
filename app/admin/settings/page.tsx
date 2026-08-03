@@ -124,14 +124,15 @@ export default function AdminSettingsPage() {
     <div className="max-w-6xl space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#F0FDFA] px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#0E7490]">
-            <Settings size={14} />
-            Platforma sozlamalari
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#fff4e8] px-3 py-1 text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wider text-[#2a1700]">
+            <Shield size={14} />
+            Silk Road HQ
           </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-[#0D2137]">Tizim sozlamalari</h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-500">
-            SafarTrip platformasining umumiy kontakt ma&apos;lumotlari, valyuta va bildirishnoma
-            parametrlarini boshqaring.
+          <h1 className="mt-3 text-[28px] sm:text-[32px] font-display font-bold tracking-tight text-[#0D2137]">
+            Tizim sozlamalari
+          </h1>
+          <p className="mt-2 max-w-2xl text-[13px] font-medium text-[#64748B]">
+            Platforma yaxlitligi, kontaktlar, valyuta va bildirishnoma parametrlari.
           </p>
           {updatedAt ? (
             <p className="mt-2 text-xs font-bold text-slate-400">

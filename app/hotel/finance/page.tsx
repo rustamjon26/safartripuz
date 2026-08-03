@@ -4,9 +4,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   Receipt, Wallet, Search, CreditCard, Banknote, DollarSign,
-  Loader2, RefreshCw, X, Verified, MoveDownRight, MoveUpRight, ArrowRight, Printer
+  Loader2, RefreshCw, X, Verified, MoveDownRight, MoveUpRight, ArrowRight, Printer, FileText
 } from "lucide-react";
+import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  FINANCE_ANALYTICS_KPIS,
+  PAYMENT_HISTORY,
+  REVENUE_SERIES,
+  TOP_ROOMS,
+} from "../mock-pack10";
 
 interface FolioItem { id: string; category: string; description: string; amount: number; isPaid: boolean; createdAt: string; }
 interface Payment { id: string; method: string; amount: number; createdAt: string; }
@@ -65,26 +72,141 @@ export default function FinancePage() {
      } catch { toast.error(t("housekeeping.toasts.update_error")); }
   }
 
+  const maxRev = Math.max(...REVENUE_SERIES.map((d) => Math.max(d.current, d.previous)), 1);
+
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
           <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight flex items-center gap-2">
-             <Receipt size={24} className="text-[var(--accent)]"/> {t("finance.title")}
+             <Receipt size={24} className="text-[var(--accent)]"/> Moliya va hisobotlar
           </h1>
           <p className="text-[13px] font-semibold text-slate-500 mt-1">
-            {t("finance.subtitle")}
+            Mehmonxonangizning moliyaviy o‘sishini kuzatib boring. {t("finance.subtitle")}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+           <Link
+             href="/hotel/invoices/new"
+             className="flex items-center gap-2 px-3.5 py-2.5 bg-[#0d2137] text-white rounded-lg text-[12px] font-bold hover:bg-[#16324f]"
+           >
+              <FileText size={16} /> Invoys yaratish
+           </Link>
            <button onClick={() => void load()} className="flex items-center gap-2 p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> {t("common.refresh")}
            </button>
         </div>
       </div>
 
-      {/* Overview KPI */}
+      {/* Enhanced analytics (Stitch pack 10) — demo KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {FINANCE_ANALYTICS_KPIS.map((kpi) => (
+          <div key={kpi.id} className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+            <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">{kpi.label}</div>
+            <div className="mt-2 font-display text-[26px] font-bold text-[#0d2137] leading-none">
+              {kpi.value}
+            </div>
+            <div className="mt-1 text-[12px] font-semibold text-slate-400">{kpi.unit}</div>
+            <div className={`mt-2 text-[12px] font-bold ${kpi.tone === "down" ? "text-amber-600" : "text-emerald-600"}`}>
+              {kpi.hint} · demo
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-display text-[18px] font-bold text-[#0d2137]">Tushum dinamikasi</h2>
+              <p className="text-[12px] font-semibold text-slate-500">Joriy davr vs o‘tgan davr (demo)</p>
+            </div>
+            <div className="flex gap-3 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1.5 text-[#006781]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#006781]" /> Joriy
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-300" /> O‘tgan
+              </span>
+            </div>
+          </div>
+          <div className="flex items-end gap-3 sm:gap-5 h-[160px]">
+            {REVENUE_SERIES.map((d) => (
+              <div key={d.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                <div className="w-full flex items-end justify-center gap-1 h-[120px]">
+                  <div
+                    className="w-3 sm:w-4 rounded-t-md bg-slate-300"
+                    style={{ height: `${(d.previous / maxRev) * 100}%` }}
+                  />
+                  <div
+                    className="w-3 sm:w-4 rounded-t-md bg-[#006781]"
+                    style={{ height: `${(d.current / maxRev) * 100}%` }}
+                  />
+                </div>
+                <div className="text-[10px] font-bold text-slate-400">{d.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+          <h2 className="font-display text-[18px] font-bold text-[#0d2137] mb-4">Top daromadli xonalar</h2>
+          <div className="space-y-3">
+            {TOP_ROOMS.map((room) => (
+              <div key={room.name} className="rounded-xl border border-[#d8e3fb] bg-[#f9f9ff] p-3">
+                <div className="flex justify-between gap-2">
+                  <div className="text-[13px] font-bold text-[#0d2137]">{room.name}</div>
+                  <div className="text-[13px] font-black text-[#006781]">{room.revenue}</div>
+                </div>
+                <div className="text-[11px] font-semibold text-slate-500 mt-1">
+                  {room.bookings} ta bron · {room.occupancy}% bandlik
+                </div>
+              </div>
+            ))}
+          </div>
+          <Link href="/hotel/rooms" className="mt-4 inline-flex text-[12px] font-bold text-[#006781]">
+            Barcha xonalar →
+          </Link>
+        </div>
+      </div>
+
+      <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="font-display text-[18px] font-bold text-[#0d2137]">To‘lovlar tarixi</h2>
+          <span className="text-[11px] font-bold text-slate-400 uppercase">Demo</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left">
+            <thead>
+              <tr className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-[#d8e3fb]">
+                <th className="py-2 pr-3">Mehmon</th>
+                <th className="py-2 px-3">Usul</th>
+                <th className="py-2 px-3">Vaqt</th>
+                <th className="py-2 px-3 text-right">Summa</th>
+                <th className="py-2 pl-3">Holat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PAYMENT_HISTORY.map((p) => (
+                <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                  <td className="py-3 pr-3 text-[13px] font-bold text-[#0d2137]">{p.guest}</td>
+                  <td className="py-3 px-3 text-[12px] font-semibold text-slate-500">{p.method}</td>
+                  <td className="py-3 px-3 text-[12px] font-semibold text-slate-400">{p.when}</td>
+                  <td className="py-3 px-3 text-[13px] font-black text-right text-[#006781]">{p.amount}</td>
+                  <td className="py-3 pl-3">
+                    <span className={p.status === "success" ? "h-badge h-badge-ok" : "h-badge h-badge-wait"}>
+                      {p.status === "success" ? "Muvaffaqiyatli" : "Kutilmoqda"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Live folio KPI (existing API) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase mb-2"><Wallet size={14}/> {t("finance.stats.expected")}</div>

@@ -67,16 +67,16 @@ const MONTHS_SHORT = [
 ] as const;
 
 const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  HELD: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  PAID: "bg-teal-100 text-teal-800 border-teal-200",
-  CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
-  CHECKED_IN: "bg-green-100 text-green-800 border-green-200",
-  CANCELLED: "bg-red-100 text-red-800 border-red-200",
-  COMPLETED: "bg-slate-100 text-slate-700 border-slate-200",
-  REFUNDED: "bg-orange-100 text-orange-800 border-orange-200",
-  NO_SHOW: "bg-orange-100 text-orange-800 border-orange-200",
-  EXPIRED: "bg-slate-100 text-slate-500 border-slate-200",
+  PENDING: "h-badge h-badge-wait",
+  HELD: "h-badge h-badge-wait",
+  PAID: "h-badge h-badge-ok",
+  CONFIRMED: "h-badge h-badge-info",
+  CHECKED_IN: "h-badge h-badge-ok",
+  CANCELLED: "h-badge h-badge-cancel",
+  COMPLETED: "h-badge h-badge-info",
+  REFUNDED: "h-badge h-badge-wait",
+  NO_SHOW: "h-badge h-badge-cancel",
+  EXPIRED: "h-badge h-badge-cancel",
 };
 
 function formatMoney(value: number) {
@@ -127,13 +127,7 @@ async function fetchBookings(
 }
 
 function StatusBadge({ status }: { status: BookingStatus }) {
-  return (
-    <span
-      className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${STATUS_STYLES[status]}`}
-    >
-      {status}
-    </span>
-  );
+  return <span className={STATUS_STYLES[status] ?? "h-badge h-badge-info"}>{status}</span>;
 }
 
 function BookingRow({ booking }: { booking: BookingDetail }) {

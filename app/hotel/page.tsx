@@ -252,34 +252,47 @@ export default function HotelDashboard() {
     price: t("dashboard.col_price"),
   };
 
+  const todayRevenue = stats?.revenue?.today ?? 0;
+
   return (
     <div className="space-y-8 pb-10 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Header — Stitch pack 10 enhanced PMS dashboard */}
+      <div className="bg-white border border-[#d8e3fb] rounded-2xl p-6 shadow-sm overflow-hidden relative">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{
+            background:
+              "radial-gradient(700px 220px at 100% 0%, rgba(185,234,255,0.55), transparent 60%)",
+          }}
+        />
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-xl bg-[var(--bg-light-blue)] flex items-center justify-center shadow-inner border border-slate-100">
-              <Building2 className="text-[var(--primary)]" size={30} />
+            <div className="w-16 h-16 rounded-xl bg-[#0d2137] text-white flex items-center justify-center shadow-inner">
+              <Building2 size={30} />
             </div>
             <div>
+              <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#94A3B8] mb-1">
+                Property Management
+              </div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight leading-none">
-                  {hotel?.name || t("dashboard.hotel_fallback")}
+                  Xush kelibsiz, {hotel?.name || t("dashboard.hotel_fallback")}!
                 </h1>
                 {hotel?.status === "approved" ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-green-50 text-green-600 uppercase border border-green-100">
+                  <span className="h-badge h-badge-ok inline-flex items-center gap-1">
                     <ShieldCheck size={12} /> {t("common.approved")}
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 uppercase border border-amber-100">
+                  <span className="h-badge h-badge-wait inline-flex items-center gap-1">
                     <Clock size={12} /> {t("common.pending")}
                   </span>
                 )}
               </div>
-              <p className="text-[13px] font-semibold text-slate-500">
-                {hotel?.city ? `${hotel.city} ${t("common.city")}.` : ""} {t("dashboard.metrics_active")}
+              <p className="text-[13px] font-semibold text-[#64748B]">
+                {hotel?.city ? `${hotel.city} ${t("common.city")}.` : ""}{" "}
+                Mehmonxonangizdagi oxirgi holat.
                 {!statsLoading && stats ? (
-                  <span className="ml-2 text-blue-600 font-bold">
+                  <span className="ml-2 text-[#006781] font-bold">
                     · {t("dashboard.occupancy_rate")}: {stats.occupancy_rate}%
                   </span>
                 ) : null}
@@ -287,7 +300,7 @@ export default function HotelDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => hotel?.id && void loadStats(hotel.id)}
@@ -297,13 +310,56 @@ export default function HotelDashboard() {
               <RefreshCw size={18} className={statsLoading ? "animate-spin" : ""} />
             </button>
             <Link
+              href="/hotel/check-in"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0d2137] text-white text-[13px] font-[family-name:var(--font-sora)] font-semibold rounded-lg hover:bg-[#16324f] transition-colors shadow-sm"
+            >
+              <Plus size={16} /> Check-in
+            </Link>
+            <Link
               href="/hotel/bookings"
-              className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--secondary)] transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#006781] text-white text-[13px] font-[family-name:var(--font-sora)] font-semibold rounded-lg hover:bg-[#005a71] transition-colors shadow-sm"
             >
               <Plus size={16} /> {t("dashboard.new_booking")}
             </Link>
           </div>
         </div>
+
+        {!statsLoading && stats ? (
+          <div className="relative mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-xl bg-[#f9f9ff] border border-[#d8e3fb] p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                {t("dashboard.check_ins_today")}
+              </div>
+              <div className="font-display text-[24px] font-bold text-[#0d2137] mt-0.5">
+                {stats.today.check_ins}
+              </div>
+            </div>
+            <div className="rounded-xl bg-[#f9f9ff] border border-[#d8e3fb] p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                {t("dashboard.check_outs_today")}
+              </div>
+              <div className="font-display text-[24px] font-bold text-[#0d2137] mt-0.5">
+                {stats.today.check_outs}
+              </div>
+            </div>
+            <div className="rounded-xl bg-[#f9f9ff] border border-[#d8e3fb] p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                {t("dashboard.occupancy_rate")}
+              </div>
+              <div className="font-display text-[24px] font-bold text-[#006781] mt-0.5">
+                {stats.occupancy_rate}%
+              </div>
+            </div>
+            <div className="rounded-xl bg-[#f9f9ff] border border-[#d8e3fb] p-3.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+                Bugungi tushum
+              </div>
+              <div className="font-display text-[20px] font-bold text-[#0d2137] mt-0.5 tabular-nums">
+                {formatMoney(todayRevenue)}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Room status cards + occupancy chart */}
@@ -474,7 +530,7 @@ export default function HotelDashboard() {
             <p className="text-[12px] font-medium text-slate-300 mb-6 leading-relaxed">{t("dashboard.pms_ad_desc")}</p>
             <Link
               href="/hotel/help"
-              className="inline-block bg-[var(--accent)] text-white px-4 py-2 rounded-lg text-[11px] font-black uppercase shadow-md hover:bg-[#D4A017] transition-all text-center"
+              className="inline-block bg-[#006781] text-white px-4 py-2 rounded-lg text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wide shadow-md hover:bg-[#005a71] transition-all text-center"
             >
               {t("dashboard.view_docs")}
             </Link>

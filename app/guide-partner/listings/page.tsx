@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { CalendarDays, Edit3, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { CalendarDays, Edit3, Plus, ShoppingBag, Wallet } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -15,19 +16,44 @@ type Listing = {
   status: "PENDING" | "ACTIVE" | "INACTIVE" | "REJECTED" | "BLOCKED";
   bookingCount?: number;
   totalBookings?: number;
+  images?: string[];
+  description?: string | null;
 };
 
-const statusClass: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-  ACTIVE: "bg-green-50 text-green-700 border-green-200",
-  INACTIVE: "bg-slate-100 text-slate-600 border-slate-200",
-  REJECTED: "bg-red-50 text-red-700 border-red-200",
-  BLOCKED: "bg-red-50 text-red-700 border-red-200",
-};
+function statusBadge(status: string): string {
+  if (status === "ACTIVE") return "gp-badge gp-badge-ok";
+  if (status === "PENDING") return "gp-badge gp-badge-wait";
+  if (status === "REJECTED" || status === "BLOCKED") return "gp-badge gp-badge-cancel";
+  return "gp-badge gp-badge-muted";
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "ACTIVE":
+      return "Faol";
+    case "PENDING":
+      return "Kutilmoqda";
+    case "INACTIVE":
+      return "Nofaol";
+    case "REJECTED":
+      return "Rad etilgan";
+    case "BLOCKED":
+      return "Bloklangan";
+    default:
+      return status;
+  }
+}
 
 export default function GuidePartnerListingsPage() {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("q");
+    if (fromUrl != null) setQ(fromUrl);
+  }, [searchParams]);
 
   useEffect(() => {
     async function load() {
@@ -42,75 +68,157 @@ export default function GuidePartnerListingsPage() {
     void load();
   }, []);
 
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) =>
+      `${item.title} ${item.category} ${item.languages?.join(" ") ?? ""}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [items, q]);
+
+  const stats = useMemo(() => {
+    const active = items.filter((i) => i.status === "ACTIVE").length;
+    const sold = items.reduce((s, i) => s + Number(i.bookingCount ?? i.totalBookings ?? 0), 0);
+    return { total: items.length, active, sold };
+  }, [items]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Guide Listings</h1>
-          <p className="text-[13px] font-semibold text-slate-500 mt-1">Barcha listinglaringiz</p>
+          <h1 className="text-[26px] sm:text-[30px] font-display font-bold text-[#0d2137] tracking-tight">
+            Mening tajribalarim
+          </h1>
+          <p className="text-[13px] font-medium text-[#64748B] mt-1.5">
+            Turlar katalogi va holat monitoringi
+          </p>
         </div>
-        <Link href="/guide-partner/listings/new" className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white text-[13px] font-black rounded-xl">
-          <Plus size={16} />
-          Yangi listing
+        <Link href="/guide-partner/listings/new" className="gp-btn gp-btn-navy">
+          <Plus size={14} />
+          Yangi tajriba yaratish
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-6 space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-4">
+          <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider">
+            Jami turlar
+          </p>
+          <p className="text-[26px] font-display font-bold text-[#0d2137] mt-2">{stats.total}</p>
+        </div>
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-4">
+          <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider">
+            Faol
+          </p>
+          <p className="text-[26px] font-display font-bold text-emerald-600 mt-2">{stats.active}</p>
+        </div>
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-4 flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider">
+              Sotilgan
+            </p>
+            <p className="text-[26px] font-display font-bold text-[#0d2137] mt-2">{stats.sold}</p>
           </div>
-        ) : items.length === 0 ? (
-          <div className="p-6">
-            <EmptyState
-              title="Listing yo&apos;q"
-              message="Yangi listing yarating."
-              ctaHref="/guide-partner/listings/new"
-              ctaLabel="Yangi listing"
-            />
+          <ShoppingBag size={18} className="text-[#006781] mt-1" />
+        </div>
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-4 flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider">
+              Narx / soat
+            </p>
+            <p className="text-[18px] font-display font-bold text-[#006781] mt-2">
+              {items[0] ? `${Number(items[0].pricePerHour).toLocaleString("uz-UZ")}` : "—"}
+            </p>
           </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">Title</th>
-                <th className="py-3 px-5">Category</th>
-                <th className="py-3 px-5">Price/hour</th>
-                <th className="py-3 px-5">Languages</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5">Total bookings</th>
-                <th className="py-3 px-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13px]">
-              {items.map((item) => (
-                <tr key={item.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/40">
-                  <td className="py-3 px-5 font-bold text-[var(--primary)]">{item.title}</td>
-                  <td className="py-3 px-5">{item.category}</td>
-                  <td className="py-3 px-5 font-black">{Number(item.pricePerHour).toLocaleString()}</td>
-                  <td className="py-3 px-5">{item.languages?.join(", ") || "-"}</td>
-                  <td className="py-3 px-5">
-                    <span className={`px-2 py-1 rounded border text-[10px] font-black uppercase ${statusClass[item.status] || statusClass.INACTIVE}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-5">{item.bookingCount ?? item.totalBookings ?? 0}</td>
-                  <td className="py-3 px-5 text-right">
-                    <div className="inline-flex gap-1">
-                      <Link href={`/guide-partner/listings/${item.id}/edit`} className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
-                        <Edit3 size={15} />
-                      </Link>
-                      <Link href={`/guide-partner/listings/${item.id}/calendar`} className="p-1.5 rounded-md text-slate-400 hover:text-[var(--accent)] hover:bg-slate-100">
-                        <CalendarDays size={15} />
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          <Wallet size={18} className="text-[#006781] mt-1" />
+        </div>
       </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-6">
+          <EmptyState
+            title="Listing yo'q"
+            message="Yangi listing yarating."
+            ctaHref="/guide-partner/listings/new"
+            ctaLabel="Yangi listing"
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((item) => {
+            const cover = item.images?.[0];
+            return (
+              <div
+                key={item.id}
+                className="bg-white border border-[#d8e3fb] rounded-2xl overflow-hidden shadow-sm flex flex-col"
+              >
+                <div
+                  className="h-40 bg-[#f0f3ff] relative bg-cover bg-center"
+                  style={cover ? { backgroundImage: `url(${cover})` } : undefined}
+                >
+                  <span className="absolute top-3 left-3 gp-badge gp-badge-info bg-black/50 text-white">
+                    {item.category}
+                  </span>
+                  <span className={`absolute top-3 right-3 ${statusBadge(item.status)}`}>
+                    {statusLabel(item.status)}
+                  </span>
+                </div>
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-display font-semibold text-[#0d2137] text-[17px] leading-snug">
+                      {item.title}
+                    </h3>
+                    <p className="text-[15px] font-bold text-[#006781] shrink-0 tabular-nums">
+                      {Number(item.pricePerHour).toLocaleString("uz-UZ")}
+                    </p>
+                  </div>
+                  <p className="text-[12px] text-[#64748B] mt-2 line-clamp-2">
+                    {item.languages?.join(", ") || "Tillar ko‘rsatilmagan"} ·{" "}
+                    {item.bookingCount ?? item.totalBookings ?? 0} bandlov
+                  </p>
+                  <div className="mt-auto pt-4 flex items-center gap-2">
+                    <Link
+                      href={`/guide-partner/listings/${item.id}/edit`}
+                      className="gp-btn gp-btn-soft flex-1 !py-2"
+                    >
+                      <Edit3 size={14} />
+                      Tahrirlash
+                    </Link>
+                    <Link
+                      href={`/guide-partner/listings/${item.id}/calendar`}
+                      className="gp-btn gp-btn-ghost !py-2 !px-3"
+                      title="Kalendar"
+                    >
+                      <CalendarDays size={15} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <Link
+            href="/guide-partner/listings/new"
+            className="min-h-[280px] rounded-2xl border-2 border-dashed border-[#d8e3fb] bg-white/60 flex flex-col items-center justify-center p-6 text-center hover:bg-[#f9f9ff] no-underline"
+          >
+            <span className="w-12 h-12 rounded-full bg-[#f0f3ff] text-[#006781] flex items-center justify-center mb-3">
+              <Plus size={22} />
+            </span>
+            <p className="font-display font-semibold text-[#0d2137]">Yangi katalog qo&apos;shish</p>
+            <p className="text-[12px] text-[#64748B] mt-1 max-w-[220px]">
+              Yangi tajriba yaratib, mehmonlarga taklif eting
+            </p>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

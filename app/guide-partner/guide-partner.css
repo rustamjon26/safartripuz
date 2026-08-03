@@ -1,0 +1,67 @@
+/* SafarTrip Partner — Guide Portal (Silk Road) */
+
+.gp-root {
+  --gp-navy: #0d2137;
+  --gp-ink: #111c2d;
+  --gp-teal: #006781;
+  --gp-soft: #8fdfff;
+  --gp-soft-bg: #b9eaff;
+  --gp-surface: #f4f6fb;
+  --gp-line: #d8e3fb;
+  --gp-muted: #64748b;
+  --gp-ok: #10b981;
+  --gp-warn: #f59e0b;
+  --gp-danger: #f43f5e;
+
+  min-height: 100dvh;
+  background: var(--gp-surface);
+  color: var(--gp-ink);
+  font-family: var(--font-nunito), system-ui, sans-serif;
+}
+
+.gp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.gp-badge-ok { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.gp-badge-wait { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.gp-badge-info { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
+.gp-badge-cancel { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
+.gp-badge-muted { background: #f0f3ff; color: #64748b; }
+
+.gp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  transition: 0.2s ease;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+.gp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.gp-btn-primary { background: var(--gp-teal); color: #fff; }
+.gp-btn-primary:hover:not(:disabled) { background: #005a71; }
+.gp-btn-navy { background: var(--gp-navy); color: #fff; }
+.gp-btn-navy:hover:not(:disabled) { background: #16324f; }
+.gp-btn-soft { background: #b9eaff; color: #001f29; }
+.gp-btn-soft:hover:not(:disabled) { filter: brightness(0.97); }
+.gp-btn-ghost {
+  background: #fff;
+  color: var(--gp-muted);
+  border: 1px solid var(--gp-line);
+}
+.gp-btn-ghost:hover:not(:disabled) { background: #f0f3ff; color: var(--gp-ink); }
