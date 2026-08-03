@@ -55,7 +55,7 @@ Still open (optional follow-ups):
 - ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build gate in workflow since `981116c`. Job check name: **`test`**. Lint still intentionally out (still red locally).
 - ~~Branch protection / required `test`~~ — **DONE 2026-08-02.** Repo made **public**; ruleset `main` **Active** with required status check **`test`**, PR required, non-fast-forward. Verified via `gh api …/rules/branches/main`.
 - ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 (manual fresh dump, age_hours=0, scratch==prod).
-- Cron `+x` / bash-wrap **applied on Contabo** 2026-08-02 11:58; post-fix **manual** `[backup] OK` + off-site OK. **Nightly 02:15 still unproven** — await **2026-08-03 02:15** `[backup] OK` (no syslog `FAILED`) before closing this item.
+- ~~Cron nightly backup~~ — **PASS 2026-08-03 02:15** Contabo: CRON ran (`safartrip` → `backup.sh`); log `[backup] OK size=18493 …/safartrip-2026-08-03.sql.gz`. No syslog `FAILED`. (Prior manual OK 2026-08-02 also kept.)
 - ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh`.
 - ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
 - Post-deploy smoke (human, Contabo):  
@@ -63,6 +63,6 @@ Still open (optional follow-ups):
 
 ## Next pick
 
-1. **Ops (last open):** nightly `[backup] OK` after **2026-08-03 02:15** (manual path already green).
-2. **Knowledge:** Admin → Knowledge UI (list/create/edit + publish) — in progress / shipping. Lyabi House stays DRAFT (hotel, no hours).
-3. **Planner:** optional `Site.isDayTrip` column; whole-day day-trip reservation follow-up.
+1. **Ship:** Admin Knowledge UI merged (#32 @ `11c611c`) — Contabo `deploy-safe` + smoke `/admin/knowledge` if not deployed yet.
+2. **Knowledge content:** replace Lyabi House hotel DRAFT with a real dining venue when verified; Bukhara Ark/Kalyan + Chor-Bakr published coords.
+3. **Planner (optional):** `Site.isDayTrip` column; whole-day day-trip reservation; `NO_DATA` reason split.
