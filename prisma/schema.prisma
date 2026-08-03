@@ -833,7 +833,10 @@ model Payment {
   travelPlan     TravelPlan      @relation(fields: [travelPlanId], references: [id], onDelete: Cascade)
   provider       PaymentProvider @default(MOCK)
   status         PaymentStatus   @default(INITIATED)
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
   amount         Decimal         @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin    BigInt?
   currency       String          @default("UZS")
   idempotencyKey String?         @unique
   externalRef    String?
@@ -1302,7 +1305,10 @@ model FolioItem {
   hotelId     String
   category    String       @default("ROOM") // ROOM, MINIBAR, RESTAURANT, DAMAGES
   description String
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
   amount      Decimal      @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin BigInt?
   isPaid      Boolean      @default(false)
   createdAt   DateTime     @default(now())
 
@@ -1311,15 +1317,18 @@ model FolioItem {
 }
 
 model HotelPayment {
-  id         String       @id @default(cuid())
-  bookingId  String
-  booking    HotelBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  hotelId    String
-  amount     Decimal      @db.Decimal(12, 2)
-  method     String       @default("CASH") // CASH, CARD, TRANSFER
-  status     String       @default("COMPLETED")
-  receiptUrl String?
-  createdAt  DateTime     @default(now())
+  id          String       @id @default(cuid())
+  bookingId   String
+  booking     HotelBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  hotelId     String
+  /// DEPRECATED (som Decimal) — prefer amountTiyin; kept until read paths migrate.
+  amount      Decimal      @db.Decimal(12, 2)
+  /// Money SoT in TIYIN (1 som = 100 tiyin). Backfilled from amount.
+  amountTiyin BigInt?
+  method      String       @default("CASH") // CASH, CARD, TRANSFER
+  status      String       @default("COMPLETED")
+  receiptUrl  String?
+  createdAt   DateTime     @default(now())
 
   @@index([bookingId])
   @@index([hotelId])

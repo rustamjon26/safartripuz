@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
+import { Money } from "@/src/shared/money";
 
 const createPaymentSchema = z.object({
   bookingId: z.string().min(1),
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
           hotelId: ctx.hotel.id,
           bookingId: booking.id,
           amount,
+          amountTiyin: Money.fromSomNumber(amount.toString()).toTiyin(),
           method: parsed.data.method,
         },
       });

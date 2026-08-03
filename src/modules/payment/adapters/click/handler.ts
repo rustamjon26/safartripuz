@@ -135,7 +135,11 @@ export async function clickHttpHandler(req: Request) {
       });
     }
 
-    const expected = Money.fromSomNumber(Number(payment.amount));
+    // Prefer the tiyin SoT column; fall back to Decimal som via exact string.
+    const expected =
+      payment.amountTiyin != null
+        ? Money.fromTiyin(payment.amountTiyin)
+        : Money.fromSomNumber(payment.amount.toString());
     const incoming = Money.fromSomNumber(Number(body.amount));
     if (!expected.equals(incoming)) {
       return clickJson({

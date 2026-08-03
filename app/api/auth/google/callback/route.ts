@@ -8,6 +8,7 @@ import {
   type AppRole,
 } from "@/lib/auth";
 import { randomBytes } from "node:crypto";
+import { requireEnv } from "@/src/shared/env";
 
 export async function GET(req: Request) {
   const baseUrl = process.env.NEXTAUTH_URL || "https://safartrip.uz";
@@ -28,8 +29,8 @@ export async function GET(req: Request) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        client_id: requireEnv("GOOGLE_CLIENT_ID"),
+        client_secret: requireEnv("GOOGLE_CLIENT_SECRET"),
         redirect_uri: `${baseUrl}/api/auth/google/callback`,
         grant_type: "authorization_code",
       }),

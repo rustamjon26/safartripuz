@@ -143,6 +143,17 @@ export class OutboxRepository {
     return Boolean(row);
   }
 
+  /** Release a claim after a failed side effect so the relay retry can re-run. */
+  async releaseProcessedKey(
+    consumer: string,
+    key: string,
+    client: DbClient = db,
+  ): Promise<void> {
+    await client.outboxProcessedKey.deleteMany({
+      where: { consumer, key },
+    });
+  }
+
   async createInAppNotification(
     input: {
       userId: string;

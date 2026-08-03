@@ -3,6 +3,7 @@ import {
   extractDidoxDocumentId,
   sendDidoxInvoice,
 } from "@/lib/didox/didox.service";
+import { requireEnv } from "@/src/shared/env";
 import { Money } from "@/src/shared/money";
 
 function formatContractDate(date: Date): string {
@@ -101,7 +102,7 @@ export async function emitDidoxInvoiceForPayment(paymentId: string): Promise<voi
     const draft = await sendDidoxInvoice({
       contractNumber: payment.id,
       contractDate: formatContractDate(payment.paidAt ?? new Date()),
-      sellerTin: process.env.DIDOX_TAX_ID!,
+      sellerTin: requireEnv("DIDOX_TAX_ID"),
       sellerName: process.env.DIDOX_SELLER_NAME ?? "SafarTrip MCHJ",
       sellerAddress: process.env.DIDOX_SELLER_ADDRESS ?? "Toshkent sh.",
       sellerBankAccount: process.env.DIDOX_SELLER_BANK_ACCOUNT ?? "",
@@ -109,8 +110,11 @@ export async function emitDidoxInvoiceForPayment(paymentId: string): Promise<voi
       buyerTin,
       buyerName,
       productName,
-      // Decimal som → exact 2dp via Money (no float noise from Number(Decimal)).
-      amount: Money.fromSomNumber(payment.amount.toString()).toSomNumber(),
+      // Tiyin SoT preferred; Decimal som fallback via exact string (no float noise).
+      amount:
+        payment.amountTiyin != null
+          ? Money.fromTiyin(payment.amountTiyin).toSomNumber()
+          : Money.fromSomNumber(payment.amount.toString()).toSomNumber(),
       catalogCode: process.env.DIDOX_CATALOG_CODE ?? "10523001001000000",
     });
 

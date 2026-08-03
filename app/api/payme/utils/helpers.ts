@@ -95,12 +95,6 @@ function readEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function maskSecret(value: string | undefined): string {
-  if (!value) return "(empty)";
-  if (value.length <= 4) return "****";
-  return `${value.slice(0, 4)}****`;
-}
-
 function isPaymeTestMode(): boolean {
   const flag = readEnv("PAYME_IS_TEST")?.toLowerCase();
   return flag === "true" || flag === "1" || flag === "yes";
@@ -130,14 +124,13 @@ export function getPaymeSecretKey(): string {
 
   if (!loggedPaymeSecretSource) {
     loggedPaymeSecretSource = true;
+    // Never log previews/lengths of the secret itself — source is enough.
     console.log(
       "[Payme] Secret key config:",
       JSON.stringify({
         isTest,
         source: resolveSecretKeySource(isTest, testKey, prodKey),
-        preview: maskSecret(secretKey),
-        length: secretKey.length,
-        paymeIsTestRaw: process.env["PAYME_IS_TEST"] ?? null,
+        configured: secretKey.length > 0,
       }),
     );
   }

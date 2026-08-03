@@ -9,6 +9,7 @@ import {
   InventoryLockError,
 } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
+import { Money } from "@/src/shared/money";
 
 const createBookingSchema = z.object({
   hotelId: z.string().min(1),
@@ -172,6 +173,7 @@ export async function POST(req: Request) {
           provider,
           status: "INITIATED",
           amount: totalAmount,
+          amountTiyin: Money.fromSomNumber(totalAmount).toTiyin(),
           currency: "UZS",
         },
       });

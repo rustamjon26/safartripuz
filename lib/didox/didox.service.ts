@@ -1,4 +1,5 @@
 import { DidoxClient, DocumentType, builders } from "didox";
+import { requireEnv } from "@/src/shared/env";
 
 function resolveDidoxEnvironment(): "production" | "development" {
   const env = process.env.DIDOX_ENVIRONMENT?.toLowerCase();
@@ -8,7 +9,7 @@ function resolveDidoxEnvironment(): "production" | "development" {
 
 function getDidoxClient(): DidoxClient {
   return new DidoxClient({
-    partnerToken: process.env.DIDOX_PARTNER_TOKEN!,
+    partnerToken: requireEnv("DIDOX_PARTNER_TOKEN"),
     environment: resolveDidoxEnvironment(),
   });
 }

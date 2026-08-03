@@ -80,9 +80,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Browsers authenticate via httpOnly cookies — no token in the JSON body
+    // (XSS can read JSON, not httpOnly cookies). Native apps (React Native
+    // fetch sends no Sec-Fetch-* headers) still need the bearer token.
+    const isBrowser = Boolean(req.headers.get("sec-fetch-mode"));
     const res = NextResponse.json(
       {
-        accessToken: access,
+        ...(isBrowser ? {} : { accessToken: access }),
         user: {
           id: user.id,
           first_name: user.first_name,

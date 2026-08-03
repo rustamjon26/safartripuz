@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
+import { Money } from "@/src/shared/money";
 
 export async function GET(req: Request) {
   try {
@@ -54,6 +55,9 @@ export async function POST(req: Request) {
             category: "RESTAURANT",
             description: `Restoran buyurtmasi #${ord.id.slice(-4)}`,
             amount: json.totalAmount,
+            amountTiyin: Money.fromSomNumber(
+              String(json.totalAmount),
+            ).toTiyin(),
           },
         });
       }

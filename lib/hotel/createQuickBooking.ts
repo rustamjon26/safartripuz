@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { bookingService } from "@/src/modules/booking";
 import { InsufficientInventoryError } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
+import { Money } from "@/src/shared/money";
 
 export class QuickBookingError extends Error {
   constructor(
@@ -148,6 +149,7 @@ export async function createQuickBooking(input: QuickBookingInput) {
       bookingId: booking.id,
       hotelId: input.hotelId,
       amount: totalAmount,
+      amountTiyin: Money.fromSomNumber(totalAmount).toTiyin(),
       method: input.paymentMethod,
       status: input.paymentMethod === "CASH" ? "COMPLETED" : "PENDING",
     },

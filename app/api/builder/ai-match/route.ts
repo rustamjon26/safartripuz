@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { requireEnv } from "@/src/shared/env";
 
 async function parseWithClaude(prompt: string, availableCities: string[]) {
   try {
@@ -9,7 +10,7 @@ async function parseWithClaude(prompt: string, availableCities: string[]) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "x-api-key": requireEnv("ANTHROPIC_API_KEY"),
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
