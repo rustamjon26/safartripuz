@@ -17,6 +17,30 @@ enum Role {
   guide
   restaurant_manager
   home_stay_partner
+  /// Feedback & Support inbox agent
+  support
+}
+
+/// Unified support inbox channel (maps UI: hotel / tour / transport).
+enum FeedbackChannel {
+  hotel
+  guide
+  taxi
+  homestay
+  direct
+}
+
+enum FeedbackTicketStatus {
+  OPEN
+  ANSWERED
+  ESCALATED
+  CLOSED
+}
+
+enum FeedbackSentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
 }
 
 enum PartnerType {
@@ -268,6 +292,9 @@ model User {
   guideReviewsGiven    GuideReview[]        @relation("GuideReviewGuest")
   guideReviewsReceived GuideReview[]        @relation("GuideReviewGuide")
   guideBookingLogs     GuideBookingLog[]
+
+  feedbackTicketsAssigned FeedbackTicket[] @relation("FeedbackTicketAssignee")
+  feedbackRepliesAuthored FeedbackReply[]  @relation("FeedbackReplyAuthor")
 
   partnerProfile Partner?
   hotelStaff     HotelStaff?
@@ -1780,4 +1807,50 @@ model AccuracyReport {
   @@index([status, createdAt])
   @@index([guideUserId, upheld])
   @@index([regionCode])
+}
+
+/// Support inbox ticket — one row per guest review/feedback (idempotent via source).
+model FeedbackTicket {
+  id            String               @id @default(cuid())
+  channel       FeedbackChannel
+  /// GuideReview | TaxiReview | HomeStayReview | GuestFeedback | Direct
+  sourceType    String
+  sourceId      String
+  authorUserId  String?
+  authorName    String
+  rating        Int
+  body          String               @db.Text
+  serviceLabel  String?
+  /// Hotel / listing / partner entity id (display/filter only — no cross joins).
+  subjectId     String?
+  status        FeedbackTicketStatus @default(OPEN)
+  sentiment     FeedbackSentiment
+  category      String?
+  assignedToId  String?
+  assignedTo    User?                @relation("FeedbackTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  repliedAt     DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  replies FeedbackReply[]
+
+  @@unique([sourceType, sourceId])
+  @@index([status, createdAt])
+  @@index([channel, rating])
+  @@index([sentiment, createdAt])
+  @@index([assignedToId])
+}
+
+/// Immutable support replies (corrections = new reply, never UPDATE body).
+model FeedbackReply {
+  id           String   @id @default(cuid())
+  ticketId     String
+  ticket       FeedbackTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author       User     @relation("FeedbackReplyAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([authorUserId])
 }
