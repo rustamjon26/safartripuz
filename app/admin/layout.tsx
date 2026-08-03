@@ -20,6 +20,7 @@ import {
   Compass,
   Bell,
   Percent,
+  BookOpen,
 } from "lucide-react";
 import { DirectionsCarIcon } from "@/components/admin/taxi/DirectionsCarIcon";
 import { ExploreMapIcon } from "@/components/admin/guide/ExploreMapIcon";
@@ -41,6 +42,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/homestay", label: "Uy Mehmonxona", icon: House, section: "Kontent" },
   { href: "/admin/taxi", label: "Taxi", icon: TaxiSidebarIcon, section: "Kontent" },
   { href: "/admin/guide", label: "Ekskursiya", icon: GuideSidebarIcon, section: "Kontent" },
+  { href: "/admin/knowledge", label: "Knowledge", icon: BookOpen, section: "Kontent" },
   { href: "/admin/payments", label: "To'lovlar", icon: CreditCard, section: "Moliya" },
   { href: "/admin/settings", label: "Sozlamalar", icon: Settings, section: "Tizim" },
   { href: "/admin/settings/commission", label: "Komissiya", icon: Percent, section: "Tizim" },
