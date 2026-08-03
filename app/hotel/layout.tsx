@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
-  LogOut, Menu, X, Hotel, Bell, ChevronLeft, ChevronRight,
-  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2, Globe
+  LogOut, Menu, X, Bell, ChevronLeft, ChevronRight,
+  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2,
+  LifeBuoy, Plus,
 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
 
@@ -52,7 +53,6 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/marketing",     label: t("nav.marketing"), icon: Megaphone, roles: ["hotel_manager", "admin"] },
       { href: "/hotel/reports",       label: t("nav.reports"),       icon: BarChart2, roles: ["hotel_manager", "admin"] },
-      { href: "/hotel/settings",      label: t("nav.settings"),icon: Settings, roles: ["hotel_manager", "admin", "receptionist", "waiter", "cleaner"] },
     ]
   }
 ];
@@ -135,18 +135,28 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
     })).filter(g => g.items.length > 0);
 
     return (
-      <div className="flex flex-col h-full bg-white">
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/80 min-h-[64px]">
-          <div className="w-9 h-9 rounded-xl bg-[var(--bg-light-blue)] flex items-center justify-center shrink-0 border border-slate-100 text-[var(--accent)]"><Building2 size={20} /></div>
+      <div className="flex flex-col h-full bg-[#0d2137] text-white">
+        {/* Brand — Silk Road Partner HMS */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 min-h-[64px]">
+          <div className="w-9 h-9 rounded-xl bg-[#006781] flex items-center justify-center shrink-0 text-white shadow-[0_4px_12px_rgba(0,103,129,0.35)]">
+            <Building2 size={20} />
+          </div>
           {showText && (
             <div className="flex-1 min-w-0">
-              <div className="font-display font-bold text-[var(--primary)] text-lg leading-tight truncate">Safar PMS</div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">Enterprise</div>
+              <div className="font-display font-bold text-white text-[17px] leading-tight truncate">
+                SafarTrip Partner
+              </div>
+              <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
+                Property Management
+              </div>
             </div>
           )}
           {!forMobile && !isStaff && (
-            <button className="w-7 h-7 shrink-0 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors ml-auto" onClick={() => setCollapsed(p => !p)}>
+            <button
+              className="w-7 h-7 shrink-0 rounded-lg bg-white/10 hover:bg-white/15 text-white/70 flex items-center justify-center transition-colors ml-auto"
+              onClick={() => setCollapsed((p) => !p)}
+              type="button"
+            >
               {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           )}
@@ -154,12 +164,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Role Switcher (Simulation - ONLY for Real Managers) */}
         {isOwner && !user?.hotelStaff && !collapsed && (
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
-            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest pl-1">{t("common.roles.view_auth_sim")}</label>
-            <select 
-              value={user.role} 
+          <div className="px-4 py-3 bg-black/20 border-b border-white/10">
+            <label className="block text-[9px] font-[family-name:var(--font-sora)] font-semibold text-white/40 uppercase mb-1 tracking-widest pl-1">
+              {t("common.roles.view_auth_sim")}
+            </label>
+            <select
+              value={user.role}
               onChange={(e) => setUser({ ...user, role: e.target.value as any })}
-              className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-slate-200 bg-white outline-none focus:border-[var(--accent)]"
+              className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-white/15 bg-[#0d2137] text-white outline-none focus:border-[#006781]"
             >
               <option value="hotel_manager">{t("common.roles.hotel_manager")}</option>
               <option value="RECEPTION">{t("common.roles.receptionist")}</option>
@@ -172,17 +184,33 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Nav with Groups */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
           {visibleGroups.map((group, idx) => (
-            <div key={idx} className="mb-6">
-              {showText && <div className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2 px-3">{group.label}</div>}
-              {(!showText && idx !== 0) && <div className="h-px bg-slate-200/60 w-8 mx-auto my-3" />}
-              
+            <div key={idx} className="mb-5">
+              {showText && (
+                <div className="text-[10px] uppercase font-[family-name:var(--font-sora)] font-semibold tracking-widest text-white/35 mb-2 px-3">
+                  {group.label}
+                </div>
+              )}
+              {!showText && idx !== 0 && (
+                <div className="h-px bg-white/10 w-8 mx-auto my-3" />
+              )}
+
               <div className="space-y-1">
-                {group.items.map(item => {
+                {group.items.map((item) => {
                   const active = isActive(item.href);
                   return (
-                    <Link key={item.href} href={item.href} title={!showText ? (item as any).label : undefined}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl transition-all text-[14px] font-bold ${active ? "bg-[var(--bg-light-blue)] text-[var(--accent)]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}${!showText ? " justify-center" : ""}`}
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={!showText ? item.label : undefined}
+                      className={`relative flex items-center gap-3 p-2.5 rounded-xl transition-all text-[13px] font-[family-name:var(--font-sora)] font-semibold ${
+                        active
+                          ? "bg-[#006781]/25 text-[#8fdfff]"
+                          : "text-white/60 hover:bg-white/5 hover:text-white"
+                      }${!showText ? " justify-center" : ""}`}
                     >
+                      {active ? (
+                        <span className="absolute left-0 top-[18%] bottom-[18%] w-[3px] rounded-r bg-[#8fdfff]" />
+                      ) : null}
                       <item.icon size={18} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
                       {showText && <span className="truncate">{item.label}</span>}
                     </Link>
@@ -193,29 +221,76 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* User + Logout */}
-        <div className={`border-t border-slate-200/80 p-4 ${showText ? "flex items-center justify-between" : "flex flex-col items-center gap-4"} bg-slate-50/50`}>
-          {showText ? (
-            <>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0 shadow-sm">{initials}</div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-bold text-slate-900 truncate">{user ? `${user.first_name} ${user.last_name}` : "Manager"}</div>
-                  <div className="text-[11px] font-semibold text-slate-500 truncate">{user?.email || "hotel@safartrip.uz"}</div>
+        {/* Settings + Support + user */}
+        <div className="border-t border-white/10 p-3 space-y-1 bg-black/15">
+          <Link
+            href="/hotel/settings"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold transition-all ${
+              isActive("/hotel/settings")
+                ? "bg-[#006781]/25 text-[#8fdfff]"
+                : "text-white/55 hover:bg-white/5 hover:text-white"
+            }${!showText ? " justify-center" : ""}`}
+          >
+            <Settings size={18} className="shrink-0" />
+            {showText && <span>Settings</span>}
+          </Link>
+          <Link
+            href="/hotel/help"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold transition-all ${
+              isActive("/hotel/help")
+                ? "bg-[#006781]/25 text-[#8fdfff]"
+                : "text-white/55 hover:bg-white/5 hover:text-white"
+            }${!showText ? " justify-center" : ""}`}
+          >
+            <LifeBuoy size={18} className="shrink-0" />
+            {showText && <span>Yordam</span>}
+          </Link>
+
+          <div
+            className={`pt-2 ${showText ? "flex items-center justify-between" : "flex flex-col items-center gap-3"}`}
+          >
+            {showText ? (
+              <>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-white truncate">
+                      {user ? `${user.first_name} ${user.last_name}` : "Manager"}
+                    </div>
+                    <div className="text-[10px] text-white/45 truncate">
+                      {user?.email || "hotel@safartrip.uz"}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <button onClick={() => void handleLogout()} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0">
-                 <LogOut size={16} strokeWidth={2.5} />
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0 shadow-sm" title="Profil">{initials}</div>
-              <button onClick={() => void handleLogout()} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Chiqish">
-                <LogOut size={16} strokeWidth={2.5}/>
-              </button>
-            </>
-          )}
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="p-2 text-white/45 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                </button>
+              </>
+            ) : (
+              <>
+                <div
+                  className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm"
+                  title="Profil"
+                >
+                  {initials}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="p-2 text-white/45 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors"
+                  title="Chiqish"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -302,11 +377,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">
+    <div className="hl-root flex h-screen bg-[#f9f9ff] overflow-hidden text-[#111c2d]">
 
       {/* ━━━ DESKTOP SIDEBAR ━━━ */}
       {!isStaff && (
-        <aside className="border-r border-slate-200/80 bg-white shadow-[2px_0_12px_rgba(0,0,0,0.02)] transition-all shrink-0 z-20 flex-col hidden lg:flex" style={{ width: sideW }}>
+        <aside
+          className="border-r border-[#0d2137] bg-[#0d2137] shadow-[2px_0_16px_rgba(0,9,23,0.18)] transition-all shrink-0 z-20 flex-col hidden lg:flex"
+          style={{ width: sideW }}
+        >
           <SidebarContent />
         </aside>
       )}
@@ -314,9 +392,13 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
       {/* ━━━ MOBILE DRAWER ━━━ */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-white h-full shadow-2xl flex flex-col pt-12">
-            <button className="absolute top-4 right-4 p-2 bg-slate-100 text-slate-500 rounded-lg z-50" onClick={() => setDrawerOpen(false)}>
+          <div className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <aside className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12">
+            <button
+              type="button"
+              className="absolute top-4 right-4 p-2 bg-white/10 text-white/80 rounded-lg z-50"
+              onClick={() => setDrawerOpen(false)}
+            >
               <X size={18} />
             </button>
             <SidebarContent forMobile />
@@ -343,34 +425,56 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 mr-2">
-               <button 
-                  onClick={() => setLanguage("uz")}
-                  className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${language === 'uz' ? 'bg-white text-[var(--accent)] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                  UZ
-               </button>
-               <button 
-                  onClick={() => setLanguage("en")}
-                  className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${language === 'en' ? 'bg-white text-[var(--accent)] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                  EN
-               </button>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center bg-[#f0f3ff] rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setLanguage("uz")}
+                className={`px-3 py-1 text-[10px] font-[family-name:var(--font-sora)] font-semibold rounded-md transition-all ${language === "uz" ? "bg-white text-[#006781] shadow-sm" : "text-[#64748B] hover:text-[#111c2d]"}`}
+              >
+                UZ
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={`px-3 py-1 text-[10px] font-[family-name:var(--font-sora)] font-semibold rounded-md transition-all ${language === "en" ? "bg-white text-[#006781] shadow-sm" : "text-[#64748B] hover:text-[#111c2d]"}`}
+              >
+                EN
+              </button>
             </div>
 
-            <button className="relative p-2 text-slate-400 hover:text-[var(--primary)] hover:bg-slate-100 rounded-full transition-colors">
+            <button
+              type="button"
+              className="relative p-2 text-[#64748B] hover:text-[#0d2137] hover:bg-[#f0f3ff] rounded-full transition-colors"
+            >
               <Bell size={18} strokeWidth={2.5} />
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#F43F5E] rounded-full border border-white" />
             </button>
+
+            {(isOwner || isReceptionist) && (
+              <Link
+                href="/hotel/bookings"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#006781] hover:bg-[#005a71] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold transition-colors"
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                Check-in
+              </Link>
+            )}
+
             {!isStaff && (
               <>
-                <div className="w-px h-6 bg-slate-200 hidden sm:block" />
-                <div className="hidden sm:flex items-center gap-3 pr-2">
+                <div className="w-px h-6 bg-[#d8e3fb] hidden sm:block" />
+                <div className="hidden sm:flex items-center gap-3 pr-1">
                   <div className="text-right">
-                    <div className="text-[13px] font-bold text-slate-900">{user?.first_name || t("common.manager")}</div>
-                    <div className="text-[11px] font-semibold text-slate-400">
-                       {user?.hotelStaff?.role ? t(`common.roles.${user.hotelStaff.role.toLowerCase()}`) : (user?.role === "admin" ? t("common.roles.admin") : t("common.roles.owner"))}
+                    <div className="text-[13px] font-semibold text-[#111c2d]">
+                      {user?.first_name || t("common.manager")}
+                    </div>
+                    <div className="text-[11px] font-medium text-[#64748B]">
+                      {user?.hotelStaff?.role
+                        ? t(`common.roles.${user.hotelStaff.role.toLowerCase()}`)
+                        : user?.role === "admin"
+                          ? t("common.roles.admin")
+                          : t("common.roles.owner")}
                     </div>
                   </div>
                 </div>

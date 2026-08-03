@@ -5,10 +5,10 @@
   /* Silk Road Modernity — public landing + brand */
   --primary: #0D2137;       /* Navy / primary-container */
   --primary-ink: #000917;   /* Deep navy ink */
-  --secondary: #006781;     /* Teal action */
+  --secondary: #006781;     /* Teal action (HMS + public) */
   --secondary-soft: #8FDFFF;
-  --accent: #0E7490;        /* Teal accent */
-  --accent-hover: #0B5C73;
+  --accent: #006781;        /* Align HMS / public CTAs */
+  --accent-hover: #005A71;
   --amber-cta: #FFB95F;     /* tertiary-fixed guest/public CTA */
   --amber-cta-ink: #2A1700;
   --success: #10B981;

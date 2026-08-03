@@ -267,19 +267,19 @@ export default function HotelDashboard() {
                   {hotel?.name || t("dashboard.hotel_fallback")}
                 </h1>
                 {hotel?.status === "approved" ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-green-50 text-green-600 uppercase border border-green-100">
+                  <span className="h-badge h-badge-ok inline-flex items-center gap-1">
                     <ShieldCheck size={12} /> {t("common.approved")}
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 uppercase border border-amber-100">
+                  <span className="h-badge h-badge-wait inline-flex items-center gap-1">
                     <Clock size={12} /> {t("common.pending")}
                   </span>
                 )}
               </div>
-              <p className="text-[13px] font-semibold text-slate-500">
+              <p className="text-[13px] font-semibold text-[#64748B]">
                 {hotel?.city ? `${hotel.city} ${t("common.city")}.` : ""} {t("dashboard.metrics_active")}
                 {!statsLoading && stats ? (
-                  <span className="ml-2 text-blue-600 font-bold">
+                  <span className="ml-2 text-[#006781] font-bold">
                     · {t("dashboard.occupancy_rate")}: {stats.occupancy_rate}%
                   </span>
                 ) : null}
@@ -298,7 +298,7 @@ export default function HotelDashboard() {
             </button>
             <Link
               href="/hotel/bookings"
-              className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-[var(--secondary)] transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#006781] text-white text-[13px] font-[family-name:var(--font-sora)] font-semibold rounded-lg hover:bg-[#005a71] transition-colors shadow-sm"
             >
               <Plus size={16} /> {t("dashboard.new_booking")}
             </Link>
@@ -474,7 +474,7 @@ export default function HotelDashboard() {
             <p className="text-[12px] font-medium text-slate-300 mb-6 leading-relaxed">{t("dashboard.pms_ad_desc")}</p>
             <Link
               href="/hotel/help"
-              className="inline-block bg-[var(--accent)] text-white px-4 py-2 rounded-lg text-[11px] font-black uppercase shadow-md hover:bg-[#D4A017] transition-all text-center"
+              className="inline-block bg-[#006781] text-white px-4 py-2 rounded-lg text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wide shadow-md hover:bg-[#005a71] transition-all text-center"
             >
               {t("dashboard.view_docs")}
             </Link>
