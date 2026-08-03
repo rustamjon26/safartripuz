@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Nunito } from "next/font/google";
+import { Playfair_Display, Nunito, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -13,6 +13,12 @@ const nunito = Nunito({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-nunito",
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sora",
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://safartrip.uz";
@@ -105,7 +111,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uz" className={`${playfair.variable} ${nunito.variable}`}>
+    <html lang="uz" className={`${playfair.variable} ${nunito.variable} ${sora.variable}`}>
       <body>
         {children}
         <Toaster richColors position="top-center" />

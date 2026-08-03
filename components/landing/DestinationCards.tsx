@@ -1,81 +1,110 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
-import { formatUzInteger } from '@/lib/displayHelpers';
-import styles from './DestinationCards.module.css';
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import styles from "./DestinationCards.module.css";
+
+type Destination = {
+  id: string;
+  name: string;
+  blurb: string;
+  href: string;
+  image: string;
+  wide: boolean;
+  badge?: string;
+};
+
+const DESTINATIONS: Destination[] = [
+  {
+    id: "samarqand",
+    name: "Samarqand",
+    blurb: "Buyuk Ipak Yo'lining yuragi va moviy gumbazlar shahri.",
+    href: "/travel-plan/new?destination=samarqand",
+    image:
+      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=80",
+    wide: true,
+    badge: "Tarixiy",
+  },
+  {
+    id: "toshkent",
+    name: "Toshkent",
+    blurb: "Zamonaviylik va an'analar tutashgan poytaxt.",
+    href: "/travel-plan/new?destination=toshkent",
+    image:
+      "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?auto=format&fit=crop&w=1200&q=80",
+    wide: false,
+  },
+  {
+    id: "zomin",
+    name: "Zomin",
+    blurb: "O'zbekistonning Shveytsariyasi — toza havo va tabiat.",
+    href: "/travel-plan/new?destination=zomin",
+    image: "/jizzax-bg.png",
+    wide: false,
+  },
+  {
+    id: "buxoro",
+    name: "Buxoro",
+    blurb: "Qadimiy sharq ertaklari jonlangan shahar.",
+    href: "/travel-plan/new?destination=buxoro",
+    image:
+      "https://images.unsplash.com/photo-1605649487212-47bdab064df7?auto=format&fit=crop&w=1200&q=80",
+    wide: false,
+  },
+  {
+    id: "xiva",
+    name: "Xiva",
+    blurb: "Ochiq osmon ostidagi muzey-shahar.",
+    href: "/travel-plan/new?destination=xiva",
+    image:
+      "https://images.unsplash.com/photo-1590074072786-a66914d668f1?auto=format&fit=crop&w=1200&q=80",
+    wide: false,
+  },
+];
 
 export default function DestinationCards() {
   return (
-    <section className={styles.section}>
-      <div className="container">
+    <section id="destinations" className={styles.section}>
+      <div className={styles.inner}>
         <div className={styles.header}>
-          <h2 className="font-display" style={{ fontSize: '2.5rem', fontWeight: 700, color: 'var(--primary)' }}>Qayerga Bormoqchisiz?</h2>
-          <p className={styles.subtitle}>Hozirda 2 ta maxsus yo&apos;nalish mavjud — ko&apos;proq tez orada!</p>
+          <div className={styles.headerText}>
+            <h2 className="font-display">Mashhur manzillar</h2>
+            <p>
+              O&apos;zbekistonning eng go&apos;zal go&apos;shalarini biz bilan
+              kashf eting.
+            </p>
+          </div>
+          <Link href="/tours" className={styles.seeAll}>
+            Barchasini ko&apos;rish <ArrowRight size={16} />
+          </Link>
         </div>
 
         <div className={styles.grid}>
-          <Link href="/travel-plan/new?destination=zomin" className={styles.card}>
-            <div className={styles.cardBg}>
+          {DESTINATIONS.map((d) => (
+            <Link
+              key={d.id}
+              href={d.href}
+              className={`${styles.card} ${d.wide ? styles.cardWide : styles.cardNarrow}`}
+            >
               <Image
-                src="/hero-bg.png"
-                alt="Zomin manzarasi"
+                src={d.image}
+                alt={d.name}
                 fill
-                className={styles.cardBgImg}
-                sizes="(max-width: 768px) 100vw, 50vw"
-                loading="lazy"
+                className={styles.cardImg}
+                sizes={d.wide ? "(max-width:768px) 100vw, 66vw" : "(max-width:768px) 100vw, 33vw"}
               />
-            </div>
-            <div className={styles.cardOverlay} />
-            <div className={styles.cardContent}>
-              <div className={styles.tags}>
-                <span className={styles.tag}>🏔️ Tog&apos; havosi</span>
-                <span className={styles.tag}>🌲 Milliy bog&apos;</span>
-                <span className={styles.tag}>🏊 Ko&apos;l va sharsharalar</span>
+              <div className={styles.cardShade} />
+              <div className={styles.cardBody}>
+                {d.badge ? <span className={styles.badge}>{d.badge}</span> : null}
+                <h3 className="font-display">{d.name}</h3>
+                <p>{d.blurb}</p>
               </div>
-              <h3 className={`${styles.cardTitle} ${styles.destText}`}>Zomin — Jizzax viloyatining tog&apos; duri</h3>
-              <p className={styles.cardDesc}>
-                Dengiz sathidan 1500m balandlikda, toza havo va ajoyib manzaralar. Oilalar va aktiv sayyohlar uchun ideal joy.
-              </p>
-              <div className={styles.footer}>
-                <span className={styles.price}>Paketlar narxi {formatUzInteger(350000)} so&apos;mdan</span>
-                <span className={styles.cta}>
-                  Zomin safarini tuzing <ArrowRight size={18} />
-                </span>
-              </div>
-            </div>
-          </Link>
-
-          <Link href="/travel-plan/new?destination=jizzax" className={styles.card}>
-            <div className={styles.cardBg}>
-              <Image
-                src="/jizzax-bg.png"
-                alt="Jizzax manzarasi"
-                fill
-                className={styles.cardBgImg}
-                sizes="(max-width: 768px) 100vw, 50vw"
-                loading="lazy"
-              />
-            </div>
-            <div className={styles.cardOverlay} />
-            <div className={styles.cardContent}>
-              <div className={styles.tags}>
-                <span className={styles.tag}>🏛️ Tarixiy shahar</span>
-                <span className={styles.tag}>🌸 Bog&apos;lar</span>
-                <span className={styles.tag}>🍽️ Milliy taomlar</span>
-              </div>
-              <h3 className={`${styles.cardTitle} ${styles.destText}`}>Jizzax — Markaziy Osiyo yuragida</h3>
-              <p className={styles.cardDesc}>
-                Qadimiy ipak yo&apos;li bo&apos;yida joylashgan, boy tarixga ega shahar. Madaniyat, tarix va ajoyib oshxona sevuvchilar uchun.
-              </p>
-              <div className={styles.footer}>
-                <span className={styles.price}>Paketlar narxi {formatUzInteger(280000)} so&apos;mdan</span>
-                <span className={styles.cta}>
-                  Jizzax safarini tuzing <ArrowRight size={18} />
-                </span>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          ))}
         </div>
+
+        <Link href="/tours" className={styles.mobileSeeAll}>
+          Barchasini ko&apos;rish <ArrowRight size={16} />
+        </Link>
       </div>
     </section>
   );
