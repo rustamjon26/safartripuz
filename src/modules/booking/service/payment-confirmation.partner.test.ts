@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/src/shared/money";
-import { createPartnerEarningIfMissing } from "./completeSuccessfulPaymentTx";
+import { createPartnerEarningIfMissing } from "./payment-confirmation.service";
 import { MissingPartnerError } from "@/src/modules/ledger";
 
 describe("createPartnerEarningIfMissing (payment completion split)", () => {
@@ -66,7 +66,10 @@ describe("payment success rejects silent null partner", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const src = readFileSync(
-      join(process.cwd(), "lib/payments/completeSuccessfulPaymentTx.ts"),
+      join(
+        process.cwd(),
+        "src/modules/booking/service/payment-confirmation.service.ts",
+      ),
       "utf8",
     );
     expect(src).not.toMatch(/partnerUserId:\s*null/);

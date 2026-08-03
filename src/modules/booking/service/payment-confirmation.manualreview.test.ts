@@ -5,7 +5,7 @@ const confirmPaymentForHotelBooking = vi.hoisted(() => vi.fn());
 const ledgerRecord = vi.hoisted(() => vi.fn());
 const enqueueInTx = vi.hoisted(() => vi.fn());
 
-vi.mock("@/src/modules/booking", () => ({
+vi.mock("./booking.service", () => ({
   bookingService: { confirmPaymentForHotelBooking },
 }));
 
@@ -41,7 +41,7 @@ vi.mock("@/src/shared/observability/sentry", () => ({
   setMoneyPathContext: vi.fn(),
 }));
 
-import { completeSuccessfulPaymentInTx } from "./completeSuccessfulPaymentTx";
+import { completeSuccessfulPaymentInTx } from "./payment-confirmation.service";
 
 const som = (v: string) => ({ toString: () => v });
 

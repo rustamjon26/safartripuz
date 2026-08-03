@@ -14,6 +14,11 @@ export type {
 export { postCancelAccountingInTx } from "./service/cancel-accounting";
 export { reversePartnerEarningInTx } from "./service/partner-earning";
 export {
+  completeSuccessfulPaymentInTx,
+  completeSuccessfulPaymentTx,
+  createPartnerEarningIfMissing,
+} from "./service/payment-confirmation.service";
+export {
   reconcileLedgerPartnerEarnings,
   loadReconcileInput,
   formatReconcileReportHuman,
