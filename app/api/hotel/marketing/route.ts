@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
+import { feedbackService } from "@/src/modules/feedback";
 
 export async function GET(req: Request) {
   try {
@@ -68,14 +69,32 @@ export async function POST(req: Request) {
       comment?: string;
       source?: string;
     };
+    const rating = Number(json.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return NextResponse.json({ message: "rating 1–5 bo‘lishi kerak" }, { status: 400 });
+    }
+
     const fb = await prisma.guestFeedback.create({
       data: {
         hotelId: ctx.hotel.id,
         guestName: String(json.guestName ?? ""),
-        rating: Number(json.rating),
+        rating,
         comment: json.comment ?? null,
         source: json.source || "DIRECT",
       },
+    });
+
+    void feedbackService.ingestSafe({
+      channel: "hotel",
+      sourceType: "GuestFeedback",
+      sourceId: fb.id,
+      authorUserId: null,
+      authorName: fb.guestName || "Mehmon",
+      rating: fb.rating,
+      body: fb.comment ?? `(Reyting: ${fb.rating})`,
+      serviceLabel: ctx.hotel.name,
+      subjectId: ctx.hotel.id,
+      createdAt: fb.createdAt,
     });
 
     return NextResponse.json({ feedback: fb }, { status: 201 });

@@ -14,6 +14,7 @@ const schema = z.object({
     "guide",
     "restaurant_manager",
     "home_stay_partner",
+    "support",
   ]),
 });
 

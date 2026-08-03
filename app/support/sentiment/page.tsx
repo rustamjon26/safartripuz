@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   CATEGORY_SCORES,
   OVERVIEW_KPIS,
@@ -17,8 +18,65 @@ function Stars({ n }: { n: number }) {
   );
 }
 
+type Overview = {
+  total: number;
+  open: number;
+  answered: number;
+  avgRating: number;
+  responseRate: number;
+  sentimentIndex: number;
+};
+
 export default function SupportSentimentPage() {
   const maxVal = Math.max(...SENTIMENT_DAYS.flatMap((d) => [d.positive, d.negative]), 1);
+  const [overview, setOverview] = useState<Overview | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/support/feedback/overview", {
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (res.ok && data.overview) setOverview(data.overview);
+      } catch {
+        // keep mock KPIs
+      }
+    })();
+  }, []);
+
+  const kpis = overview
+    ? [
+        {
+          id: "rating",
+          label: "Umumiy reyting",
+          value: overview.avgRating.toFixed(1),
+          hint: `${overview.total} ta sharh`,
+          tone: "ok" as const,
+        },
+        {
+          id: "reviews",
+          label: "Sharhlar soni",
+          value: overview.total.toLocaleString("uz-UZ"),
+          hint: `${overview.open} ta ochiq`,
+          tone: "info" as const,
+        },
+        {
+          id: "response",
+          label: "Javob berish ko‘rsatkichi",
+          value: `${overview.responseRate}%`,
+          hint: `${overview.answered} ta javoblangan`,
+          tone: overview.responseRate < 80 ? ("warn" as const) : ("ok" as const),
+        },
+        {
+          id: "sentiment",
+          label: "Kayfiyat indeksi",
+          value: String(overview.sentimentIndex),
+          hint: overview.sentimentIndex >= 70 ? "Zo‘r" : "Diqqat",
+          tone: overview.sentimentIndex >= 70 ? ("ok" as const) : ("warn" as const),
+        },
+      ]
+    : OVERVIEW_KPIS;
 
   return (
     <div className="space-y-6">
@@ -43,7 +101,7 @@ export default function SupportSentimentPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {OVERVIEW_KPIS.map((kpi, i) => (
+        {kpis.map((kpi, i) => (
           <div
             key={kpi.id}
             className={`sp-card p-5 sp-animate sp-animate-delay-${Math.min(i + 1, 4) as 1 | 2 | 3 | 4}`}
@@ -64,6 +122,7 @@ export default function SupportSentimentPage() {
               }`}
             >
               {kpi.hint}
+              {!overview ? " · demo" : ""}
             </div>
           </div>
         ))}
