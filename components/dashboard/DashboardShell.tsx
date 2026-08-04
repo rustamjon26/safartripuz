@@ -191,7 +191,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     );
   }
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-white">
       <Link
         href="/"
@@ -296,7 +296,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   return (
     <div className="dashboard-root min-h-screen bg-gray-50 flex">
       <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-gray-200 flex-col fixed top-0 left-0 h-full z-30">
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       {sidebarOpen && (
@@ -317,7 +317,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <X size={20} />
               </button>
             </div>
-            <SidebarContent />
+            {renderSidebarContent()}
           </aside>
         </div>
       )}

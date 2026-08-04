@@ -93,7 +93,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))
       ?.label || "Support";
 
-  function Sidebar({ mobile = false }: { mobile?: boolean }) {
+  function renderSidebar(mobile = false) {
     return (
       <div className="flex flex-col h-full bg-[#0d2137] text-white">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 min-h-[64px]">
@@ -172,7 +172,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
   return (
     <div className="sp-root flex h-screen overflow-hidden">
       <aside className="hidden lg:flex w-[250px] bg-[#0d2137] shrink-0 shadow-[2px_0_16px_rgba(0,9,23,0.18)]">
-        <Sidebar />
+        {renderSidebar()}
       </aside>
 
       {drawerOpen ? (
@@ -182,7 +182,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10">
-            <Sidebar mobile />
+            {renderSidebar(true)}
           </aside>
         </div>
       ) : null}

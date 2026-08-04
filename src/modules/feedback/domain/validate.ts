@@ -16,7 +16,11 @@ export const feedbackStatusSchema = z.enum([
 ]);
 
 export const listFeedbackQuerySchema = z.object({
-  /** ANSWERED = ANSWERED|CLOSED (inbox “javob berilgan”). */
+  /**
+   * Inbox expansions (see feedback.repository buildWhere):
+   *   ANSWERED → ANSWERED|CLOSED  (“javob berilgan”)
+   *   OPEN     → OPEN|ESCALATED   (“javob berilmagan”)
+   */
   status: z
     .enum(["all", "OPEN", "ANSWERED", "ESCALATED", "CLOSED"])
     .default("all"),

@@ -12,6 +12,7 @@ import {
   LifeBuoy, Plus, FileText,
 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
+import { normalizeHotelNavRole } from "./nav-role";
 
 interface HotelUser { 
   first_name: string; 
@@ -90,8 +91,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
     } catch { /* suppress */ }
   }
 
-  useEffect(() => { void ensureAuth(); }, [pathname]);
-  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+  // Auth once on mount — re-fetching on every pathname remounted the sidebar tree.
+  useEffect(() => {
+    void ensureAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* noop */ }
@@ -102,12 +109,15 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
   const initials    = user ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase() : "H";
   const sideW = collapsed ? 80 : 250;
 
-  // 1. Role-based helpers
-  const effectiveRole = user?.hotelStaff?.role || user?.role || "user";
+  // HotelStaff jobs are UPPERCASE; nav `roles` arrays are lowercase platform keys.
+  const effectiveRole = normalizeHotelNavRole(
+    user?.hotelStaff?.role,
+    user?.role,
+  );
   const isOwner = user?.role === "hotel_manager" || user?.role === "admin";
-  const isCleaner = effectiveRole === "CLEANER" || user?.role === "cleaner";
-  const isReceptionist = effectiveRole === "RECEPTION" || user?.role === "receptionist";
-  const isWaiter = effectiveRole === "WAITER" || user?.role === "waiter";
+  const isCleaner = effectiveRole === "cleaner";
+  const isReceptionist = effectiveRole === "receptionist";
+  const isWaiter = effectiveRole === "waiter";
   const isStaff = isCleaner || isReceptionist || isWaiter;
 
   // Dashboard Redirection for specialized staff
@@ -126,13 +136,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const currentItem = ALL_ITEMS.find(i => isActive(i.href));
 
-  function SidebarContent({ forMobile = false }: { forMobile?: boolean }) {
+  // Render helpers (not components) — avoids remounting the tree on every parent render.
+  function renderSidebar(forMobile = false) {
     const showText = forMobile || !collapsed;
     
     // Determine which groups to show
     const visibleGroups = NAV_GROUPS.map(group => ({
       ...group,
-      items: group.items.filter(item => (item.roles as any).includes(effectiveRole))
+      items: group.items.filter((item) => item.roles.includes(effectiveRole))
     })).filter(g => g.items.length > 0);
 
     return (
@@ -170,14 +181,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
               {t("common.roles.view_auth_sim")}
             </label>
             <select
-              value={user.role}
-              onChange={(e) => setUser({ ...user, role: e.target.value as any })}
+              value={normalizeHotelNavRole(undefined, user.role)}
+              onChange={(e) => setUser({ ...user, role: e.target.value })}
               className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-white/15 bg-[#0d2137] text-white outline-none focus:border-[#006781]"
             >
               <option value="hotel_manager">{t("common.roles.hotel_manager")}</option>
-              <option value="RECEPTION">{t("common.roles.receptionist")}</option>
-              <option value="CLEANER">{t("common.roles.cleaner")}</option>
-              <option value="WAITER">{t("common.roles.waiter")}</option>
+              <option value="receptionist">{t("common.roles.receptionist")}</option>
+              <option value="cleaner">{t("common.roles.cleaner")}</option>
+              <option value="waiter">{t("common.roles.waiter")}</option>
             </select>
           </div>
         )}
@@ -298,7 +309,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   // Specialized Bottom Navigation for Staff
-  function BottomNav() {
+  function renderBottomNav() {
     if (isCleaner) {
       const items = [
         { href: "/hotel/housekeeping", label: t("common.bottom_nav.tasks"), icon: Brush },
@@ -386,7 +397,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           className="border-r border-[#0d2137] bg-[#0d2137] shadow-[2px_0_16px_rgba(0,9,23,0.18)] transition-all shrink-0 z-20 flex-col hidden lg:flex"
           style={{ width: sideW }}
         >
-          <SidebarContent />
+          {renderSidebar()}
         </aside>
       )}
 
@@ -402,7 +413,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
             >
               <X size={18} />
             </button>
-            <SidebarContent forMobile />
+            {renderSidebar(true)}
           </aside>
         </div>
       )}
@@ -493,7 +504,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* ━━━ BOTTOM NAV ━━━ */}
         <div className="lg:hidden">
-           <BottomNav />
+           {renderBottomNav()}
         </div>
       </div>
     </div>
