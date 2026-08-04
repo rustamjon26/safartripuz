@@ -175,7 +175,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav with Groups */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
+        <nav className="hl-nav-scroll flex-1 overflow-y-auto px-3 py-4">
           {visibleGroups.map((group, idx) => (
             <div key={idx} className="mb-5">
               {showText && (
