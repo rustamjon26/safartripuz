@@ -15,6 +15,7 @@ describe("accountHomeForRole", () => {
   it("maps partner roles", () => {
     expect(accountHomeForRole("hotel_manager")).toBe("/hotel");
     expect(accountHomeForRole("taxi")).toBe("/taxi-partner");
+    expect(accountHomeForRole("taxi_partner")).toBe("/taxi-partner");
   });
 });
 

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { accountHomeForRole } from "@/lib/auth/accountHome";
 
 function LoginForm() {
   const router = useRouter();
@@ -53,25 +54,16 @@ function LoginForm() {
       toast.success("Muvaffaqiyatli kirdingiz!");
 
       const role = "user" in data ? data.user?.role : undefined;
-      const redirectMap: Record<string, string> = {
-        admin: "/admin",
-        super_admin: "/admin",
-        hotel_manager: "/hotel",
-        home_stay_partner: "/homestay-partner",
-        guide: "/guide-partner",
-        taxi: "/taxi-partner",
-        user: "/",
-      };
-
-      const redirectTo = role ? (redirectMap[role] ?? "/") : "/";
-      if (role === "user") {
-        const nextPath = searchParams.get("next");
-        if (nextPath && nextPath.startsWith("/")) {
-          router.push(nextPath);
-          return;
-        }
+      const nextPath = searchParams.get("next");
+      if (
+        nextPath &&
+        nextPath.startsWith("/") &&
+        !nextPath.startsWith("//")
+      ) {
+        router.push(nextPath);
+        return;
       }
-      router.push(redirectTo);
+      router.push(role ? accountHomeForRole(role) : "/");
     } catch {
       toast.error("Server xatosi");
     }

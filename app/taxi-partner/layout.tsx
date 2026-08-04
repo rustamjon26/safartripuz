@@ -52,7 +52,10 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           router.push("/login?next=/taxi-partner/dashboard");
           return;
         }
-        if (data?.user?.role !== "taxi_partner") {
+        const role = data?.user?.role as string | undefined;
+        // Admin may assign either `taxi` (driver) or `taxi_partner` (fleet).
+        // Middleware already allows both; the shell must match.
+        if (role !== "taxi" && role !== "taxi_partner") {
           router.push("/");
           return;
         }

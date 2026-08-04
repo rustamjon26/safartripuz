@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { ensureApprovedTaxiPartner } from "@/lib/partner";
 
 const schema = z.object({
   role: z.enum([
@@ -137,21 +138,12 @@ export async function PATCH(
       }
 
       if (newRole === "taxi" || newRole === "taxi_partner") {
-        const existingPartner = await tx.partner.findUnique({
-          where: { userId: user.id },
+        await ensureApprovedTaxiPartner(tx, {
+          userId: user.id,
+          displayName,
+          contactEmail: user.email,
+          contactPhone: user.phone,
         });
-        if (!existingPartner) {
-          await tx.partner.create({
-            data: {
-              userId: user.id,
-              type: "taxi",
-              status: "approved",
-              displayName,
-              contactEmail: user.email,
-              contactPhone: user.phone,
-            },
-          });
-        }
       }
 
       if (newRole === "home_stay_partner") {

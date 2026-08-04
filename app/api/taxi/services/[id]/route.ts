@@ -22,7 +22,7 @@ export async function PATCH(
   ctx: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = await requireRole(["taxi"]);
+    const actor = await requireRole(["taxi", "taxi_partner"]);
     const partner = await getApprovedPartnerContextByUserId(actor.id, "taxi");
     if (!partner) {
       return NextResponse.json(

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { ensureApprovedTaxiPartner } from "@/lib/partner";
 
 const roleSchema = z.enum([
   "super_admin",
@@ -153,19 +154,12 @@ export async function PATCH(
         }
 
         if (newRole === "taxi" || newRole === "taxi_partner") {
-          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
-          if (!existing) {
-            await tx.partner.create({
-              data: {
-                userId: updated.id,
-                type: "taxi",
-                status: "approved",
-                displayName,
-                contactEmail: updated.email,
-                contactPhone: updated.phone,
-              },
-            });
-          }
+          await ensureApprovedTaxiPartner(tx, {
+            userId: updated.id,
+            displayName,
+            contactEmail: updated.email,
+            contactPhone: updated.phone,
+          });
         }
 
         if (newRole === "home_stay_partner") {
