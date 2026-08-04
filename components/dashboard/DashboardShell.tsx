@@ -21,11 +21,13 @@ import {
   X,
   List,
   Package,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
+import { accountHomeForRole } from "@/lib/auth/accountHome";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -45,12 +47,14 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "Admin panel", icon: Shield, roles: ["admin", "super_admin"] },
   { href: "/bookings", label: "Mening Sayohatlarim", icon: LayoutDashboard, roles: ["user"] },
   { href: "/trip-builder", label: "Yangi Safar (AI)", icon: ShoppingBag, roles: ["user"] },
   { href: "/tours", label: "Tayyor Turlar", icon: Compass, roles: ["user", "admin", "super_admin"] },
-  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel"] },
-  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide"] },
-  { href: "/taxi/home", label: "Taxi Paneli", icon: Car, roles: ["taxi"] },
+  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel_manager", "hotel"] },
+  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide", "guide_partner"] },
+  { href: "/taxi-partner", label: "Taxi Paneli", icon: Car, roles: ["taxi", "taxi_partner"] },
+  { href: "/support/dashboard", label: "Support", icon: List, roles: ["support"] },
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];
 
@@ -158,12 +162,21 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
 
+  const accountHref = accountHomeForRole(user?.role);
+  const accountLabel =
+    accountHref === "/profile" ? "Mening profilim" : "Asosiy panel";
+
   const roleBadge: Record<string, string> = {
     user: "Sayohatchi",
     hotel: "Hotel",
+    hotel_manager: "Hotel egasi",
     guide: "Gid",
     taxi: "Taxi",
+    taxi_partner: "Taxi hamkor",
     admin: "Admin",
+    super_admin: "Super admin",
+    support: "Support",
+    home_stay_partner: "Homestay",
   };
 
   const PageIcon =
@@ -250,8 +263,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
       <div className="px-3 py-4 border-t border-gray-200">
         <Link
-          href="/profile"
+          href={accountHref}
           onClick={() => setSidebarOpen(false)}
+          title={accountLabel}
           className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
@@ -261,7 +275,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             <div className="font-bold text-gray-900 text-sm truncate">
               {user?.first_name} {user?.last_name}
             </div>
-            <div className="text-xs text-gray-500 truncate">{user?.email}</div>
+            <div className="text-xs text-gray-500 truncate">
+              {roleBadge[user?.role?.toLowerCase() ?? ""] ?? user?.role ?? "—"}
+            </div>
           </div>
         </Link>
         <button
@@ -362,9 +378,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               ) : null}
 
               <Link
-                href="/profile"
-                title="Mening profilim"
-                aria-label="Mening profilim"
+                href={accountHref}
+                title={accountLabel}
+                aria-label={accountLabel}
                 className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
                 {initials}
