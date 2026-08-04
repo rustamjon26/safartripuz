@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import { Building2, Check, Star } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
 
 export type ServiceCardAmenity = {
   label: string;
+  /** Prefer Lucide icon; emoji kept for backward compat. */
+  Icon?: LucideIcon;
   emoji?: string;
 };
 
@@ -118,15 +121,22 @@ function CardInner({
 
         {amenities && amenities.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {amenities.map((a) => (
-              <span
-                key={a.label}
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full"
-              >
-                {a.emoji && <span>{a.emoji}</span>}
-                {a.label}
-              </span>
-            ))}
+            {amenities.map((a) => {
+              const Icon = a.Icon;
+              return (
+                <span
+                  key={a.label}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-full"
+                >
+                  {Icon ? (
+                    <Icon size={11} className="text-slate-500 shrink-0" strokeWidth={2.25} />
+                  ) : a.emoji ? (
+                    <span>{a.emoji}</span>
+                  ) : null}
+                  {a.label}
+                </span>
+              );
+            })}
           </div>
         )}
 
