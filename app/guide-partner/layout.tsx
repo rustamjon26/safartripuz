@@ -15,6 +15,7 @@ import {
   Menu,
   Plus,
   Search,
+  UserCircle2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/guide-partner/bookings", label: "Bandlovlar", icon: CalendarCheck },
   { href: "/guide-partner/listings", label: "Tajribalarim", icon: ListChecks },
   { href: "/guide-partner/finance", label: "Moliya", icon: CircleDollarSign },
+  { href: "/guide-partner/profile", label: "Profil", icon: UserCircle2 },
 ];
 
 interface CurrentUser {
@@ -153,7 +155,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
           </Link>
           <div className="flex items-center gap-3 px-1 pt-1">
             <Link
-              href="/profile"
+              href="/guide-partner/profile"
               className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
               title="Profil"
             >
@@ -264,7 +266,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
               Yangi tajriba
             </Link>
             <Link
-              href="/profile"
+              href="/guide-partner/profile"
               className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
               title="Profil"
               aria-label="Profil"

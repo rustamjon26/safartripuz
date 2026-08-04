@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
-import { ensureApprovedTaxiPartner } from "@/lib/partner";
+import {
+  demotePartnerIfRoleLeft,
+  ensureApprovedGuidePartner,
+  ensureApprovedTaxiPartner,
+} from "@/lib/partner";
 import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
 
 const schema = z.object({
@@ -104,21 +108,12 @@ export async function PATCH(
       }
 
       if (newRole === "guide") {
-        const existingPartner = await tx.partner.findUnique({
-          where: { userId: user.id },
+        await ensureApprovedGuidePartner(tx, {
+          userId: user.id,
+          displayName,
+          contactEmail: user.email,
+          contactPhone: user.phone,
         });
-        if (!existingPartner) {
-          await tx.partner.create({
-            data: {
-              userId: user.id,
-              type: "guide",
-              status: "approved",
-              displayName,
-              contactEmail: user.email,
-              contactPhone: user.phone,
-            },
-          });
-        }
       }
 
       if (newRole === "taxi" || newRole === "taxi_partner") {
@@ -145,8 +140,24 @@ export async function PATCH(
               contactPhone: user.phone,
             },
           });
+        } else if (
+          existingPartner.status !== "approved" ||
+          existingPartner.type !== "hotel"
+        ) {
+          await tx.partner.update({
+            where: { id: existingPartner.id },
+            data: {
+              type: "hotel",
+              status: "approved",
+              displayName: existingPartner.displayName ?? displayName,
+              contactEmail: existingPartner.contactEmail ?? user.email,
+              contactPhone: existingPartner.contactPhone ?? user.phone,
+            },
+          });
         }
       }
+
+      await demotePartnerIfRoleLeft(tx, user.id, newRole);
 
       await tx.auditLog.create({
         data: {

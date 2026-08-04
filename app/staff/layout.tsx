@@ -10,14 +10,15 @@ import {
   MessageSquare,
   UserRound,
 } from "lucide-react";
+import { staffFetch } from "./_lib/staffFetch";
 import "./staff.css";
 
 const MAIN_NAV = [
-  { href: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/staff/shifts", label: "Shifts", icon: CalendarDays },
-  { href: "/staff/tasks", label: "Tasks", icon: ClipboardList },
+  { href: "/staff/dashboard", label: "Bosh", icon: LayoutDashboard },
+  { href: "/staff/shifts", label: "Smena", icon: CalendarDays },
+  { href: "/staff/tasks", label: "Vazifa", icon: ClipboardList },
   { href: "/staff/messages", label: "Chat", icon: MessageSquare },
-  { href: "/staff/profile", label: "Profile", icon: UserRound },
+  { href: "/staff/profile", label: "Profil", icon: UserRound },
 ];
 
 const ALLOWED = new Set([
@@ -38,8 +39,8 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadMe() {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        const data = await res.json();
+        const res = await staffFetch("/api/auth/me");
+        const data = (await res.json()) as { user?: { role?: string } };
         if (!res.ok) {
           router.push("/login?next=/staff/dashboard");
           return;

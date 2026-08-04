@@ -66,6 +66,7 @@
 .st-badge-mid { background: rgba(245, 158, 11, 0.14); color: #b45309; }
 .st-badge-low { background: rgba(100, 116, 139, 0.12); color: #475569; }
 .st-badge-done { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.st-badge-muted { background: rgba(148, 163, 184, 0.16); color: #64748b; }
 
 .st-card {
   background: var(--st-card);

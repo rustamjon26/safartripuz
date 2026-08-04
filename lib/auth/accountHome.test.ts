@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { accountHomeForRole, isStaffPlatformRole } from "./accountHome";
+import {
+  accountHomeForRole,
+  isStaffPlatformRole,
+  profileHomeForRole,
+} from "./accountHome";
 
 describe("accountHomeForRole", () => {
   it("sends admins to /admin", () => {
@@ -16,6 +20,16 @@ describe("accountHomeForRole", () => {
     expect(accountHomeForRole("hotel_manager")).toBe("/hotel");
     expect(accountHomeForRole("taxi")).toBe("/taxi-partner");
     expect(accountHomeForRole("taxi_partner")).toBe("/taxi-partner");
+    expect(accountHomeForRole("guide")).toBe("/guide-partner/dashboard");
+  });
+});
+
+describe("profileHomeForRole", () => {
+  it("keeps partners inside their portal for personal settings", () => {
+    expect(profileHomeForRole("guide")).toBe("/guide-partner/profile");
+    expect(profileHomeForRole("taxi")).toBe("/taxi-partner/profile");
+    expect(profileHomeForRole("hotel_manager")).toBe("/hotel/settings");
+    expect(profileHomeForRole("user")).toBe("/profile");
   });
 });
 

@@ -18,10 +18,16 @@ export function mapStaffError(e: unknown): NextResponse {
   }
   const msg = e instanceof Error ? e.message : "Server error";
   if (msg === "UNAUTHORIZED") {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { message: "Seans muddati tugagan. Qayta kiring." },
+      { status: 401 },
+    );
   }
   if (msg === "FORBIDDEN") {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { message: "Bu amal uchun ruxsat yo'q." },
+      { status: 403 },
+    );
   }
   if (msg === "ENROLLMENT_REQUIRED") {
     return NextResponse.json({ message: "Avval kursga yoziling" }, { status: 400 });

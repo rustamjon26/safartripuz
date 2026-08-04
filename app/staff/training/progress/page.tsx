@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { staffFetch } from "../../_lib/staffFetch";
 import { TrainingTabs } from "../_tabs";
 
 type Course = {
@@ -17,7 +18,7 @@ export default function StaffTrainingProgressPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/staff/training/courses", {
+        const res = await staffFetch("/api/staff/training/courses", {
           credentials: "include",
         });
         const json = await res.json();

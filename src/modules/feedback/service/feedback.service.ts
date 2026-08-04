@@ -1,8 +1,15 @@
 import { sentimentFromRating, sentimentIndex, responseRate } from "../domain/sentiment";
 import { assertTransition, FeedbackStatusError, statusAfterReply } from "../domain/status";
 import { ingestFeedbackSchema } from "../domain/validate";
+import {
+  buildImprovements,
+  buildMarketCompare,
+  sentimentBodiesSplit,
+  topKeywords,
+} from "../domain/reports";
 import type {
   FeedbackOverview,
+  FeedbackReportsView,
   FeedbackTicketView,
   IngestFeedbackInput,
   ListFeedbackFilter,
@@ -113,6 +120,25 @@ export class FeedbackService {
       responseRate: responseRate(raw.total, raw.answeredLike),
       sentimentIndex: sentimentIndex(bySentiment),
       bySentiment,
+    };
+  }
+
+  async reports(days: number): Promise<FeedbackReportsView> {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const raw = await feedbackRepository.reportsWindow(since);
+    const { positive, negative } = sentimentBodiesSplit(raw.bodies);
+
+    return {
+      days,
+      totalTickets: raw.total,
+      marketCompare: buildMarketCompare(
+        raw.byChannel,
+        raw.avgRating,
+        raw.total,
+      ),
+      positiveKeywords: topKeywords(positive, 12),
+      negativeKeywords: topKeywords(negative, 12),
+      improvements: buildImprovements(raw.negativeGroups, 4),
     };
   }
 

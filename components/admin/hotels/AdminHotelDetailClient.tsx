@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { HotelStatus } from "@prisma/client";
 import { ConfirmModal } from "@/components/admin/ConfirmModal";
+import { AdminHotelStaffPanel } from "@/components/admin/hotels/AdminHotelStaffPanel";
 import type { AdminHotelDetail } from "@/lib/admin/getAdminHotelDetail";
 import { formatDateTime } from "@/lib/formatDate";
 
@@ -357,6 +358,11 @@ export function AdminHotelDetailClient({ data: initial }: Props) {
               </span>
             </div>
           </div>
+
+          <AdminHotelStaffPanel
+            hotelId={data.hotel.id}
+            hotelName={data.hotel.name}
+          />
 
           {/* Room types */}
           <div className="adm-card p-6 bg-white border-none shadow-xl shadow-slate-200/50">

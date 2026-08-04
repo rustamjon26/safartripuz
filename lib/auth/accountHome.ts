@@ -1,6 +1,6 @@
 /**
- * Where the header/sidebar avatar should land for a platform role.
- * Personal `/profile` stays available via nav — avatar returns to the role home.
+ * Where the header avatar should land for a platform role (work panel).
+ * Personal settings use `profileHomeForRole` — do not mix the two.
  */
 export function accountHomeForRole(role: string | null | undefined): string {
   const r = (role ?? "").toLowerCase();
@@ -27,6 +27,33 @@ export function accountHomeForRole(role: string | null | undefined): string {
       return "/staff/dashboard";
     case "restaurant_manager":
       return "/restaurant";
+    default:
+      return "/profile";
+  }
+}
+
+/**
+ * Personal account / settings page for a role — stays inside that role's shell
+ * when a partner portal exists (avoids jumping to the tourist `/profile` UI).
+ */
+export function profileHomeForRole(role: string | null | undefined): string {
+  const r = (role ?? "").toLowerCase();
+  switch (r) {
+    case "guide":
+    case "guide_partner":
+      return "/guide-partner/profile";
+    case "taxi":
+    case "taxi_partner":
+      return "/taxi-partner/profile";
+    case "hotel_manager":
+      return "/hotel/settings";
+    case "home_stay_partner":
+      return "/homestay-partner/dashboard";
+    case "admin":
+    case "super_admin":
+      return "/admin/settings";
+    case "support":
+      return "/support/dashboard";
     default:
       return "/profile";
   }

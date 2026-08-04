@@ -72,3 +72,25 @@ export type FeedbackOverview = {
   sentimentIndex: number;
   bySentiment: { positive: number; neutral: number; negative: number };
 };
+
+export type FeedbackReportsView = {
+  days: number;
+  totalTickets: number;
+  marketCompare: Array<{
+    label: string;
+    key: string;
+    brand: number;
+    market: number;
+    sampleSize: number;
+  }>;
+  positiveKeywords: Array<{ word: string; count: number }>;
+  negativeKeywords: Array<{ word: string; count: number }>;
+  improvements: Array<{
+    id: string;
+    area: string;
+    description: string;
+    count: number;
+    priority: "high" | "mid" | "low";
+    status: string;
+  }>;
+};

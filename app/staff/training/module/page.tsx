@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { staffFetch } from "../../_lib/staffFetch";
 
 type Module = {
   id: string;
@@ -32,11 +33,11 @@ export default function StaffLearningModulePage() {
     setLoading(true);
     try {
       // ensure enrollment
-      await fetch(`/api/staff/training/courses/${courseId}`, {
+      await staffFetch(`/api/staff/training/courses/${courseId}`, {
         method: "POST",
         credentials: "include",
       });
-      const res = await fetch(`/api/staff/training/courses/${courseId}`, {
+      const res = await staffFetch(`/api/staff/training/courses/${courseId}`, {
         credentials: "include",
       });
       const json = await res.json();
@@ -57,7 +58,7 @@ export default function StaffLearningModulePage() {
 
   async function complete(moduleId: string) {
     try {
-      const res = await fetch(`/api/staff/training/courses/${courseId}/complete`, {
+      const res = await staffFetch(`/api/staff/training/courses/${courseId}/complete`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

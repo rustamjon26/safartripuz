@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
+import { staffFetch } from "../../_lib/staffFetch";
 
 type Msg = {
   id: string;
@@ -25,7 +26,7 @@ export default function StaffChatDetailPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/staff/chat/threads/${id}/messages`, {
+      const res = await staffFetch(`/api/staff/chat/threads/${id}/messages`, {
         credentials: "include",
       });
       const json = await res.json();
@@ -48,7 +49,7 @@ export default function StaffChatDetailPage() {
     const value = text.trim();
     if (!value) return;
     try {
-      const res = await fetch(`/api/staff/chat/threads/${id}/messages`, {
+      const res = await staffFetch(`/api/staff/chat/threads/${id}/messages`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

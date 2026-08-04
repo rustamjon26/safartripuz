@@ -61,3 +61,8 @@ export const patchTicketSchema = z.object({
   assignedToId: z.string().min(1).max(191).nullable().optional(),
   category: z.string().trim().max(191).nullable().optional(),
 });
+
+export const reportsQuerySchema = z.object({
+  /** Lookback window in days (default 90). */
+  days: z.coerce.number().int().min(7).max(365).default(90),
+});

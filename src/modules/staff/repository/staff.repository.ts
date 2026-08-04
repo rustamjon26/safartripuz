@@ -1,15 +1,22 @@
 import { prisma } from "@/src/shared/db/prisma";
 import type {
+  AdminHotelStaffView,
   ChatMessageView,
   CourseView,
   ModuleView,
   ShiftView,
   StaffContext,
   StaffOpsTaskStatus,
+  StaffProfileView,
   StaffShiftStatus,
   TaskView,
   ThreadView,
 } from "../domain/types";
+import {
+  growthLabel,
+  initialsFromName,
+  staffRoleTitle,
+} from "../domain/staff-role-label";
 
 function mapShift(row: {
   id: string;
@@ -680,6 +687,470 @@ export class StaffRepository {
     ]);
 
     return { todayTasks, todayShift: todayShift ? mapShift(todayShift) : null };
+  }
+
+  async getProfile(staffId: string, userId: string): Promise<StaffProfileView | null> {
+    const staff = await prisma.hotelStaff.findUnique({
+      where: { id: staffId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        salary: true,
+        isActive: true,
+        hotel: { select: { name: true } },
+        user: {
+          select: { email: true, phone: true, first_name: true, last_name: true },
+        },
+      },
+    });
+    if (!staff) return null;
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(monthStart.getTime() - 1);
+
+    // Prefer completedAt; fall back to updatedAt for legacy DONE rows.
+    const doneInRange = (from: Date, to?: Date) => ({
+      staffId,
+      status: "DONE" as const,
+      OR: [
+        { completedAt: { gte: from, ...(to ? { lte: to } : {}) } },
+        {
+          completedAt: null,
+          updatedAt: { gte: from, ...(to ? { lte: to } : {}) },
+        },
+      ],
+    });
+
+    const [tasksDone, tasksDoneMonth, tasksDonePrevMonth, shiftsCompletedMonth] =
+      await Promise.all([
+        prisma.staffOpsTask.count({
+          where: { staffId, status: "DONE" },
+        }),
+        prisma.staffOpsTask.count({
+          where: doneInRange(monthStart),
+        }),
+        prisma.staffOpsTask.count({
+          where: doneInRange(prevMonthStart, prevMonthEnd),
+        }),
+        prisma.staffShift.count({
+          where: {
+            staffId,
+            status: "COMPLETED",
+            endsAt: { gte: monthStart },
+          },
+        }),
+      ]);
+
+    const firstName = staff.firstName || staff.user?.first_name || "Xodim";
+    const lastName = staff.lastName ?? staff.user?.last_name ?? null;
+    const fullName = `${firstName}${lastName ? ` ${lastName}` : ""}`.trim();
+    const salaryNum = Number(staff.salary);
+    const baseSalaryLabel =
+      Number.isFinite(salaryNum) && salaryNum > 0
+        ? `${Math.round(salaryNum).toLocaleString("uz-UZ")} UZS`
+        : null;
+
+    return {
+      firstName,
+      lastName,
+      fullName,
+      title: staffRoleTitle(staff.role),
+      role: staff.role,
+      phone: staff.phone ?? staff.user?.phone ?? null,
+      email: staff.user?.email ?? null,
+      hotelName: staff.hotel.name,
+      initials: initialsFromName(firstName, lastName),
+      isActive: staff.isActive,
+      tasksDone,
+      tasksDoneMonth,
+      growth: growthLabel(tasksDoneMonth, tasksDonePrevMonth),
+      shiftsCompletedMonth,
+      baseSalaryLabel,
+    };
+  }
+
+  async updateProfile(
+    staffId: string,
+    userId: string,
+    patch: {
+      firstName?: string;
+      lastName?: string | null;
+      phone?: string | null;
+    },
+  ): Promise<StaffProfileView> {
+    // User.phone is required+unique — only update it when a new number is set.
+    if (patch.phone) {
+      const taken = await prisma.user.findFirst({
+        where: { phone: patch.phone, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new Error("PHONE_TAKEN");
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.hotelStaff.update({
+        where: { id: staffId },
+        data: {
+          ...(patch.firstName !== undefined ? { firstName: patch.firstName } : {}),
+          ...(patch.lastName !== undefined ? { lastName: patch.lastName } : {}),
+          ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
+        },
+      });
+
+      if (
+        patch.firstName !== undefined ||
+        patch.lastName !== undefined ||
+        Boolean(patch.phone)
+      ) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            ...(patch.firstName !== undefined
+              ? { first_name: patch.firstName }
+              : {}),
+            ...(patch.lastName !== undefined
+              ? { last_name: patch.lastName ?? "" }
+              : {}),
+            ...(patch.phone ? { phone: patch.phone } : {}),
+          },
+        });
+      }
+    });
+
+    const profile = await this.getProfile(staffId, userId);
+    if (!profile) throw new Error("Profile reload failed");
+    return profile;
+  }
+
+  private mapAdminHotelStaff(row: {
+    id: string;
+    hotelId: string;
+    userId: string | null;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+    role: string;
+    isActive: boolean;
+    createdAt: Date;
+    hotel: { name: string };
+    user: { email: string; role: string } | null;
+  }): AdminHotelStaffView {
+    return {
+      id: row.id,
+      hotelId: row.hotelId,
+      hotelName: row.hotel.name,
+      userId: row.userId,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      phone: row.phone,
+      role: row.role,
+      title: staffRoleTitle(row.role),
+      isActive: row.isActive,
+      email: row.user?.email ?? null,
+      platformRole: row.user?.role ?? null,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  async hotelExists(hotelId: string): Promise<boolean> {
+    const row = await prisma.hotel.findUnique({
+      where: { id: hotelId },
+      select: { id: true },
+    });
+    return Boolean(row);
+  }
+
+  async listAdminHotelStaff(hotelId: string): Promise<AdminHotelStaffView[]> {
+    const rows = await prisma.hotelStaff.findMany({
+      where: { hotelId },
+      include: {
+        hotel: { select: { name: true } },
+        user: { select: { email: true, role: true } },
+      },
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+    });
+    return rows.map((r) => this.mapAdminHotelStaff(r));
+  }
+
+  async findAdminStaffByUserId(
+    userId: string,
+  ): Promise<AdminHotelStaffView | null> {
+    const row = await prisma.hotelStaff.findFirst({
+      where: { userId },
+      include: {
+        hotel: { select: { name: true } },
+        user: { select: { email: true, role: true } },
+      },
+    });
+    return row ? this.mapAdminHotelStaff(row) : null;
+  }
+
+  async findAdminStaffById(staffId: string): Promise<AdminHotelStaffView | null> {
+    const row = await prisma.hotelStaff.findUnique({
+      where: { id: staffId },
+      include: {
+        hotel: { select: { name: true } },
+        user: { select: { email: true, role: true } },
+      },
+    });
+    return row ? this.mapAdminHotelStaff(row) : null;
+  }
+
+  async findUserForStaffLink(params: {
+    userId?: string;
+    email?: string;
+  }): Promise<{
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    role: string;
+  } | null> {
+    if (params.userId) {
+      return prisma.user.findUnique({
+        where: { id: params.userId },
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+          role: true,
+        },
+      });
+    }
+    if (params.email) {
+      return prisma.user.findUnique({
+        where: { email: params.email.toLowerCase() },
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+          role: true,
+        },
+      });
+    }
+    return null;
+  }
+
+  async createUserForStaffLink(input: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    passwordHash: string;
+    platformRole: "cleaner" | "receptionist" | "waiter" | "hotel_staff";
+  }): Promise<{
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    role: string;
+  }> {
+    return prisma.user.create({
+      data: {
+        email: input.email.toLowerCase(),
+        first_name: input.firstName,
+        last_name: input.lastName,
+        phone: input.phone,
+        password: input.passwordHash,
+        role: input.platformRole,
+      },
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        phone: true,
+        role: true,
+      },
+    });
+  }
+
+  async adminUpsertHotelStaffLink(input: {
+    hotelId: string;
+    userId: string;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+    jobRole: string;
+    platformRole: "cleaner" | "receptionist" | "waiter" | "hotel_staff";
+    syncPlatformRole: boolean;
+    existingStaffId: string | null;
+  }): Promise<AdminHotelStaffView> {
+    const staff = await prisma.$transaction(async (tx) => {
+      if (input.syncPlatformRole) {
+        await tx.user.update({
+          where: { id: input.userId },
+          data: {
+            role: input.platformRole,
+            first_name: input.firstName,
+            ...(input.lastName !== null ? { last_name: input.lastName } : {}),
+            ...(input.phone ? { phone: input.phone } : {}),
+          },
+        });
+      } else if (input.phone || input.firstName) {
+        await tx.user.update({
+          where: { id: input.userId },
+          data: {
+            ...(input.firstName ? { first_name: input.firstName } : {}),
+            ...(input.lastName !== null ? { last_name: input.lastName } : {}),
+            ...(input.phone ? { phone: input.phone } : {}),
+          },
+        });
+      }
+
+      if (input.existingStaffId) {
+        return tx.hotelStaff.update({
+          where: { id: input.existingStaffId },
+          data: {
+            hotelId: input.hotelId,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            phone: input.phone,
+            role: input.jobRole,
+            isActive: true,
+          },
+          include: {
+            hotel: { select: { name: true } },
+            user: { select: { email: true, role: true } },
+          },
+        });
+      }
+
+      return tx.hotelStaff.create({
+        data: {
+          hotelId: input.hotelId,
+          userId: input.userId,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          phone: input.phone,
+          role: input.jobRole,
+          isActive: true,
+        },
+        include: {
+          hotel: { select: { name: true } },
+          user: { select: { email: true, role: true } },
+        },
+      });
+    });
+
+    return this.mapAdminHotelStaff(staff);
+  }
+
+  async adminPatchHotelStaff(input: {
+    staffId: string;
+    firstName?: string;
+    lastName?: string | null;
+    phone?: string | null;
+    role?: string;
+    isActive?: boolean;
+    hotelId?: string;
+    platformRole?: "cleaner" | "receptionist" | "waiter" | "hotel_staff";
+    syncPlatformRole: boolean;
+  }): Promise<AdminHotelStaffView> {
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.hotelStaff.findUnique({
+        where: { id: input.staffId },
+        select: { id: true, userId: true },
+      });
+      if (!existing) throw new Error("STAFF_NOT_FOUND");
+
+      if (input.hotelId) {
+        const hotel = await tx.hotel.findUnique({
+          where: { id: input.hotelId },
+          select: { id: true },
+        });
+        if (!hotel) throw new Error("HOTEL_NOT_FOUND");
+      }
+
+      const staff = await tx.hotelStaff.update({
+        where: { id: existing.id },
+        data: {
+          ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
+          ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...(input.role !== undefined ? { role: input.role } : {}),
+          ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+          ...(input.hotelId !== undefined ? { hotelId: input.hotelId } : {}),
+        },
+        include: {
+          hotel: { select: { name: true } },
+          user: { select: { email: true, role: true } },
+        },
+      });
+
+      if (
+        existing.userId &&
+        input.syncPlatformRole &&
+        input.platformRole
+      ) {
+        await tx.user.update({
+          where: { id: existing.userId },
+          data: { role: input.platformRole },
+        });
+        staff.user = {
+          email: staff.user?.email ?? "",
+          role: input.platformRole,
+        };
+      }
+
+      return staff;
+    });
+
+    return this.mapAdminHotelStaff(updated);
+  }
+
+  async adminUnlinkHotelStaff(staffId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.hotelStaff.findUnique({
+        where: { id: staffId },
+        select: { id: true, userId: true },
+      });
+      if (!existing) throw new Error("STAFF_NOT_FOUND");
+
+      await tx.hotelStaff.delete({ where: { id: existing.id } });
+
+      if (existing.userId) {
+        const linked = await tx.user.findUnique({
+          where: { id: existing.userId },
+          select: { role: true },
+        });
+        if (
+          linked &&
+          (linked.role === "cleaner" ||
+            linked.role === "receptionist" ||
+            linked.role === "waiter" ||
+            linked.role === "hotel_staff")
+        ) {
+          await tx.user.update({
+            where: { id: existing.userId },
+            data: { role: "user" },
+          });
+        }
+      }
+    });
+  }
+
+  async listHotelsForAdminSelect(): Promise<
+    Array<{ id: string; name: string; city: string | null; status: string }>
+  > {
+    return prisma.hotel.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, city: true, status: true },
+      take: 500,
+    });
   }
 }
 

@@ -3,7 +3,11 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
-import { ensureApprovedTaxiPartner } from "@/lib/partner";
+import {
+  demotePartnerIfRoleLeft,
+  ensureApprovedGuidePartner,
+  ensureApprovedTaxiPartner,
+} from "@/lib/partner";
 import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
 
 const roleSchema = z.enum([
@@ -124,19 +128,12 @@ export async function PATCH(
         }
 
         if (newRole === "guide") {
-          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
-          if (!existing) {
-            await tx.partner.create({
-              data: {
-                userId: updated.id,
-                type: "guide",
-                status: "approved",
-                displayName,
-                contactEmail: updated.email,
-                contactPhone: updated.phone,
-              },
-            });
-          }
+          await ensureApprovedGuidePartner(tx, {
+            userId: updated.id,
+            displayName,
+            contactEmail: updated.email,
+            contactPhone: updated.phone,
+          });
         }
 
         if (newRole === "taxi" || newRole === "taxi_partner") {
@@ -161,8 +158,21 @@ export async function PATCH(
                 contactPhone: updated.phone,
               },
             });
+          } else if (existing.status !== "approved" || existing.type !== "hotel") {
+            await tx.partner.update({
+              where: { id: existing.id },
+              data: {
+                type: "hotel",
+                status: "approved",
+                displayName: existing.displayName ?? displayName,
+                contactEmail: existing.contactEmail ?? updated.email,
+                contactPhone: existing.contactPhone ?? updated.phone,
+              },
+            });
           }
         }
+
+        await demotePartnerIfRoleLeft(tx, updated.id, newRole);
 
         await tx.auditLog.create({
           data: {

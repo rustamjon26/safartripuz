@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { staffFetch } from "../_lib/staffFetch";
 
 type Task = {
   id: string;
@@ -36,7 +37,7 @@ export default function StaffTasksPage() {
   async function load(status = filter) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/staff/tasks?status=${status}`, {
+      const res = await staffFetch(`/api/staff/tasks?status=${status}`, {
         credentials: "include",
       });
       const json = await res.json();
@@ -56,7 +57,7 @@ export default function StaffTasksPage() {
 
   async function syncHk() {
     try {
-      const res = await fetch("/api/staff/tasks/sync", {
+      const res = await staffFetch("/api/staff/tasks/sync", {
         method: "POST",
         credentials: "include",
       });
@@ -73,7 +74,7 @@ export default function StaffTasksPage() {
     const title = window.prompt("Vazifa nomi");
     if (!title?.trim()) return;
     try {
-      const res = await fetch("/api/staff/tasks", {
+      const res = await staffFetch("/api/staff/tasks", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -97,7 +98,7 @@ export default function StaffTasksPage() {
           : null;
     if (!next) return;
     try {
-      const res = await fetch(`/api/staff/tasks/${task.id}`, {
+      const res = await staffFetch(`/api/staff/tasks/${task.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

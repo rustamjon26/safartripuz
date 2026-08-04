@@ -17,6 +17,42 @@ export type StaffContext = {
   displayName: string;
 };
 
+export type StaffProfileView = {
+  firstName: string;
+  lastName: string | null;
+  fullName: string;
+  title: string;
+  role: string;
+  phone: string | null;
+  email: string | null;
+  hotelName: string | null;
+  initials: string;
+  isActive: boolean;
+  tasksDone: number;
+  tasksDoneMonth: number;
+  growth: string;
+  shiftsCompletedMonth: number;
+  /** Legacy HotelStaff.salary in SOM as display string; null if unset. */
+  baseSalaryLabel: string | null;
+};
+
+/** Admin view of a HotelStaff row linked to a User + Hotel. */
+export type AdminHotelStaffView = {
+  id: string;
+  hotelId: string;
+  hotelName: string;
+  userId: string | null;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  role: string;
+  title: string;
+  isActive: boolean;
+  email: string | null;
+  platformRole: string | null;
+  createdAt: string;
+};
+
 export type ShiftView = {
   id: string;
   title: string;

@@ -228,6 +228,98 @@ export class FeedbackRepository {
       negative,
     };
   }
+
+  async reportsWindow(since: Date): Promise<{
+    total: number;
+    avgRating: number;
+    byChannel: Array<{
+      channel: FeedbackTicketView["channel"];
+      avgRating: number;
+      count: number;
+    }>;
+    bodies: Array<{
+      body: string;
+      sentiment: FeedbackTicketView["sentiment"];
+    }>;
+    negativeGroups: Array<{
+      key: string;
+      label: string;
+      count: number;
+      sampleBody: string | null;
+    }>;
+  }> {
+    const where = { createdAt: { gte: since } } satisfies Prisma.FeedbackTicketWhereInput;
+
+    const [total, agg, channelGroups, bodies, negativeTickets] =
+      await Promise.all([
+        prisma.feedbackTicket.count({ where }),
+        prisma.feedbackTicket.aggregate({
+          where,
+          _avg: { rating: true },
+        }),
+        prisma.feedbackTicket.groupBy({
+          by: ["channel"],
+          where,
+          _avg: { rating: true },
+          _count: { _all: true },
+        }),
+        prisma.feedbackTicket.findMany({
+          where: {
+            ...where,
+            sentiment: { in: ["POSITIVE", "NEGATIVE"] },
+          },
+          select: { body: true, sentiment: true },
+          orderBy: { createdAt: "desc" },
+          take: 800,
+        }),
+        prisma.feedbackTicket.findMany({
+          where: { ...where, sentiment: "NEGATIVE" },
+          select: {
+            channel: true,
+            category: true,
+            body: true,
+            serviceLabel: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 400,
+        }),
+      ]);
+
+    const groupMap = new Map<
+      string,
+      { key: string; label: string; count: number; sampleBody: string | null }
+    >();
+    for (const t of negativeTickets) {
+      const key = (t.category?.trim() || t.channel).toLowerCase();
+      const label =
+        t.category?.trim() ||
+        t.serviceLabel?.trim() ||
+        t.channel.charAt(0).toUpperCase() + t.channel.slice(1);
+      const prev = groupMap.get(key);
+      if (!prev) {
+        groupMap.set(key, {
+          key,
+          label,
+          count: 1,
+          sampleBody: t.body,
+        });
+      } else {
+        prev.count += 1;
+      }
+    }
+
+    return {
+      total,
+      avgRating: Math.round((agg._avg.rating ?? 0) * 10) / 10,
+      byChannel: channelGroups.map((g) => ({
+        channel: g.channel,
+        avgRating: Math.round((g._avg.rating ?? 0) * 10) / 10,
+        count: g._count._all,
+      })),
+      bodies,
+      negativeGroups: [...groupMap.values()],
+    };
+  }
 }
 
 export const feedbackRepository = new FeedbackRepository();

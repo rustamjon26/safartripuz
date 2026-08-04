@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, Search } from "lucide-react";
 import { toast } from "sonner";
+import { staffFetch } from "../_lib/staffFetch";
 
 type Thread = {
   id: string;
@@ -24,7 +25,7 @@ export default function StaffMessagesPage() {
     void (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/staff/chat/threads", { credentials: "include" });
+        const res = await staffFetch("/api/staff/chat/threads", { credentials: "include" });
         const json = await res.json();
         if (!res.ok) throw new Error(json.message);
         setItems(json.items ?? []);
