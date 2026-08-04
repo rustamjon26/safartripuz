@@ -1,5 +1,3 @@
-import type { Role } from "@prisma/client";
-
 export type HotelStaffJobRole =
   | "RECEPTION"
   | "CLEANER"
