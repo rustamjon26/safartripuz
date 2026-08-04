@@ -23,14 +23,17 @@ export async function getApprovedPartnerContextByUserId(
   return partner;
 }
 
-type PartnerTx = Prisma.TransactionClient;
+type PartnerDb = Prisma.TransactionClient | typeof prisma;
 
 /**
  * Ensure a user assigned taxi / taxi_partner has an approved taxi Partner row.
- * Converts a partner of another type only when it has no Hotel attached.
+ *
+ * Always sets `type: "taxi"` + `status: "approved"`, including when a Hotel
+ * row is still linked (hotel stays in DB; hotel PMS requires type=hotel so
+ * it becomes inaccessible — matching the new role).
  */
 export async function ensureApprovedTaxiPartner(
-  tx: PartnerTx,
+  tx: PartnerDb,
   input: {
     userId: string;
     displayName: string;
@@ -40,7 +43,6 @@ export async function ensureApprovedTaxiPartner(
 ): Promise<Partner> {
   const existing = await tx.partner.findUnique({
     where: { userId: input.userId },
-    include: { hotel: { select: { id: true } } },
   });
 
   if (!existing) {
@@ -56,16 +58,9 @@ export async function ensureApprovedTaxiPartner(
     });
   }
 
-  if (existing.type === "taxi") {
-    if (existing.status === "approved") return existing;
-    return tx.partner.update({
-      where: { id: existing.id },
-      data: { status: "approved" },
-    });
+  if (existing.type === "taxi" && existing.status === "approved") {
+    return existing;
   }
-
-  // Do not strip a hotel-linked partner — keep data integrity.
-  if (existing.hotel) return existing;
 
   return tx.partner.update({
     where: { id: existing.id },

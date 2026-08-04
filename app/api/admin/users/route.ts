@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { ensureApprovedTaxiPartner } from "@/lib/partner";
 
 const roleSchema = z.enum([
   "super_admin",
@@ -70,7 +71,36 @@ export async function GET(req: Request) {
       prisma.user.count({ where }),
     ]);
 
-    return NextResponse.json({ items, total }, { status: 200 });
+    // Heal: role already taxi but Partner.type stuck on hotel/guide from older assign logic.
+    const healed = await Promise.all(
+      items.map(async (u) => {
+        const isTaxi = u.role === "taxi" || u.role === "taxi_partner";
+        const stale =
+          isTaxi &&
+          u.partnerProfile &&
+          (u.partnerProfile.type !== "taxi" || u.partnerProfile.status !== "approved");
+        if (!stale || !u.partnerProfile) return u;
+
+        const displayName =
+          `${u.first_name} ${u.last_name}`.trim() || u.email;
+        const partner = await ensureApprovedTaxiPartner(prisma, {
+          userId: u.id,
+          displayName,
+          contactEmail: u.email,
+          contactPhone: u.phone,
+        });
+        return {
+          ...u,
+          partnerProfile: {
+            id: partner.id,
+            type: partner.type,
+            status: partner.status,
+          },
+        };
+      }),
+    );
+
+    return NextResponse.json({ items: healed, total }, { status: 200 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") return NextResponse.json({ message: "Unauthorized" }, { status: 401 });

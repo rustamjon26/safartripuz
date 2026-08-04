@@ -30,7 +30,14 @@ export async function requireUser(): Promise<{
 }> {
   const token = await resolveAccessToken();
   if (!token) throw new Error("UNAUTHORIZED");
-  const { sub } = await verifyAccessToken(token);
+
+  let sub: string;
+  try {
+    ({ sub } = await verifyAccessToken(token));
+  } catch {
+    // Expired / malformed JWT → same as missing session (client should refresh).
+    throw new Error("UNAUTHORIZED");
+  }
 
   const u = await prisma.user.findUnique({
     where: { id: sub },
@@ -50,7 +57,13 @@ export async function requireUserWithProfile(): Promise<{
 }> {
   const token = await resolveAccessToken();
   if (!token) throw new Error("UNAUTHORIZED");
-  const { sub } = await verifyAccessToken(token);
+
+  let sub: string;
+  try {
+    ({ sub } = await verifyAccessToken(token));
+  } catch {
+    throw new Error("UNAUTHORIZED");
+  }
 
   const u = await prisma.user.findUnique({
     where: { id: sub },

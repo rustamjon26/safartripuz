@@ -64,6 +64,49 @@
   transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* Nav scrolls; hide the fat system scrollbar on dark rail (admin pattern). */
+.hl-root aside nav,
+.hl-root .hl-nav-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hl-root aside nav::-webkit-scrollbar,
+.hl-root .hl-nav-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Main/content: thin teal-tinted bar instead of default grey. */
+.hl-root .custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(13, 33, 55, 0.28) transparent;
+}
+.hl-root .custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.hl-root .custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hl-root .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(13, 33, 55, 0.22);
+  border-radius: 999px;
+}
+.hl-root .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 33, 55, 0.4);
+}
+/* Dark surfaces (sidebar / drawer): never show a light system bar. */
+.hl-root aside .custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hl-root aside .custom-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .hl-sidebar-desktop {
   display: none;
 }
