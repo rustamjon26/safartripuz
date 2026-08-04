@@ -1,22 +1,61 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { getApprovedPartnerContextByUserId } from "@/lib/partner";
+import {
+  ensureApprovedGuidePartner,
+  getApprovedPartnerContextByUserId,
+} from "@/lib/partner";
 
-export type GuidePartnerActor = { id: string; role: "guide_partner"; partnerId: string };
+export type GuidePartnerActor = {
+  id: string;
+  role: "guide";
+  partnerId: string;
+};
 
+/**
+ * Admin assigns DB role `guide` (Prisma has no guide_partner).
+ * Middleware/UI also mention guide_partner historically — accept both strings
+ * from JWT/DB cast, then ensure Partner.type=guide.
+ */
 export async function requireGuidePartner(): Promise<GuidePartnerActor> {
   const actor = await requireUser();
-  if ((actor.role as string) !== "guide_partner") {
+  const role = actor.role as string;
+  if (role !== "guide" && role !== "guide_partner") {
     throw new Error("FORBIDDEN");
   }
 
-  const partner = await getApprovedPartnerContextByUserId(actor.id, "guide");
+  let partner = await getApprovedPartnerContextByUserId(actor.id, "guide");
+  if (!partner) {
+    const user = await prisma.user.findUnique({
+      where: { id: actor.id },
+      select: {
+        first_name: true,
+        last_name: true,
+        email: true,
+        phone: true,
+      },
+    });
+    if (!user) throw new Error("FORBIDDEN");
+    const displayName =
+      `${user.first_name} ${user.last_name}`.trim() || user.email;
+    await ensureApprovedGuidePartner(prisma, {
+      userId: actor.id,
+      displayName,
+      contactEmail: user.email,
+      contactPhone: user.phone,
+    });
+    partner = await getApprovedPartnerContextByUserId(actor.id, "guide");
+  }
+
   if (!partner) {
     throw new Error("FORBIDDEN");
   }
 
-  return { id: actor.id, role: "guide_partner", partnerId: partner.id };
+  return {
+    id: actor.id,
+    role: "guide",
+    partnerId: partner.id,
+  };
 }
 
 export async function hasActiveListing(guideId: string) {

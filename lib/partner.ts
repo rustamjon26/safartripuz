@@ -73,3 +73,49 @@ export async function ensureApprovedTaxiPartner(
     },
   });
 }
+
+/**
+ * Ensure a user assigned guide / guide_partner has an approved guide Partner.
+ * Mirrors taxi: rewrite Partner.type even when a Hotel row is still linked.
+ */
+export async function ensureApprovedGuidePartner(
+  tx: PartnerDb,
+  input: {
+    userId: string;
+    displayName: string;
+    contactEmail: string | null;
+    contactPhone: string | null;
+  },
+): Promise<Partner> {
+  const existing = await tx.partner.findUnique({
+    where: { userId: input.userId },
+  });
+
+  if (!existing) {
+    return tx.partner.create({
+      data: {
+        userId: input.userId,
+        type: "guide",
+        status: "approved",
+        displayName: input.displayName,
+        contactEmail: input.contactEmail,
+        contactPhone: input.contactPhone,
+      },
+    });
+  }
+
+  if (existing.type === "guide" && existing.status === "approved") {
+    return existing;
+  }
+
+  return tx.partner.update({
+    where: { id: existing.id },
+    data: {
+      type: "guide",
+      status: "approved",
+      displayName: existing.displayName ?? input.displayName,
+      contactEmail: existing.contactEmail ?? input.contactEmail,
+      contactPhone: existing.contactPhone ?? input.contactPhone,
+    },
+  });
+}

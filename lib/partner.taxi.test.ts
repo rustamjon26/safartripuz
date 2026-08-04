@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { ensureApprovedTaxiPartner } from "./partner";
+import {
+  ensureApprovedGuidePartner,
+  ensureApprovedTaxiPartner,
+} from "./partner";
 
 describe("ensureApprovedTaxiPartner", () => {
   it("creates a taxi partner when none exists", async () => {
@@ -62,6 +65,41 @@ describe("ensureApprovedTaxiPartner", () => {
     expect(tx.partner.update).toHaveBeenCalledWith({
       where: { id: "p1" },
       data: expect.objectContaining({ type: "taxi", status: "approved" }),
+    });
+  });
+});
+
+describe("ensureApprovedGuidePartner", () => {
+  it("converts hotel partner type to guide", async () => {
+    const existing = {
+      id: "p2",
+      userId: "u2",
+      type: "hotel" as const,
+      status: "approved" as const,
+      displayName: "Gid",
+      contactEmail: "g@x.com",
+      contactPhone: null,
+    };
+    const updated = { ...existing, type: "guide" as const };
+    const tx = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue(existing),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(updated),
+      },
+    };
+
+    const result = await ensureApprovedGuidePartner(tx as never, {
+      userId: "u2",
+      displayName: "Gid",
+      contactEmail: "g@x.com",
+      contactPhone: null,
+    });
+
+    expect(result.type).toBe("guide");
+    expect(tx.partner.update).toHaveBeenCalledWith({
+      where: { id: "p2" },
+      data: expect.objectContaining({ type: "guide", status: "approved" }),
     });
   });
 });
