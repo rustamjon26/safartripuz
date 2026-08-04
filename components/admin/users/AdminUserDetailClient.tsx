@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { ConfirmModal } from "@/components/admin/ConfirmModal";
+import { AdminUserHotelStaffCard } from "@/components/admin/users/AdminUserHotelStaffCard";
 import type { AdminUserDetail } from "@/lib/admin/getAdminUserDetail";
 import { formatDateTime } from "@/lib/formatDate";
 
@@ -354,6 +355,11 @@ export function AdminUserDetailClient({ data: initial }: Props) {
             </div>
 
             <RoleContextCard data={data} />
+
+            <AdminUserHotelStaffCard
+              userId={data.user.id}
+              userRole={data.user.role}
+            />
 
             <div className="adm-card border-none shadow-xl shadow-slate-200/50">
               <div className="adm-card-header bg-white border-b border-slate-50 px-6 py-4 flex items-center justify-between">

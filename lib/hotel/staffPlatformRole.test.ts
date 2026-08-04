@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  isHotelStaffPlatformRole,
   isProtectedPlatformRole,
   jobRoleToPlatformRole,
+  platformRoleToJobRole,
 } from "./staffPlatformRole";
 
 describe("jobRoleToPlatformRole", () => {
@@ -10,6 +12,23 @@ describe("jobRoleToPlatformRole", () => {
     expect(jobRoleToPlatformRole("RECEPTION")).toBe("receptionist");
     expect(jobRoleToPlatformRole("WAITER")).toBe("waiter");
     expect(jobRoleToPlatformRole("MANAGER")).toBe("hotel_staff");
+  });
+});
+
+describe("platformRoleToJobRole", () => {
+  it("maps staff platform roles back to HotelStaff jobs", () => {
+    expect(platformRoleToJobRole("cleaner")).toBe("CLEANER");
+    expect(platformRoleToJobRole("receptionist")).toBe("RECEPTION");
+    expect(platformRoleToJobRole("waiter")).toBe("WAITER");
+    expect(platformRoleToJobRole("hotel_staff")).toBe("MANAGER");
+  });
+});
+
+describe("isHotelStaffPlatformRole", () => {
+  it("detects frontline staff roles that need a hotel link", () => {
+    expect(isHotelStaffPlatformRole("cleaner")).toBe(true);
+    expect(isHotelStaffPlatformRole("hotel_manager")).toBe(false);
+    expect(isHotelStaffPlatformRole("user")).toBe(false);
   });
 });
 

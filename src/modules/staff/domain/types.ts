@@ -36,6 +36,23 @@ export type StaffProfileView = {
   baseSalaryLabel: string | null;
 };
 
+/** Admin view of a HotelStaff row linked to a User + Hotel. */
+export type AdminHotelStaffView = {
+  id: string;
+  hotelId: string;
+  hotelName: string;
+  userId: string | null;
+  firstName: string;
+  lastName: string | null;
+  phone: string | null;
+  role: string;
+  title: string;
+  isActive: boolean;
+  email: string | null;
+  platformRole: string | null;
+  createdAt: string;
+};
+
 export type ShiftView = {
   id: string;
   title: string;

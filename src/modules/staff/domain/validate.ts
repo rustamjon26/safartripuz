@@ -38,6 +38,58 @@ export const patchStaffProfileSchema = z.object({
   phone: z.string().trim().min(5).max(32).optional().nullable(),
 });
 
+export const hotelStaffJobRoleSchema = z.enum([
+  "RECEPTION",
+  "CLEANER",
+  "WAITER",
+  "MANAGER",
+]);
+
+/** Super-admin: create or link a staff profile to a hotel. */
+export const adminLinkHotelStaffSchema = z
+  .object({
+    userId: z.string().min(1).optional(),
+    email: z.string().trim().email().max(191).optional(),
+    firstName: z.string().trim().min(1).max(100).optional(),
+    lastName: z.string().trim().max(100).optional().nullable(),
+    phone: z.string().trim().max(32).optional().nullable(),
+    role: hotelStaffJobRoleSchema,
+    password: z.string().min(8).max(72).optional(),
+    /** Move user from another hotel if already linked. */
+    reassign: z.boolean().optional().default(false),
+  })
+  .refine((v) => Boolean(v.userId || v.email), {
+    message: "userId yoki email kerak",
+  });
+
+export const adminPatchHotelStaffSchema = z
+  .object({
+    staffId: z.string().min(1),
+    firstName: z.string().trim().min(1).max(100).optional(),
+    lastName: z.string().trim().max(100).optional().nullable(),
+    phone: z.string().trim().max(32).optional().nullable(),
+    role: hotelStaffJobRoleSchema.optional(),
+    isActive: z.boolean().optional(),
+    /** Move this staff row to another hotel. */
+    hotelId: z.string().min(1).optional(),
+  })
+  .refine(
+    (v) =>
+      v.firstName !== undefined ||
+      v.lastName !== undefined ||
+      v.phone !== undefined ||
+      v.role !== undefined ||
+      v.isActive !== undefined ||
+      v.hotelId !== undefined,
+    { message: "Kamida bitta maydon kerak" },
+  );
+
+export const adminLinkUserToHotelSchema = z.object({
+  hotelId: z.string().min(1),
+  role: hotelStaffJobRoleSchema.optional(),
+  reassign: z.boolean().optional().default(true),
+});
+
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(191),
   description: z.string().trim().max(5000).optional(),

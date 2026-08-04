@@ -8,6 +8,11 @@ import {
   ensureApprovedTaxiPartner,
   roleNeedsApprovedPartner,
 } from "@/lib/partner";
+import {
+  isHotelStaffPlatformRole,
+  platformRoleToJobRole,
+} from "@/lib/hotel/staffPlatformRole";
+import { StaffNotFoundError, staffService } from "@/src/modules/staff";
 
 const roleSchema = z.enum([
   "super_admin",
@@ -33,6 +38,8 @@ const createUserSchema = z.object({
   phone: z.string().trim().min(5).max(32),
   role: roleSchema,
   password: z.string().min(8).max(128),
+  /** Optional HotelStaff link for frontline staff roles. */
+  hotelId: z.string().min(1).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -164,7 +171,8 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const { first_name, last_name, email, phone, role, password } = parsed.data;
+    const { first_name, last_name, email, phone, role, password, hotelId } =
+      parsed.data;
 
     // Only super_admin may mint admin-level accounts.
     if (
@@ -172,6 +180,16 @@ export async function POST(req: Request) {
       actor.role !== "super_admin"
     ) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    if (hotelId && !isHotelStaffPlatformRole(role)) {
+      return NextResponse.json(
+        {
+          message:
+            "hotelId faqat cleaner / receptionist / waiter / hotel_staff uchun",
+        },
+        { status: 400 },
+      );
     }
 
     // Check unique
@@ -205,21 +223,41 @@ export async function POST(req: Request) {
       },
     });
 
+    let hotelStaff = null;
+    if (hotelId && isHotelStaffPlatformRole(role)) {
+      hotelStaff = await staffService.adminLinkUserToHotel(user.id, {
+        hotelId,
+        role: platformRoleToJobRole(role),
+        reassign: true,
+      });
+    }
+
     await prisma.auditLog.create({
       data: {
         actorId: actor.id,
         action: "USER_CREATED_BY_ADMIN",
         entity: "User",
         entityId: user.id,
-        newData: { role: user.role, email: user.email },
+        newData: {
+          role: user.role,
+          email: user.email,
+          hotelId: hotelId ?? null,
+          hotelStaffId: hotelStaff?.id ?? null,
+        },
       },
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json({ user, hotelStaff }, { status: 201 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "UNAUTHORIZED") return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     if (msg === "FORBIDDEN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (e instanceof StaffNotFoundError || msg === "HOTEL_NOT_FOUND") {
+      return NextResponse.json(
+        { message: e instanceof Error ? e.message : "Mehmonxona topilmadi" },
+        { status: 404 },
+      );
+    }
     console.error(e);
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }

@@ -1,3 +1,9 @@
+import bcrypt from "bcryptjs";
+import {
+  isProtectedPlatformRole,
+  jobRoleToPlatformRole,
+  platformRoleToJobRole,
+} from "@/lib/hotel/staffPlatformRole";
 import { normalizeUzPhone } from "@/lib/phone";
 import {
   assertShiftTransition,
@@ -7,12 +13,24 @@ import {
   assertTaskTransition,
   StaffTaskStatusError,
 } from "../domain/task-status";
-import type { StaffOpsTaskStatus, StaffShiftStatus } from "../domain/types";
+import type {
+  AdminHotelStaffView,
+  StaffOpsTaskStatus,
+  StaffShiftStatus,
+} from "../domain/types";
 import { staffRepository } from "../repository/staff.repository";
 import {
   resolveStaffContext,
   StaffContextError,
 } from "./staff-context";
+
+function randomTempPassword(): string {
+  return `St@ff${Math.random().toString(36).slice(-8)}`;
+}
+
+function placeholderPhone(): string {
+  return `+998${String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, "0")}`;
+}
 
 export class StaffNotFoundError extends Error {
   constructor(message = "Topilmadi") {
@@ -247,6 +265,194 @@ export class StaffService {
     });
     const detail = await this.getCourse(userId, courseId);
     return { ...detail, progressPct };
+  }
+
+  // ── Super-admin: link staff profiles to hotels ─────────────────────
+
+  async adminListHotelStaff(hotelId: string): Promise<AdminHotelStaffView[]> {
+    const ok = await staffRepository.hotelExists(hotelId);
+    if (!ok) throw new StaffNotFoundError("Mehmonxona topilmadi");
+    return staffRepository.listAdminHotelStaff(hotelId);
+  }
+
+  async adminGetUserHotelStaff(
+    userId: string,
+  ): Promise<AdminHotelStaffView | null> {
+    return staffRepository.findAdminStaffByUserId(userId);
+  }
+
+  async adminListHotelsForSelect() {
+    return staffRepository.listHotelsForAdminSelect();
+  }
+
+  async adminLinkHotelStaff(
+    hotelId: string,
+    input: {
+      userId?: string;
+      email?: string;
+      firstName?: string;
+      lastName?: string | null;
+      phone?: string | null;
+      role: "RECEPTION" | "CLEANER" | "WAITER" | "MANAGER";
+      password?: string;
+      reassign?: boolean;
+    },
+  ): Promise<{
+    staff: AdminHotelStaffView;
+    generatedPassword: string | null;
+    passwordWasGenerated: boolean;
+    createdUser: boolean;
+  }> {
+    const ok = await staffRepository.hotelExists(hotelId);
+    if (!ok) throw new StaffNotFoundError("Mehmonxona topilmadi");
+
+    const platformRole = jobRoleToPlatformRole(input.role);
+    let user = await staffRepository.findUserForStaffLink({
+      userId: input.userId,
+      email: input.email,
+    });
+
+    let createdUser = false;
+    let generatedPassword: string | null = null;
+    let passwordWasGenerated = false;
+
+    if (!user) {
+      if (!input.email) throw new Error("USER_NOT_FOUND");
+      const firstName = input.firstName?.trim();
+      if (!firstName) throw new Error("FIRST_NAME_REQUIRED");
+
+      const rawPassword = input.password?.trim() || randomTempPassword();
+      passwordWasGenerated = !input.password?.trim();
+      generatedPassword = rawPassword;
+      const passwordHash = await bcrypt.hash(rawPassword, 12);
+
+      const phoneNorm = input.phone
+        ? normalizeUzPhone(input.phone) ?? input.phone.trim()
+        : placeholderPhone();
+
+      user = await staffRepository.createUserForStaffLink({
+        email: input.email,
+        firstName,
+        lastName: (input.lastName ?? "").trim(),
+        phone: phoneNorm,
+        passwordHash,
+        platformRole,
+      });
+      createdUser = true;
+    } else if (
+      isProtectedPlatformRole(user.role) &&
+      user.role !== "hotel_manager"
+    ) {
+      // hotel_manager may also have a HotelStaff row for /staff PWA.
+      throw new Error("PROTECTED_USER");
+    }
+
+    const existing = await staffRepository.findAdminStaffByUserId(user.id);
+    if (existing && existing.hotelId !== hotelId && !input.reassign) {
+      throw new Error("USER_OTHER_HOTEL");
+    }
+
+    const firstName =
+      input.firstName?.trim() || user.first_name || "Xodim";
+    const lastName =
+      input.lastName !== undefined
+        ? input.lastName
+        : user.last_name || null;
+    const phone =
+      input.phone !== undefined
+        ? input.phone
+          ? normalizeUzPhone(input.phone) ?? input.phone.trim()
+          : null
+        : user.phone;
+
+    if (input.password?.trim() && !createdUser) {
+      // Password changes stay on dedicated admin password endpoint.
+    }
+
+    const staff = await staffRepository.adminUpsertHotelStaffLink({
+      hotelId,
+      userId: user.id,
+      firstName,
+      lastName: lastName ? String(lastName) : null,
+      phone,
+      jobRole: input.role,
+      platformRole,
+      syncPlatformRole: !isProtectedPlatformRole(user.role),
+      existingStaffId: existing?.id ?? null,
+    });
+
+    return {
+      staff,
+      generatedPassword,
+      passwordWasGenerated,
+      createdUser,
+    };
+  }
+
+  async adminLinkUserToHotel(
+    userId: string,
+    input: {
+      hotelId: string;
+      role?: "RECEPTION" | "CLEANER" | "WAITER" | "MANAGER";
+      reassign?: boolean;
+    },
+  ): Promise<AdminHotelStaffView> {
+    const user = await staffRepository.findUserForStaffLink({ userId });
+    if (!user) throw new StaffNotFoundError("Foydalanuvchi topilmadi");
+    if (isProtectedPlatformRole(user.role) && user.role !== "hotel_manager") {
+      throw new Error("PROTECTED_USER");
+    }
+
+    const jobRole = input.role ?? platformRoleToJobRole(user.role);
+    const result = await this.adminLinkHotelStaff(input.hotelId, {
+      userId,
+      role: jobRole,
+      firstName: user.first_name,
+      lastName: user.last_name || null,
+      phone: user.phone,
+      reassign: input.reassign ?? true,
+    });
+    return result.staff;
+  }
+
+  async adminPatchHotelStaff(input: {
+    staffId: string;
+    firstName?: string;
+    lastName?: string | null;
+    phone?: string | null;
+    role?: "RECEPTION" | "CLEANER" | "WAITER" | "MANAGER";
+    isActive?: boolean;
+    hotelId?: string;
+  }): Promise<AdminHotelStaffView> {
+    const existing = await staffRepository.findAdminStaffById(input.staffId);
+    if (!existing) throw new StaffNotFoundError("Xodim topilmadi");
+
+    const platformRole = input.role
+      ? jobRoleToPlatformRole(input.role)
+      : undefined;
+    const syncPlatformRole = Boolean(
+      platformRole &&
+        existing.platformRole &&
+        !isProtectedPlatformRole(existing.platformRole),
+    );
+
+    return staffRepository.adminPatchHotelStaff({
+      staffId: input.staffId,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone,
+      role: input.role,
+      isActive: input.isActive,
+      hotelId: input.hotelId,
+      platformRole,
+      syncPlatformRole,
+    });
+  }
+
+  async adminUnlinkHotelStaff(staffId: string): Promise<void> {
+    const existing = await staffRepository.findAdminStaffById(staffId);
+    if (!existing) throw new StaffNotFoundError("Xodim topilmadi");
+    await staffRepository.adminUnlinkHotelStaff(staffId);
   }
 }
 
