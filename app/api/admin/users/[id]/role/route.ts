@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { ensureApprovedTaxiPartner } from "@/lib/partner";
+import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
 
 const schema = z.object({
   role: z.enum([
@@ -91,32 +92,15 @@ export async function PATCH(
       const newRole = user.role;
 
       if (newRole === "hotel_manager") {
-        const existingPartner = await tx.partner.findUnique({
-          where: { userId: user.id },
-        });
-        if (!existingPartner) {
-          const partner = await tx.partner.create({
-            data: {
-              userId: user.id,
-              type: "hotel",
-              status: "approved",
-              displayName,
-              contactEmail: user.email,
-              contactPhone: user.phone,
-            },
-          });
-          await tx.hotel.create({
-            data: {
-              partnerId: partner.id,
-              status: "active",
-              name: `${displayName} Hotel`,
-              totalRooms: 10,
-              city: "",
-              contactEmail: user.email,
-              contactPhone: user.phone,
-            },
-          });
-        }
+        await ensureApprovedHotelManagerSetup(
+          {
+            userId: user.id,
+            displayName,
+            contactEmail: user.email,
+            contactPhone: user.phone,
+          },
+          tx,
+        );
       }
 
       if (newRole === "guide") {

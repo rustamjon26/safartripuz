@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { ensureApprovedTaxiPartner } from "@/lib/partner";
+import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
 
 const roleSchema = z.enum([
   "super_admin",
@@ -111,30 +112,15 @@ export async function PATCH(
         const newRole = updated.role;
 
         if (newRole === "hotel_manager") {
-          const existing = await tx.partner.findUnique({ where: { userId: updated.id } });
-          if (!existing) {
-            const partner = await tx.partner.create({
-              data: {
-                userId: updated.id,
-                type: "hotel",
-                status: "approved",
-                displayName,
-                contactEmail: updated.email,
-                contactPhone: updated.phone,
-              },
-            });
-            await tx.hotel.create({
-              data: {
-                partnerId: partner.id,
-                status: "active",
-                name: `${displayName} Hotel`,
-                totalRooms: 10,
-                city: "",
-                contactEmail: updated.email,
-                contactPhone: updated.phone,
-              },
-            });
-          }
+          await ensureApprovedHotelManagerSetup(
+            {
+              userId: updated.id,
+              displayName,
+              contactEmail: updated.email,
+              contactPhone: updated.phone,
+            },
+            tx,
+          );
         }
 
         if (newRole === "guide") {
