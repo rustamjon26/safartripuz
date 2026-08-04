@@ -15,10 +15,12 @@ export type {
   FeedbackReplyView,
   ListFeedbackFilter,
   FeedbackOverview,
+  FeedbackReportsView,
 } from "./domain/types";
 export {
   listFeedbackQuerySchema,
   replyBodySchema,
   patchTicketSchema,
   ingestFeedbackSchema,
+  reportsQuerySchema,
 } from "./domain/validate";
