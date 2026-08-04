@@ -65,3 +65,24 @@ export async function PATCH(
     return NextResponse.json({ message: msg }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _req: Request,
+  ctx: RouteCtx,
+): Promise<NextResponse> {
+  try {
+    await requireRole(["admin", "super_admin"]);
+    const { id } = await ctx.params;
+    const deleted = await knowledgeService.deleteSite(id);
+    return NextResponse.json({ ok: true, item: deleted });
+  } catch (e) {
+    const auth = authError(e);
+    if (auth) return auth;
+    const msg = e instanceof Error ? e.message : "Server xatosi";
+    if (msg.startsWith("Site not found:")) {
+      return NextResponse.json({ message: "Topilmadi" }, { status: 404 });
+    }
+    console.error("[admin/knowledge/sites/:id DELETE]", e);
+    return NextResponse.json({ message: msg }, { status: 500 });
+  }
+}

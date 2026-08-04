@@ -8,9 +8,11 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Edit2,
   Loader2,
   Plus,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -85,6 +87,7 @@ export default function AdminKnowledgePage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -170,6 +173,27 @@ export default function AdminKnowledgePage() {
     }
   }
 
+  async function handleDelete(row: SiteRow) {
+    const ok = window.confirm(
+      `"${row.name}" ni o'chirib tashlamoqchimisiz?\nBu amalni qaytarib bo'lmaydi.`,
+    );
+    if (!ok) return;
+    setDeletingId(row.id);
+    try {
+      const res = await fetch(`/api/admin/knowledge/sites/${row.id}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(data.message ?? "O'chirib bo'lmadi");
+      toast.success("O'chirildi");
+      void load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "O'chirib bo'lmadi");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -247,18 +271,19 @@ export default function AdminKnowledgePage() {
               <th className="px-4 py-3 font-medium">Tur</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Prominence</th>
+              <th className="px-4 py-3 font-medium text-right">Amallar</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                   <Loader2 className="inline animate-spin" size={18} />
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
                   Hech narsa topilmadi
                 </td>
               </tr>
@@ -288,6 +313,32 @@ export default function AdminKnowledgePage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {row.prominence ?? "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Link
+                        href={`/admin/knowledge/${row.id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-colors"
+                        title="Tahrirlash"
+                      >
+                        <Edit2 size={14} />
+                        Tahrir
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(row)}
+                        disabled={deletingId === row.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-colors disabled:opacity-50"
+                        title="O'chirish"
+                      >
+                        {deletingId === row.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                        O&apos;chirish
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
