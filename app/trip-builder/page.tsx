@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
-  Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind,
-  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building, Tent,
+  Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind, Cloud, Snowflake,
+  ChevronRight, ShoppingBag, Compass, Landmark, Trees, Mountain, Building, Building2, Tent,
   Send, Rocket, Eye, Hotel,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,11 +21,22 @@ import {
   languageLabel,
   taxiServiceTypeLabel,
 } from "@/lib/displayHelpers";
+import type { WeatherAdvice, WeatherAdviceKind } from "@/lib/weather/openWeather";
 import {
   coverageHint,
   fetchTripAiPlan,
   type TripAiPlan,
 } from "./tripAiClient";
+
+const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+
+function weatherIcon(kind: WeatherAdviceKind) {
+  if (kind === "sun") return Sun;
+  if (kind === "rain") return CloudRain;
+  if (kind === "snow") return Snowflake;
+  if (kind === "wind") return Wind;
+  return Cloud;
+}
 
 const DestinationPreviewMap = dynamic(
   () => import("@/components/trip-builder/DestinationPreviewMap"),
@@ -162,6 +173,9 @@ export default function TripBuilderPage() {
   }, [aiChat, aiLoading, tripAiLoading]);
 
   const [cartBash, setCartBash] = useState(false);
+  const [weather, setWeather] = useState<WeatherAdvice | null>(null);
+  const [weatherLive, setWeatherLive] = useState(false);
+  const [weatherLoading, setWeatherLoading] = useState(false);
 
   useEffect(() => {
     async function loadDestinations() {
@@ -210,6 +224,57 @@ export default function TripBuilderPage() {
       } finally { setLoadingInv(false); }
     }
     void fetchInventory();
+  }, [destination]);
+
+  useEffect(() => {
+    if (!destination) {
+      setWeather(null);
+      setWeatherLive(false);
+      setWeatherLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadWeather() {
+      setWeatherLoading(true);
+      try {
+        const res = await fetch(
+          `/api/weather?dest=${encodeURIComponent(destination)}`,
+          { credentials: "include", cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          live?: boolean;
+          advice?: WeatherAdvice;
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !data.advice) {
+          setWeather(null);
+          setWeatherLive(false);
+          return;
+        }
+        setWeather(data.advice);
+        setWeatherLive(Boolean(data.live));
+      } catch {
+        if (!cancelled) {
+          setWeather(null);
+          setWeatherLive(false);
+        }
+      } finally {
+        if (!cancelled) setWeatherLoading(false);
+      }
+    }
+
+    void loadWeather();
+    const timer = window.setInterval(() => {
+      void loadWeather();
+    }, WEATHER_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [destination]);
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
@@ -727,20 +792,8 @@ export default function TripBuilderPage() {
     );
   }
 
-  const getWeatherAdvice = () => {
-    if (!destination) return null;
-    const dest = destination.toLowerCase();
-    if (dest === "zomin" || dest === "chimyon" || dest.includes("tog")) {
-      return { icon: Wind, tip: `Tog'li muhit. ${destination} qishda sovuq, yozda salqin bo'ladi. Issiqroq kiyim olishni unutmang.`, temp: "+12°C" };
-    }
-    if (dest === "samarqand" || dest === "buxoro" || dest === "xiva") {
-      return { icon: Sun, tip: "Havo quruq va issiq. Qulay yozgi kiyim, bosh kiyim va suv zaxirasini olish maslahat beriladi.", temp: "+28°C" };
-    }
-    return { icon: CloudRain, tip: "O'zgaruvchan havo kutilmoqda. Safar sanasida ob-havoni tekshiring.", temp: "+20°C" };
-  };
-
-  const weather = getWeatherAdvice();
   const hasServices = !!(selectedHotel || selectedHomestay || selectedTaxi || selectedGuide);
+  const WeatherIcon = weather ? weatherIcon(weather.kind) : Cloud;
   const stepIndex = TABS.findIndex((t) => t.id === activeTab);
 
   const readinessPct = Math.min(
@@ -1180,19 +1233,39 @@ export default function TripBuilderPage() {
   function renderMainPanel() {
     return (
       <div className="bg-white rounded-[2rem] border border-gray-200 p-4 sm:p-8 min-h-[400px] transition-all relative overflow-hidden w-full">
-        {destination && weather && (
+        {destination && (weather || weatherLoading) ? (
           <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-2xl flex gap-4 items-start animate-in slide-in-from-top-4">
             <div className="w-11 h-11 bg-white border border-sky-200 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <weather.icon size={22} className="text-sky-500" />
+              {weatherLoading && !weather ? (
+                <Loader2 size={22} className="text-sky-500 animate-spin" />
+              ) : (
+                <WeatherIcon size={22} className="text-sky-500" />
+              )}
             </div>
-            <div>
-              <h3 className="font-black text-gray-900 text-sm mb-1">
-                {destination} — {weather.temp}
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{weather.tip}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h3 className="font-black text-gray-900 text-sm">
+                  {destination}
+                  {weather ? ` — ${weather.tempLabel}` : weatherLoading ? " — …" : ""}
+                </h3>
+                {weather ? (
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      weatherLive
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {weatherLive ? "Jonli" : "Taxminiy"}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {weather ? weather.tip : "Ob-havo yuklanmoqda…"}
+              </p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {activeTab === "basics" && (
           <div>
