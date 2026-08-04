@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   Plus,
-  Search,
   UserCircle2,
   X,
 } from "lucide-react";
@@ -41,7 +40,6 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function loadMe() {
@@ -93,14 +91,8 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.label ||
     "Taxi";
 
-  const searchPlaceholder =
-    pathname.startsWith("/taxi-partner/vehicles")
-      ? "Avtomobil qidirish..."
-      : pathname.startsWith("/taxi-partner/earnings")
-        ? "Tranzaksiyalarni qidirish..."
-        : pathname.startsWith("/taxi-partner/orders")
-          ? "Safarni qidirish..."
-          : "Qidiruv...";
+  const roleLabel =
+    user?.role === "taxi_partner" ? "Fleet Partner" : "Taxi Hamkor";
 
   function renderSidebar(mobile = false) {
     return (
@@ -128,7 +120,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           ) : null}
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav className="tp-nav-scroll flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
@@ -217,8 +209,8 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
       ) : null}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-[64px] border-b border-[#d8e3fb] bg-white/85 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-10">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="h-[64px] border-b border-[#d8e3fb]/80 bg-white/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               type="button"
               className="lg:hidden p-2 text-[#64748B] hover:bg-[#f0f3ff] rounded-lg"
@@ -228,7 +220,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
             </button>
             <div className="min-w-0">
               <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#94A3B8] leading-none mb-1">
-                Fleet Partner
+                Taxi Partner
               </div>
               <div className="text-[15px] font-display font-bold text-[#0d2137] leading-none truncate">
                 {currentTitle}
@@ -236,54 +228,30 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
             </div>
           </div>
 
-          <div className="hidden md:flex flex-1 max-w-md mx-4">
-            <div className="relative w-full">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
-                  const q = search.trim();
-                  if (!q) return;
-                  if (pathname.startsWith("/taxi-partner/vehicles")) {
-                    router.push(`/taxi-partner/vehicles?q=${encodeURIComponent(q)}`);
-                  } else if (pathname.startsWith("/taxi-partner/earnings")) {
-                    router.push(`/taxi-partner/earnings?q=${encodeURIComponent(q)}`);
-                  } else {
-                    router.push(`/taxi-partner/orders?q=${encodeURIComponent(q)}`);
-                  }
-                }}
-                placeholder={searchPlaceholder}
-                className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#f0f3ff] border-0 text-[12px] font-[family-name:var(--font-sora)] font-semibold text-[#111c2d] outline-none focus:ring-2 focus:ring-[#006781]/25"
-              />
-            </div>
-          </div>
-
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               type="button"
-              className="relative p-2.5 rounded-xl border border-[#d8e3fb] text-[#64748B] hover:bg-[#f9f9ff]"
+              className="p-2 text-[#64748B] hover:text-[#0d2137] hover:bg-[#f0f3ff] rounded-full transition-colors"
+              title="Bildirishnomalar"
+              aria-label="Bildirishnomalar"
             >
-              <Bell size={18} />
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#F43F5E] rounded-full border border-white" />
+              <Bell size={18} strokeWidth={2.5} />
             </button>
-            <Link href="/taxi-partner/orders" className="tp-btn tp-btn-primary hidden sm:inline-flex">
-              <ClipboardList size={14} />
-              Safarlar
-            </Link>
+
+            <div className="w-px h-6 bg-[#d8e3fb] hidden sm:block" />
+
             <Link
               href="/taxi-partner/profile"
-              className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2.5 pl-0.5 hover:opacity-90 transition-opacity"
               title="Profil"
               aria-label="Profil"
             >
-              <div className="text-right leading-tight">
-                <div className="text-[12px] font-semibold text-[#111c2d]">
+              <div className="hidden sm:block text-right leading-tight">
+                <div className="text-[13px] font-semibold text-[#111c2d]">
                   {user?.first_name || "Driver"}
                 </div>
-                <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide">
-                  Fleet Driver
+                <div className="text-[11px] font-medium text-[#64748B]">
+                  {roleLabel}
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white font-bold flex items-center justify-center text-sm">
