@@ -174,25 +174,6 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           )}
         </div>
 
-        {/* Role Switcher (Simulation - ONLY for Real Managers) */}
-        {isOwner && !user?.hotelStaff && !collapsed && (
-          <div className="px-4 py-3 bg-black/20 border-b border-white/10">
-            <label className="block text-[9px] font-[family-name:var(--font-sora)] font-semibold text-white/40 uppercase mb-1 tracking-widest pl-1">
-              {t("common.roles.view_auth_sim")}
-            </label>
-            <select
-              value={normalizeHotelNavRole(undefined, user.role)}
-              onChange={(e) => setUser({ ...user, role: e.target.value })}
-              className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-white/15 bg-[#0d2137] text-white outline-none focus:border-[#006781]"
-            >
-              <option value="hotel_manager">{t("common.roles.hotel_manager")}</option>
-              <option value="receptionist">{t("common.roles.receptionist")}</option>
-              <option value="cleaner">{t("common.roles.cleaner")}</option>
-              <option value="waiter">{t("common.roles.waiter")}</option>
-            </select>
-          </div>
-        )}
-
         {/* Nav with Groups */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
           {visibleGroups.map((group, idx) => (
