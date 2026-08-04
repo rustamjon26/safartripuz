@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  demotePartnerIfRoleLeft,
   ensureApprovedGuidePartner,
   ensureApprovedTaxiPartner,
+  roleNeedsApprovedPartner,
 } from "./partner";
 
 describe("ensureApprovedTaxiPartner", () => {
@@ -66,6 +68,34 @@ describe("ensureApprovedTaxiPartner", () => {
       where: { id: "p1" },
       data: expect.objectContaining({ type: "taxi", status: "approved" }),
     });
+  });
+});
+
+describe("demotePartnerIfRoleLeft", () => {
+  it("demotes approved partner when role becomes support", async () => {
+    const tx = {
+      partner: {
+        findUnique: vi.fn().mockResolvedValue({ id: "p9", status: "approved" }),
+        update: vi.fn().mockResolvedValue({ id: "p9", status: "pending" }),
+      },
+    };
+    await demotePartnerIfRoleLeft(tx as never, "u9", "support");
+    expect(roleNeedsApprovedPartner("support")).toBe(false);
+    expect(tx.partner.update).toHaveBeenCalledWith({
+      where: { id: "p9" },
+      data: { status: "pending" },
+    });
+  });
+
+  it("no-ops for taxi roles", async () => {
+    const tx = {
+      partner: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    await demotePartnerIfRoleLeft(tx as never, "u9", "taxi");
+    expect(tx.partner.findUnique).not.toHaveBeenCalled();
   });
 });
 

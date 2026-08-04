@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import {
+  demotePartnerIfRoleLeft,
   ensureApprovedGuidePartner,
   ensureApprovedTaxiPartner,
 } from "@/lib/partner";
@@ -157,8 +158,21 @@ export async function PATCH(
                 contactPhone: updated.phone,
               },
             });
+          } else if (existing.status !== "approved" || existing.type !== "hotel") {
+            await tx.partner.update({
+              where: { id: existing.id },
+              data: {
+                type: "hotel",
+                status: "approved",
+                displayName: existing.displayName ?? displayName,
+                contactEmail: existing.contactEmail ?? updated.email,
+                contactPhone: existing.contactPhone ?? updated.phone,
+              },
+            });
           }
         }
+
+        await demotePartnerIfRoleLeft(tx, updated.id, newRole);
 
         await tx.auditLog.create({
           data: {

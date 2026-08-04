@@ -74,6 +74,43 @@ export async function ensureApprovedTaxiPartner(
   });
 }
 
+/** Roles that should keep an approved Partner row. */
+export function roleNeedsApprovedPartner(role: string): boolean {
+  return (
+    role === "taxi" ||
+    role === "taxi_partner" ||
+    role === "hotel_manager" ||
+    role === "guide" ||
+    role === "guide_partner" ||
+    role === "home_stay_partner" ||
+    role === "restaurant_manager"
+  );
+}
+
+/**
+ * When admin moves a user off partner roles (e.g. taxi → support), demote
+ * Partner.status so list Holat / partner APIs stop treating them as approved.
+ * Keeps the Partner row + hotel/listings for history (no delete).
+ */
+export async function demotePartnerIfRoleLeft(
+  tx: PartnerDb,
+  userId: string,
+  newRole: string,
+): Promise<void> {
+  if (roleNeedsApprovedPartner(newRole)) return;
+
+  const existing = await tx.partner.findUnique({
+    where: { userId },
+    select: { id: true, status: true },
+  });
+  if (!existing || existing.status !== "approved") return;
+
+  await tx.partner.update({
+    where: { id: existing.id },
+    data: { status: "pending" },
+  });
+}
+
 /**
  * Ensure a user assigned guide / guide_partner has an approved guide Partner.
  * Mirrors taxi: rewrite Partner.type even when a Hotel row is still linked.

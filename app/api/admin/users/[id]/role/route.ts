@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import {
+  demotePartnerIfRoleLeft,
   ensureApprovedGuidePartner,
   ensureApprovedTaxiPartner,
 } from "@/lib/partner";
@@ -139,8 +140,24 @@ export async function PATCH(
               contactPhone: user.phone,
             },
           });
+        } else if (
+          existingPartner.status !== "approved" ||
+          existingPartner.type !== "hotel"
+        ) {
+          await tx.partner.update({
+            where: { id: existingPartner.id },
+            data: {
+              type: "hotel",
+              status: "approved",
+              displayName: existingPartner.displayName ?? displayName,
+              contactEmail: existingPartner.contactEmail ?? user.email,
+              contactPhone: existingPartner.contactPhone ?? user.phone,
+            },
+          });
         }
       }
+
+      await demotePartnerIfRoleLeft(tx, user.id, newRole);
 
       await tx.auditLog.create({
         data: {

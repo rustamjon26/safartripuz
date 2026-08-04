@@ -66,24 +66,38 @@ const ROLE_LABELS: Record<Role, string> = {
   hotel_staff: "Hotel Staff",
 };
 
-/** Holat column — prefer role so stale Partner.type (e.g. hotel after taxi assign) never misleads. */
+/**
+ * Holat = current User.role channel (not Partner.type).
+ * Never fall back to partnerProfile — after taxi→support the Partner row
+ * can still say "taxi" and mislead admins.
+ */
 function holatLabel(u: UserRow): { text: string; className: string } {
-  if (u.role === "home_stay_partner") {
-    return { text: "Uy Mehmonxona", className: "text-purple-600" };
+  switch (u.role) {
+    case "home_stay_partner":
+      return { text: "Uy Mehmonxona", className: "text-purple-600" };
+    case "taxi":
+    case "taxi_partner":
+      return { text: "Taxi", className: "text-teal-600" };
+    case "hotel_manager":
+      return { text: "Hotel", className: "text-teal-600" };
+    case "guide":
+      return { text: "Guide", className: "text-teal-600" };
+    case "restaurant_manager":
+      return { text: "Restoran", className: "text-teal-600" };
+    case "support":
+      return { text: "Support", className: "text-sky-600" };
+    case "admin":
+    case "super_admin":
+      return { text: "Admin", className: "text-slate-700" };
+    case "cleaner":
+    case "receptionist":
+    case "waiter":
+    case "hotel_staff":
+      return { text: "Xodim", className: "text-slate-500" };
+    case "user":
+    default:
+      return { text: "Oddiy", className: "text-slate-300" };
   }
-  if (u.role === "taxi" || u.role === "taxi_partner") {
-    return { text: "Taxi", className: "text-teal-600" };
-  }
-  if (u.role === "hotel_manager") {
-    return { text: "Hotel", className: "text-teal-600" };
-  }
-  if (u.role === "guide") {
-    return { text: "Guide", className: "text-teal-600" };
-  }
-  if (u.partnerProfile) {
-    return { text: u.partnerProfile.type, className: "text-teal-600" };
-  }
-  return { text: "Oddiy", className: "text-slate-300" };
 }
 
 export default function AdminUsersPage() {
