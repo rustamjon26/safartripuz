@@ -107,7 +107,12 @@ export function AdminSidebarNav({
           Yordam / Sozlamalar
         </Link>
 
-        <div className="adm-user-card">
+        <Link
+          href="/admin/settings"
+          onClick={() => onNavigate?.()}
+          className="adm-user-card"
+          title="Sozlamalar / akkaunt"
+        >
           <div className="adm-user-avatar">{initials}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="adm-user-name">
@@ -115,7 +120,7 @@ export function AdminSidebarNav({
             </div>
             <div className="adm-user-role">{user?.role ?? "Super Admin"}</div>
           </div>
-        </div>
+        </Link>
         <button type="button" className="adm-logout-btn" onClick={() => void onLogout()}>
           <LogOut size={16} />
           Chiqish

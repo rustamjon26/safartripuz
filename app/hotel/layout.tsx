@@ -263,7 +263,11 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           >
             {showText ? (
               <>
-                <div className="flex items-center gap-3 min-w-0">
+                <Link
+                  href="/hotel/profile"
+                  className="flex items-center gap-3 min-w-0 hover:opacity-90 transition-opacity"
+                  title="Profil"
+                >
                   <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
                     {initials}
                   </div>
@@ -275,7 +279,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
                       {user?.email || "hotel@safartrip.uz"}
                     </div>
                   </div>
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
@@ -286,12 +290,14 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
               </>
             ) : (
               <>
-                <div
-                  className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm"
+                <Link
+                  href="/hotel/profile"
+                  className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm hover:brightness-110"
                   title="Profil"
+                  aria-label="Profil"
                 >
                   {initials}
-                </div>
+                </Link>
                 <button
                   type="button"
                   onClick={() => void handleLogout()}

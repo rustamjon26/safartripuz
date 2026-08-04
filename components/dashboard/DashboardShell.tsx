@@ -271,7 +271,11 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2">
+        <Link
+          href="/profile"
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
+        >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
             {initials}
           </div>
@@ -281,7 +285,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             </div>
             <div className="text-xs text-gray-500 truncate">{user?.email}</div>
           </div>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={() => void handleLogout()}
@@ -379,9 +383,14 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 />
               ) : null}
 
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20">
+              <Link
+                href="/profile"
+                title="Mening profilim"
+                aria-label="Mening profilim"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
                 {initials}
-              </div>
+              </Link>
             </div>
           </div>
 

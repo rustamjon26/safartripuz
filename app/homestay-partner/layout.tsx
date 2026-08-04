@@ -127,7 +127,11 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
       </nav>
 
       <div className="border-t border-slate-200/80 p-4 bg-slate-50/50">
-        <div className="flex items-center gap-3 mb-3">
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 mb-3 hover:opacity-90 transition-opacity"
+          title="Profil"
+        >
           <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0">
             {initials}
           </div>
@@ -139,7 +143,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
               {user?.email || "host@safartrip.uz"}
             </div>
           </div>
-        </div>
+        </Link>
         <button
           onClick={() => void handleLogout()}
           className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors text-sm font-bold"

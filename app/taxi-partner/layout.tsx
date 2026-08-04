@@ -164,17 +164,23 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
             Yordam
           </Link>
           <div className="flex items-center gap-3 px-1 pt-1">
-            <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-semibold text-white truncate">
-                {user ? `${user.first_name} ${user.last_name}` : "Driver"}
+            <Link
+              href="/taxi-partner/profile"
+              className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
+              title="Profil"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                {initials}
               </div>
-              <div className="text-[10px] text-white/45 truncate">
-                {user?.email || "driver@safartrip.uz"}
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-white truncate">
+                  {user ? `${user.first_name} ${user.last_name}` : "Driver"}
+                </div>
+                <div className="text-[10px] text-white/45 truncate">
+                  {user?.email || "driver@safartrip.uz"}
+                </div>
               </div>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => void handleLogout()}
@@ -263,7 +269,12 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
               <ClipboardList size={14} />
               Safarlar
             </Link>
-            <div className="hidden sm:flex items-center gap-2 pl-1">
+            <Link
+              href="/taxi-partner/profile"
+              className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
+              title="Profil"
+              aria-label="Profil"
+            >
               <div className="text-right leading-tight">
                 <div className="text-[12px] font-semibold text-[#111c2d]">
                   {user?.first_name || "Driver"}
@@ -275,7 +286,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
               <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white font-bold flex items-center justify-center text-sm">
                 {initials}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 
