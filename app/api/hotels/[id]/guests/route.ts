@@ -65,10 +65,16 @@ export async function GET(
 
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Seans muddati tugagan. Qayta kiring." },
+        { status: 401 },
+      );
     }
     if (msg === "FORBIDDEN") {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Bu amal uchun ruxsat yo'q." },
+        { status: 403 },
+      );
     }
 
     console.error("Hotel guests GET error:", e);
@@ -109,10 +115,16 @@ export async function POST(
 
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Seans muddati tugagan. Qayta kiring." },
+        { status: 401 },
+      );
     }
     if (msg === "FORBIDDEN") {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, error: "Bu amal uchun ruxsat yo'q." },
+        { status: 403 },
+      );
     }
 
     console.error("Hotel guests POST error:", e);
