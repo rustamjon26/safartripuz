@@ -304,22 +304,22 @@ a.adm-user-card:hover {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 12px;
   border-radius: 10px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  background: rgba(244, 63, 94, 0.12);
+  color: #fda4af;
   font-family: var(--font-sora), sans-serif;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: var(--adm-transition);
 }
 
 .adm-logout-btn:hover {
-  background: rgba(244, 63, 94, 0.12);
-  color: #fda4af;
-  border-color: transparent;
+  background: rgba(244, 63, 94, 0.22);
+  color: #fecdd3;
+  border-color: rgba(244, 63, 94, 0.45);
 }
 
 /* ============================================

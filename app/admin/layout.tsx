@@ -23,6 +23,8 @@ import {
   BookOpen,
   Shield,
   Search,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { DirectionsCarIcon } from "@/components/admin/taxi/DirectionsCarIcon";
 import { ExploreMapIcon } from "@/components/admin/guide/ExploreMapIcon";
@@ -83,9 +85,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [user, setUser] = useState<AdminUser | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [notifyDots, setNotifyDots] = useState({ taxi: false, guide: false, homestay: false });
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarCacheRef = useRef<{ fetchedAt: number; data: SidebarCountsPayload | null }>({
     fetchedAt: 0,
     data: null,
@@ -167,7 +171,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     queueMicrotask(() => setSidebarOpen(false));
   }, [pathname]);
 
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (!accountMenuRef.current?.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAccountMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountMenuOpen]);
+
   async function handleLogout() {
+    setAccountMenuOpen(false);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {
@@ -285,22 +308,67 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Settings size={18} />
             </Link>
 
-            <Link
-              href="/admin/settings"
-              className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
-              title="Sozlamalar / akkaunt"
-              aria-label="Sozlamalar"
-            >
-              <div className="text-right leading-tight">
-                <div className="text-[12px] font-semibold text-[#111c2d]">
-                  {user ? `${user.first_name}` : "Admin"}
+            <div className="relative" ref={accountMenuRef}>
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((o) => !o)}
+                className="flex items-center gap-2 pl-1 rounded-xl hover:bg-[#f0f3ff] py-1 pr-1.5 transition-colors"
+                title="Akkaunt menyusi"
+                aria-label="Akkaunt menyusi"
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+              >
+                <div className="hidden sm:block text-right leading-tight">
+                  <div className="text-[12px] font-semibold text-[#111c2d]">
+                    {user ? `${user.first_name}` : "Admin"}
+                  </div>
+                  <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide">
+                    {user?.role === "super_admin" ? "Super Admin" : "Boshqaruvchi"}
+                  </div>
                 </div>
-                <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide">
-                  {user?.role === "super_admin" ? "Super Admin" : "Boshqaruvchi"}
+                <div className="adm-user-avatar">{initials}</div>
+                <ChevronDown
+                  size={14}
+                  className={`text-[#94A3B8] transition-transform ${accountMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {accountMenuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 rounded-2xl border border-[#d8e3fb] bg-white p-1.5 shadow-xl shadow-slate-900/10"
+                >
+                  <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
+                    <div className="text-[13px] font-semibold text-[#111c2d] truncate">
+                      {user
+                        ? `${user.first_name} ${user.last_name}`.trim()
+                        : "Admin"}
+                    </div>
+                    <div className="text-[11px] text-[#94A3B8] truncate">
+                      {user?.email ?? "—"}
+                    </div>
+                  </div>
+                  <Link
+                    href="/admin/settings"
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-[#334155] hover:bg-[#f0f3ff]"
+                  >
+                    <Settings size={15} />
+                    Sozlamalar
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void handleLogout()}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    <LogOut size={15} />
+                    Chiqish
+                  </button>
                 </div>
-              </div>
-              <div className="adm-user-avatar">{initials}</div>
-            </Link>
+              ) : null}
+            </div>
           </div>
         </header>
 
