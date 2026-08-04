@@ -37,6 +37,26 @@
 .gp-badge-cancel { background: rgba(244, 63, 94, 0.12); color: #e11d48; }
 .gp-badge-muted { background: #f0f3ff; color: #64748b; }
 
+.gp-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--gp-line);
+  background: #f9f9ff;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gp-ink);
+  outline: none;
+}
+.gp-input:focus {
+  border-color: var(--gp-teal);
+  box-shadow: 0 0 0 3px rgba(0, 103, 129, 0.12);
+}
+.gp-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .gp-btn {
   display: inline-flex;
   align-items: center;

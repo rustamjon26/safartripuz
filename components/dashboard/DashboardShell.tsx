@@ -27,7 +27,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
-import { accountHomeForRole } from "@/lib/auth/accountHome";
+import { accountHomeForRole, profileHomeForRole } from "@/lib/auth/accountHome";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -55,6 +55,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide", "guide_partner"] },
   { href: "/taxi-partner", label: "Taxi Paneli", icon: Car, roles: ["taxi", "taxi_partner"] },
   { href: "/support/dashboard", label: "Support", icon: List, roles: ["support"] },
+  /** href overridden per-role via profileHomeForRole — keep /profile as fallback */
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];
 
@@ -162,9 +163,8 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
 
-  const accountHref = accountHomeForRole(user?.role);
-  const accountLabel =
-    accountHref === "/profile" ? "Mening profilim" : "Asosiy panel";
+  const panelHref = accountHomeForRole(user?.role);
+  const profileHref = profileHomeForRole(user?.role);
 
   const roleBadge: Record<string, string> = {
     user: "Sayohatchi",
@@ -208,13 +208,15 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
+          const href =
+            item.href === "/profile" ? profileHref : item.href;
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+            pathname === href ||
+            (href !== "/" && pathname.startsWith(href));
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={`${item.label}-${href}`}
+              href={href}
               className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-300 border-l-4 ${
                 isActive
                   ? "border-amber-500 bg-amber-50 text-amber-700"
@@ -263,9 +265,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
       <div className="px-3 py-4 border-t border-gray-200">
         <Link
-          href={accountHref}
+          href={profileHref}
           onClick={() => setSidebarOpen(false)}
-          title={accountLabel}
+          title="Mening profilim"
           className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
@@ -378,9 +380,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               ) : null}
 
               <Link
-                href={accountHref}
-                title={accountLabel}
-                aria-label={accountLabel}
+                href={panelHref}
+                title="Asosiy panel"
+                aria-label="Asosiy panel"
                 className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
                 {initials}

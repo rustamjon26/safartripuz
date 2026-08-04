@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
-import { fail, handleApiError, hasActiveListing, ok, onboardingResponse, requireGuidePartner } from "../_utils";
+import { fail, handleApiError, ok, requireGuidePartner } from "../_utils";
 
 type ProfileUpdateInput = {
   bio?: string;
@@ -11,8 +11,7 @@ type ProfileUpdateInput = {
 export async function GET() {
   try {
     const actor = await requireGuidePartner();
-    const active = await hasActiveListing(actor.id);
-    if (!active) return onboardingResponse();
+    // Profile must work during onboarding (no ACTIVE listing yet).
     const [partner, listings] = await Promise.all([
       prisma.partner.findUnique({
         where: { id: actor.partnerId },
@@ -78,8 +77,6 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const actor = await requireGuidePartner();
-    const active = await hasActiveListing(actor.id);
-    if (!active) return onboardingResponse();
     const body = (await req.json()) as ProfileUpdateInput;
 
     if (!body.bio && !body.languages && !body.phone) {
