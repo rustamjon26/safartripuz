@@ -12,12 +12,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
-import {
-  TRIP_BUILDER_TAB_EVENT,
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-  type TripBuilderTabEventDetail,
-} from "@/lib/tripBuilderEvents";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import {
@@ -86,14 +80,7 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
-type DrawerTab = TripBuilderDrawerTab;
-
-const DRAWER_TITLES: Record<DrawerTab, string> = {
-  hotel: "Mehmonxonalar",
-  homestay: "HomeStay",
-  guide: "Gidlar",
-  transport: "Transport",
-};
+type CatalogKind = "hotel" | "homestay" | "guide" | "transport";
 
 const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }> = {
   samarqand: { icon: Landmark, gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
@@ -137,13 +124,6 @@ function getDestVisual(title: string) {
   return { icon: MapPin, gradient: "from-slate-700/90 to-gray-900" };
 }
 
-function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
-  if (tab === "hotel") return data.hotels ?? [];
-  if (tab === "homestay") return data.homestays ?? [];
-  if (tab === "guide") return data.guides ?? [];
-  return data.taxis ?? [];
-}
-
 export default function TripBuilderPage() {
   const router = useRouter();
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -182,11 +162,6 @@ export default function TripBuilderPage() {
   }, [aiChat, aiLoading, tripAiLoading]);
 
   const [cartBash, setCartBash] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("hotel");
-  const [drawerInventory, setDrawerInventory] = useState<InventoryData | null>(null);
-  const [drawerItems, setDrawerItems] = useState<InventoryItem[]>([]);
-  const [drawerLoading, setDrawerLoading] = useState(false);
 
   useEffect(() => {
     async function loadDestinations() {
@@ -213,17 +188,6 @@ export default function TripBuilderPage() {
   }, []);
 
   useEffect(() => {
-    function handleTabEvent(e: Event) {
-      const detail = (e as CustomEvent<TripBuilderTabEventDetail>).detail;
-      if (!detail?.open || !detail.tab) return;
-      setDrawerTab(detail.tab);
-      setDrawerOpen(true);
-    }
-    window.addEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
-    return () => window.removeEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
-  }, []);
-
-  useEffect(() => {
     if (!destination) {
       setInventory(null);
       setSelectedHotel(null);
@@ -247,40 +211,6 @@ export default function TripBuilderPage() {
     }
     void fetchInventory();
   }, [destination]);
-
-  useEffect(() => {
-    if (!drawerOpen) {
-      setDrawerInventory(null);
-      setDrawerItems([]);
-      setDrawerLoading(false);
-      return;
-    }
-    let cancelled = false;
-    async function fetchDrawerInventory() {
-      setDrawerLoading(true);
-      try {
-        const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination || "")}`);
-        if (!res.ok) throw new Error("drawer inventory fetch failed");
-        const data: InventoryData = await res.json();
-        if (!cancelled) setDrawerInventory(data);
-      } catch {
-        if (!cancelled) {
-          toast.error("Xizmatlarni yuklashda xato");
-          setDrawerInventory(null);
-          setDrawerItems([]);
-        }
-      } finally {
-        if (!cancelled) setDrawerLoading(false);
-      }
-    }
-    void fetchDrawerInventory();
-    return () => { cancelled = true; };
-  }, [drawerOpen, destination]);
-
-  useEffect(() => {
-    if (!drawerInventory) return;
-    setDrawerItems(pickDrawerItems(drawerInventory, drawerTab));
-  }, [drawerInventory, drawerTab]);
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   const days = useMemo(() => {
@@ -550,7 +480,7 @@ export default function TripBuilderPage() {
     } finally { setSubmitting(false); }
   }
 
-  function drawerItemToCardProps(item: InventoryItem, tab: DrawerTab) {
+  function drawerItemToCardProps(item: InventoryItem, tab: CatalogKind) {
     if (tab === "hotel") {
       return {
         title: item.title,
@@ -600,22 +530,6 @@ export default function TripBuilderPage() {
     };
   }
 
-  function DrawerCatalogSkeleton() {
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {[1, 2, 3].map((k) => (
-          <ServiceCardSkeleton key={k} />
-        ))}
-      </div>
-    );
-  }
-
-  function catalogTabToDrawerTab(tabId: "hotel" | "transport" | "guide"): DrawerTab {
-    if (tabId === "hotel") return "hotel";
-    if (tabId === "guide") return "guide";
-    return "transport";
-  }
-
   function CatalogSkeleton() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -658,85 +572,11 @@ export default function TripBuilderPage() {
       );
     }
 
-    const drawerTab = catalogTabToDrawerTab(tabId);
-
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => {
           const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
-          return (
-            <ServiceCard
-              key={item.id}
-              {...cardProps}
-              isSelected={isSelected}
-              onClick={() => {
-                handleSelect(item);
-                triggerCartBounce();
-              }}
-            />
-          );
-        })}
-      </div>
-    );
-  }
-
-  function renderDrawerCatalog() {
-    const selectedItem =
-      drawerTab === "hotel"
-        ? selectedHotel
-        : drawerTab === "homestay"
-          ? selectedHomestay
-          : drawerTab === "guide"
-            ? selectedGuide
-            : selectedTaxi;
-    const setSelected =
-      drawerTab === "hotel"
-        ? setSelectedHotel
-        : drawerTab === "homestay"
-          ? setSelectedHomestay
-          : drawerTab === "guide"
-            ? setSelectedGuide
-            : setSelectedTaxi;
-    const label =
-      drawerTab === "hotel"
-        ? "mehmonxona"
-        : drawerTab === "homestay"
-          ? "homestay"
-          : drawerTab === "guide"
-            ? "gid"
-            : "transport";
-
-    const handleSelect = (item: InventoryItem) => {
-      const isDeselecting = selectedItem?.id === item.id;
-      setSelected(isDeselecting ? null : item);
-      if (aiSuggestedTotal != null) setAiSuggestedTotal(null);
-      if (!isDeselecting) setDrawerOpen(false);
-    };
-
-    if (drawerLoading) return <DrawerCatalogSkeleton />;
-
-    if (drawerItems.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-white/50">
-          <Info className="w-10 h-10 text-gray-400 mb-3" />
-          <h3 className="font-black text-gray-900">
-            {destination ? "Tizimda takliflar yo'q" : "Avval manzil tanlang"}
-          </h3>
-          <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
-            {destination
-              ? `${destination} hududida hozircha "${label}" mavjud emas. Manzil yoki sanalarni o'zgartirib ko'ring.`
-              : `Xizmatlarni ko'rish uchun trip-builderda manzil (masalan Zomin) tanlang.`}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {drawerItems.map((item) => {
-          const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
+          const cardProps = drawerItemToCardProps(item, tabId);
           return (
             <ServiceCard
               key={item.id}
@@ -1005,40 +845,6 @@ export default function TripBuilderPage() {
           {renderTripSidebar()}
         </div>
       </div>
-      )}
-
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[60]">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Yopish"
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl sm:rounded-none sm:bottom-auto sm:right-0 sm:top-0 sm:left-auto sm:h-full sm:max-h-none w-full sm:w-[480px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-              <h2 className="text-lg font-black text-gray-900">{DRAWER_TITLES[drawerTab]}</h2>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                aria-label="Yopish"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {destination && (
-                <div className="mb-4">
-                  <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
-                    {destination}
-                  </span>
-                </div>
-              )}
-              {renderDrawerCatalog()}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Mobile floating price bar */}
@@ -1634,7 +1440,7 @@ export default function TripBuilderPage() {
             title="HomeStay"
             time="1-KUN, 15:00"
             isAdded={!!selectedHomestay}
-            onNavigate={() => dispatchTripBuilderTab("homestay")}
+            onNavigate={() => router.push("/homestay")}
             onRemove={() => setSelectedHomestay(null)}
           >
             {selectedHomestay && (

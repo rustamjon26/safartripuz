@@ -26,10 +26,6 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
-import {
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-} from "@/lib/tripBuilderEvents";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -66,19 +62,12 @@ const SERVICE_LINKS = [
   { href: "/tours", label: "Turlar", icon: Package },
 ] as const;
 
-type XizmatlarItem = {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  drawerTab?: TripBuilderDrawerTab;
-};
-
-const XIZMATLAR_ITEMS: XizmatlarItem[] = [
-  { href: "/hotels", label: "Mehmonxonalar", icon: Building2, drawerTab: "hotel" },
-  { href: "/homestay", label: "HomeStay", icon: Tent, drawerTab: "homestay" },
-  { href: "/guide", label: "Gidlar", icon: Map, drawerTab: "guide" },
-  { href: "/taxi", label: "Taxi", icon: Car, drawerTab: "transport" },
-];
+const XIZMATLAR_ITEMS = [
+  { href: "/hotels", label: "Mehmonxonalar", icon: Building2 },
+  { href: "/homestay", label: "HomeStay", icon: Tent },
+  { href: "/guide", label: "Gidlar", icon: Map },
+  { href: "/taxi", label: "Taxi", icon: Car },
+] as const;
 
 const PAGE_ICONS: Record<string, React.ElementType> = {
   "/bookings": LayoutDashboard,
@@ -234,34 +223,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               Xizmatlar
             </p>
             {XIZMATLAR_ITEMS.map((svc) => {
-              const isActive = pathname === svc.href || pathname.startsWith(`${svc.href}/`);
-              const className = `flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
-                isActive
-                  ? "border-amber-500 bg-amber-50 text-amber-700"
-                  : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`;
-              const onTripBuilder = pathname === "/trip-builder" || pathname.startsWith("/trip-builder/");
-
-              if (onTripBuilder && svc.drawerTab) {
-                return (
-                  <button
-                    key={svc.href}
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      dispatchTripBuilderTab(svc.drawerTab!);
-                    }}
-                    className={className}
-                  >
-                    <svc.icon size={16} className="text-gray-400" />
-                    {svc.label}
-                  </button>
-                );
-              }
-
+              const isActive =
+                pathname === svc.href || pathname.startsWith(`${svc.href}/`);
               return (
-                <Link key={svc.href} href={svc.href} className={className}>
-                  <svc.icon size={16} className={isActive ? "text-amber-600" : "text-gray-400"} />
+                <Link
+                  key={svc.href}
+                  href={svc.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
+                    isActive
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                >
+                  <svc.icon
+                    size={16}
+                    className={isActive ? "text-amber-600" : "text-gray-400"}
+                  />
                   {svc.label}
                 </Link>
               );
