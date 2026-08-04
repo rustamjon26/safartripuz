@@ -92,7 +92,7 @@ export function AdminSidebarNav({
         ))}
       </nav>
 
-      <div className="adm-sidebar-footer">
+      <div className="adm-sidebar-footer shrink-0">
         <Link
           href="/admin/payments"
           onClick={() => onNavigate?.()}

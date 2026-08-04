@@ -21,15 +21,13 @@ import {
   X,
   List,
   Package,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
-import {
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-} from "@/lib/tripBuilderEvents";
+import { accountHomeForRole } from "@/lib/auth/accountHome";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -49,12 +47,14 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "Admin panel", icon: Shield, roles: ["admin", "super_admin"] },
   { href: "/bookings", label: "Mening Sayohatlarim", icon: LayoutDashboard, roles: ["user"] },
   { href: "/trip-builder", label: "Yangi Safar (AI)", icon: ShoppingBag, roles: ["user"] },
   { href: "/tours", label: "Tayyor Turlar", icon: Compass, roles: ["user", "admin", "super_admin"] },
-  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel"] },
-  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide"] },
-  { href: "/taxi/home", label: "Taxi Paneli", icon: Car, roles: ["taxi"] },
+  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel_manager", "hotel"] },
+  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide", "guide_partner"] },
+  { href: "/taxi-partner", label: "Taxi Paneli", icon: Car, roles: ["taxi", "taxi_partner"] },
+  { href: "/support/dashboard", label: "Support", icon: List, roles: ["support"] },
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];
 
@@ -66,19 +66,12 @@ const SERVICE_LINKS = [
   { href: "/tours", label: "Turlar", icon: Package },
 ] as const;
 
-type XizmatlarItem = {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  drawerTab?: TripBuilderDrawerTab;
-};
-
-const XIZMATLAR_ITEMS: XizmatlarItem[] = [
-  { href: "/hotels", label: "Mehmonxonalar", icon: Building2, drawerTab: "hotel" },
-  { href: "/homestay", label: "HomeStay", icon: Tent, drawerTab: "homestay" },
-  { href: "/guide", label: "Gidlar", icon: Map, drawerTab: "guide" },
-  { href: "/taxi", label: "Taxi", icon: Car, drawerTab: "transport" },
-];
+const XIZMATLAR_ITEMS = [
+  { href: "/hotels", label: "Mehmonxonalar", icon: Building2 },
+  { href: "/homestay", label: "HomeStay", icon: Tent },
+  { href: "/guide", label: "Gidlar", icon: Map },
+  { href: "/taxi", label: "Taxi", icon: Car },
+] as const;
 
 const PAGE_ICONS: Record<string, React.ElementType> = {
   "/bookings": LayoutDashboard,
@@ -169,12 +162,21 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
 
+  const accountHref = accountHomeForRole(user?.role);
+  const accountLabel =
+    accountHref === "/profile" ? "Mening profilim" : "Asosiy panel";
+
   const roleBadge: Record<string, string> = {
     user: "Sayohatchi",
     hotel: "Hotel",
+    hotel_manager: "Hotel egasi",
     guide: "Gid",
     taxi: "Taxi",
+    taxi_partner: "Taxi hamkor",
     admin: "Admin",
+    super_admin: "Super admin",
+    support: "Support",
+    home_stay_partner: "Homestay",
   };
 
   const PageIcon =
@@ -234,34 +236,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               Xizmatlar
             </p>
             {XIZMATLAR_ITEMS.map((svc) => {
-              const isActive = pathname === svc.href || pathname.startsWith(`${svc.href}/`);
-              const className = `flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
-                isActive
-                  ? "border-amber-500 bg-amber-50 text-amber-700"
-                  : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`;
-              const onTripBuilder = pathname === "/trip-builder" || pathname.startsWith("/trip-builder/");
-
-              if (onTripBuilder && svc.drawerTab) {
-                return (
-                  <button
-                    key={svc.href}
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      dispatchTripBuilderTab(svc.drawerTab!);
-                    }}
-                    className={className}
-                  >
-                    <svc.icon size={16} className="text-gray-400" />
-                    {svc.label}
-                  </button>
-                );
-              }
-
+              const isActive =
+                pathname === svc.href || pathname.startsWith(`${svc.href}/`);
               return (
-                <Link key={svc.href} href={svc.href} className={className}>
-                  <svc.icon size={16} className={isActive ? "text-amber-600" : "text-gray-400"} />
+                <Link
+                  key={svc.href}
+                  href={svc.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
+                    isActive
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                >
+                  <svc.icon
+                    size={16}
+                    className={isActive ? "text-amber-600" : "text-gray-400"}
+                  />
                   {svc.label}
                 </Link>
               );
@@ -272,8 +263,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
       <div className="px-3 py-4 border-t border-gray-200">
         <Link
-          href="/profile"
+          href={accountHref}
           onClick={() => setSidebarOpen(false)}
+          title={accountLabel}
           className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
@@ -283,7 +275,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             <div className="font-bold text-gray-900 text-sm truncate">
               {user?.first_name} {user?.last_name}
             </div>
-            <div className="text-xs text-gray-500 truncate">{user?.email}</div>
+            <div className="text-xs text-gray-500 truncate">
+              {roleBadge[user?.role?.toLowerCase() ?? ""] ?? user?.role ?? "—"}
+            </div>
           </div>
         </Link>
         <button
@@ -384,9 +378,9 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               ) : null}
 
               <Link
-                href="/profile"
-                title="Mening profilim"
-                aria-label="Mening profilim"
+                href={accountHref}
+                title={accountLabel}
+                aria-label={accountLabel}
                 className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
                 {initials}

@@ -21,53 +21,116 @@ const markerIcon = L.divIcon({
   iconAnchor: [14, 28],
 });
 
-function Recenter({ center }: { center: [number, number] }) {
+function MapSync({
+  center,
+  zoom,
+}: {
+  center: [number, number];
+  zoom: number;
+}) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, map.getZoom(), { animate: false });
-  }, [map, center]);
+    // Leaflet often paints grey until container size is known (sidebar/flex).
+    const fix = () => {
+      map.invalidateSize({ animate: false });
+      map.setView(center, zoom, { animate: false });
+    };
+    fix();
+    const t1 = window.setTimeout(fix, 50);
+    const t2 = window.setTimeout(fix, 250);
+    window.addEventListener("resize", fix);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.removeEventListener("resize", fix);
+    };
+  }, [map, center, zoom]);
   return null;
 }
+
+type DestOption = { id: string; title: string };
 
 type Props = {
   destination: string;
   className?: string;
   height?: number;
+  /** Quick-pick chips when no destination selected. */
+  destinations?: DestOption[];
+  onSelectDestination?: (title: string) => void;
 };
 
 export default function DestinationPreviewMap({
   destination,
   className = "",
-  height = 96,
+  height = 160,
+  destinations = [],
+  onSelectDestination,
 }: Props) {
+  const hasDest = Boolean(destination.trim());
   const center = resolveDestinationCenter(destination);
-  const zoom = destination.trim() ? 11 : 5;
+  const zoom = hasDest ? 12 : 6;
 
   return (
-    <div
-      className={`rounded-2xl border border-[#d8e3fb] overflow-hidden relative ${className}`}
-      style={{ height }}
-    >
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={false}
-        dragging={false}
-        doubleClickZoom={false}
-        zoomControl={false}
-        attributionControl={false}
+    <div className={`flex flex-col gap-2 ${className}`}>
+      <div
+        className="rounded-2xl border border-[#d8e3fb] overflow-hidden relative bg-[#e8eef8]"
+        style={{ height }}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Recenter center={center} />
-        {destination.trim() ? (
-          <Marker position={center} icon={markerIcon} />
-        ) : null}
-      </MapContainer>
-      {destination.trim() ? (
-        <span className="absolute bottom-2 left-2 z-[500] bg-white/95 px-2.5 py-1 rounded-full text-[11px] font-bold text-[#000917] border border-[#0d2137]/10 shadow-sm">
-          {destination}
-        </span>
+        <MapContainer
+          key={hasDest ? `dest:${destination}` : "uz-overview"}
+          center={center}
+          zoom={zoom}
+          style={{ height: "100%", width: "100%", zIndex: 0 }}
+          scrollWheelZoom
+          dragging
+          doubleClickZoom
+          zoomControl
+          attributionControl={false}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <MapSync center={center} zoom={zoom} />
+          {hasDest ? <Marker position={center} icon={markerIcon} /> : null}
+        </MapContainer>
+
+        {hasDest ? (
+          <span className="pointer-events-none absolute bottom-2 left-2 z-[500] bg-white/95 px-2.5 py-1 rounded-full text-[11px] font-bold text-[#000917] border border-[#0d2137]/10 shadow-sm">
+            {destination}
+          </span>
+        ) : (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[500] bg-gradient-to-t from-[#0d2137]/70 to-transparent px-3 pb-2.5 pt-8">
+            <p className="text-[11px] font-bold text-white drop-shadow">
+              Xaritani suring yoki pastdan viloyat tanlang
+            </p>
+          </div>
+        )}
+      </div>
+
+      {!hasDest && destinations.length > 0 && onSelectDestination ? (
+        <div className="flex flex-wrap gap-1.5">
+          {destinations.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onSelectDestination(d.title)}
+              className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#f0f3ff] text-[#0d2137] border border-[#d8e3fb] hover:bg-[#006781] hover:text-white hover:border-[#006781] transition-colors"
+            >
+              {d.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {hasDest && onSelectDestination ? (
+        <button
+          type="button"
+          onClick={() => onSelectDestination("")}
+          className="self-start text-[11px] font-semibold text-[#64748B] hover:text-[#0d2137] underline underline-offset-2"
+        >
+          Manzilni o‘zgartirish
+        </button>
       ) : null}
     </div>
   );

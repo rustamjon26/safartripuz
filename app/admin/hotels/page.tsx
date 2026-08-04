@@ -70,6 +70,8 @@ export default function AdminHotelsPage() {
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [activeStep, setActiveStep] = useState(1);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"partnerId" | "name" | "city", string>>>({});
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -100,18 +102,26 @@ export default function AdminHotelsPage() {
   }, [q, statusFilter, page, load]);
 
   async function fetchEligiblePartners() {
+    setPartnersLoading(true);
     try {
       const res = await fetch("/api/admin/partners/eligible-hotels");
-      const data = await res.json();
-      setPartners(data.items || []);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.message === "string" ? data.message : "Hamkorlarni yuklab bo'lmadi");
+      }
+      setPartners(Array.isArray(data.items) ? data.items : []);
     } catch (e) {
-      toast.error("Hamkorlarni yuklab bo'lmadi");
+      setPartners([]);
+      toast.error(e instanceof Error ? e.message : "Hamkorlarni yuklab bo'lmadi");
+    } finally {
+      setPartnersLoading(false);
     }
   }
 
   function openCreate() {
     setEditItem(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
     setActiveStep(1);
     void fetchEligiblePartners();
     setShowModal(true);
@@ -129,16 +139,51 @@ export default function AdminHotelsPage() {
       totalRooms: String(hotel.totalRooms),
       status: hotel.status
     });
+    setFieldErrors({});
     setActiveStep(1);
     setShowModal(true);
   }
 
+  function validateStep1(): boolean {
+    const name = form.name.trim();
+    const city = form.city.trim();
+    const errors: Partial<Record<"partnerId" | "name" | "city", string>> = {};
+
+    if (!editItem && !form.partnerId) {
+      errors.partnerId = partners.length === 0
+        ? "Avval mehmonxona hamkorini yarating va tasdiqlang"
+        : "Hamkorni ro'yxatdan tanlang";
+    }
+    if (!name) errors.name = "Mehmonxona nomini kiriting";
+    if (!city) errors.city = "Shaharni kiriting";
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length === 0) return true;
+
+    const first = errors.partnerId || errors.name || errors.city;
+    if (first) toast.error(first);
+    return false;
+  }
+
+  function goNextStep() {
+    if (activeStep === 1 && !validateStep1()) return;
+    setActiveStep((s) => Math.min(3, s + 1));
+  }
+
   async function handleSave() {
-    if (!form.name || !form.city || (!editItem && !form.partnerId)) {
-      toast.error("Majburiy maydonlarni to'ldiring");
+    if (!validateStep1()) {
       setActiveStep(1);
       return;
     }
+    const payload = {
+      ...form,
+      name: form.name.trim(),
+      city: form.city.trim(),
+      address: form.address.trim(),
+      contactEmail: form.contactEmail.trim(),
+      contactPhone: form.contactPhone.trim(),
+      totalRooms: Number(form.totalRooms),
+    };
     setSaving(true);
     try {
       const url = editItem ? `/api/admin/hotels/${editItem.id}` : "/api/admin/hotels";
@@ -146,10 +191,7 @@ export default function AdminHotelsPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          totalRooms: Number(form.totalRooms)
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
@@ -393,24 +435,65 @@ export default function AdminHotelsPage() {
                        <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block px-1">Hamkorni Tanlang *</label>
                           <select 
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 appearance-none"
+                            className={`w-full bg-slate-50 border rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 appearance-none ${fieldErrors.partnerId ? "border-rose-300 ring-2 ring-rose-100" : "border-slate-100"}`}
                             value={form.partnerId}
-                            onChange={(e) => setForm({...form, partnerId: e.target.value})}
+                            onChange={(e) => {
+                              setForm({ ...form, partnerId: e.target.value });
+                              setFieldErrors((prev) => ({ ...prev, partnerId: undefined }));
+                            }}
+                            disabled={partnersLoading}
                           >
-                             <option value="">Hamkorlar ro&apos;yxati...</option>
+                             <option value="">
+                               {partnersLoading ? "Yuklanmoqda..." : "Hamkorlar ro'yxati..."}
+                             </option>
                              {partners.map(p => (
                                <option key={p.id} value={p.id}>{p.user.first_name} {p.user.last_name} ({p.user.email})</option>
                              ))}
                           </select>
+                          {fieldErrors.partnerId && (
+                            <p className="mt-1.5 px-1 text-[11px] font-bold text-rose-500">{fieldErrors.partnerId}</p>
+                          )}
+                          {!partnersLoading && partners.length === 0 && (
+                            <div className="mt-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3 text-[12px] font-bold text-amber-800 leading-relaxed">
+                              Hozircha mehmonxonaga bog‘lanmagan (approved/pending) hotel-hamkor yo‘q.
+                              Avval{" "}
+                              <Link href="/admin/partners" className="underline underline-offset-2 hover:text-amber-950">
+                                Hamkorlar
+                              </Link>{" "}
+                              bo‘limida tip = hotel hamkor yarating yoki tasdiqlang, so‘ng shu yerdan tanlang.
+                            </div>
+                          )}
                        </div>
                      )}
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block px-1">Mehmonxona Nomi *</label>
-                        <input className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="Masalan: Grand Hotel Zomin" />
+                        <input
+                          className={`w-full bg-slate-50 border rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all ${fieldErrors.name ? "border-rose-300 ring-2 ring-rose-100" : "border-slate-100"}`}
+                          value={form.name}
+                          onChange={(e) => {
+                            setForm({ ...form, name: e.target.value });
+                            setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                          }}
+                          placeholder="Masalan: Grand Hotel Zomin"
+                        />
+                        {fieldErrors.name && (
+                          <p className="mt-1.5 px-1 text-[11px] font-bold text-rose-500">{fieldErrors.name}</p>
+                        )}
                      </div>
                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block px-1">Shahar *</label>
-                        <input className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all" value={form.city} onChange={(e) => setForm({...form, city: e.target.value})} placeholder="Masalan: Zomin" />
+                        <input
+                          className={`w-full bg-slate-50 border rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all ${fieldErrors.city ? "border-rose-300 ring-2 ring-rose-100" : "border-slate-100"}`}
+                          value={form.city}
+                          onChange={(e) => {
+                            setForm({ ...form, city: e.target.value });
+                            setFieldErrors((prev) => ({ ...prev, city: undefined }));
+                          }}
+                          placeholder="Masalan: Zomin"
+                        />
+                        {fieldErrors.city && (
+                          <p className="mt-1.5 px-1 text-[11px] font-bold text-rose-500">{fieldErrors.city}</p>
+                        )}
                      </div>
                   </div>
                 )}
@@ -463,7 +546,7 @@ export default function AdminHotelsPage() {
                 <div className="flex items-center gap-3">
                    <button className="px-6 py-3 rounded-2xl text-xs font-black text-slate-400 hover:text-slate-900 transition-all" onClick={() => setShowModal(false)}>Chiqish</button>
                    {activeStep < 3 ? (
-                      <button className="adm-btn adm-btn-primary px-8 py-3.5 shadow-xl shadow-slate-900/10 flex items-center gap-3" onClick={() => setActiveStep(s => s + 1)}>Keyingisi <ChevronRight size={18} /></button>
+                      <button className="adm-btn adm-btn-primary px-8 py-3.5 shadow-xl shadow-slate-900/10 flex items-center gap-3" onClick={goNextStep}>Keyingisi <ChevronRight size={18} /></button>
                    ) : (
                       <button 
                         className="adm-btn adm-btn-primary px-8 py-3.5 shadow-xl shadow-slate-900/10 flex items-center gap-3 disabled:opacity-50" 

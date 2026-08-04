@@ -105,6 +105,16 @@ export class KnowledgeService {
     return knowledgeRepository.findSiteById(id);
   }
 
+  /** Hard-delete site (+ cascaded claims). AccuracyReports unlink (SetNull). */
+  async deleteSite(id: string) {
+    const existing = await knowledgeRepository.findSiteById(id);
+    if (!existing) {
+      throw new Error(`Site not found: ${id}`);
+    }
+    await knowledgeRepository.deleteSite(id);
+    return { id: existing.id, slug: existing.slug, name: existing.name };
+  }
+
   async createSite(input: CreateSiteInput) {
     return knowledgeRepository.createSite({
       ...input,

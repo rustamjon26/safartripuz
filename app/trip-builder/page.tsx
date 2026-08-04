@@ -6,18 +6,12 @@ import { toast } from "sonner";
 import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
-  Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind,
-  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building, Tent,
+  Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind, Cloud, Snowflake,
+  ChevronRight, ShoppingBag, Compass, Landmark, Trees, Mountain, Building, Building2, Tent,
   Send, Rocket, Eye, Hotel,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
-import {
-  TRIP_BUILDER_TAB_EVENT,
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-  type TripBuilderTabEventDetail,
-} from "@/lib/tripBuilderEvents";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import {
@@ -27,11 +21,22 @@ import {
   languageLabel,
   taxiServiceTypeLabel,
 } from "@/lib/displayHelpers";
+import type { WeatherAdvice, WeatherAdviceKind } from "@/lib/weather/openWeather";
 import {
   coverageHint,
   fetchTripAiPlan,
   type TripAiPlan,
 } from "./tripAiClient";
+
+const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+
+function weatherIcon(kind: WeatherAdviceKind) {
+  if (kind === "sun") return Sun;
+  if (kind === "rain") return CloudRain;
+  if (kind === "snow") return Snowflake;
+  if (kind === "wind") return Wind;
+  return Cloud;
+}
 
 const DestinationPreviewMap = dynamic(
   () => import("@/components/trip-builder/DestinationPreviewMap"),
@@ -86,14 +91,7 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
-type DrawerTab = TripBuilderDrawerTab;
-
-const DRAWER_TITLES: Record<DrawerTab, string> = {
-  hotel: "Mehmonxonalar",
-  homestay: "HomeStay",
-  guide: "Gidlar",
-  transport: "Transport",
-};
+type CatalogKind = "hotel" | "homestay" | "guide" | "transport";
 
 const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }> = {
   samarqand: { icon: Landmark, gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
@@ -137,13 +135,6 @@ function getDestVisual(title: string) {
   return { icon: MapPin, gradient: "from-slate-700/90 to-gray-900" };
 }
 
-function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
-  if (tab === "hotel") return data.hotels ?? [];
-  if (tab === "homestay") return data.homestays ?? [];
-  if (tab === "guide") return data.guides ?? [];
-  return data.taxis ?? [];
-}
-
 export default function TripBuilderPage() {
   const router = useRouter();
   const [destinations, setDestinations] = useState<Destination[]>([]);
@@ -182,33 +173,32 @@ export default function TripBuilderPage() {
   }, [aiChat, aiLoading, tripAiLoading]);
 
   const [cartBash, setCartBash] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("hotel");
-  const [drawerInventory, setDrawerInventory] = useState<InventoryData | null>(null);
-  const [drawerItems, setDrawerItems] = useState<InventoryItem[]>([]);
-  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [weather, setWeather] = useState<WeatherAdvice | null>(null);
+  const [weatherLive, setWeatherLive] = useState(false);
+  const [weatherLoading, setWeatherLoading] = useState(false);
 
   useEffect(() => {
     async function loadDestinations() {
       try {
         const res = await fetch("/api/builder/destinations");
-        setDestinations(await res.json());
+        const list = (await res.json()) as Destination[];
+        setDestinations(list);
+        // Support /trip-builder?dest=Zomin from deep links / Xizmatlar
+        if (typeof window !== "undefined" && !destination) {
+          const q = new URLSearchParams(window.location.search).get("dest");
+          if (q?.trim()) {
+            const match = list.find(
+              (d) => d.title.toLowerCase() === q.trim().toLowerCase(),
+            );
+            setDestination(match?.title ?? q.trim());
+          }
+        }
       } catch {
         toast.error("Manzillarni yuklashda xatolik");
       } finally { setLoadingDest(false); }
     }
     void loadDestinations();
-  }, []);
-
-  useEffect(() => {
-    function handleTabEvent(e: Event) {
-      const detail = (e as CustomEvent<TripBuilderTabEventDetail>).detail;
-      if (!detail?.open || !detail.tab) return;
-      setDrawerTab(detail.tab);
-      setDrawerOpen(true);
-    }
-    window.addEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
-    return () => window.removeEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial URL dest once
   }, []);
 
   useEffect(() => {
@@ -237,38 +227,55 @@ export default function TripBuilderPage() {
   }, [destination]);
 
   useEffect(() => {
-    if (!drawerOpen) {
-      setDrawerInventory(null);
-      setDrawerItems([]);
-      setDrawerLoading(false);
+    if (!destination) {
+      setWeather(null);
+      setWeatherLive(false);
+      setWeatherLoading(false);
       return;
     }
+
     let cancelled = false;
-    async function fetchDrawerInventory() {
-      setDrawerLoading(true);
+
+    async function loadWeather() {
+      setWeatherLoading(true);
       try {
-        const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination || "")}`);
-        if (!res.ok) throw new Error("drawer inventory fetch failed");
-        const data: InventoryData = await res.json();
-        if (!cancelled) setDrawerInventory(data);
+        const res = await fetch(
+          `/api/weather?dest=${encodeURIComponent(destination)}`,
+          { credentials: "include", cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          live?: boolean;
+          advice?: WeatherAdvice;
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !data.advice) {
+          setWeather(null);
+          setWeatherLive(false);
+          return;
+        }
+        setWeather(data.advice);
+        setWeatherLive(Boolean(data.live));
       } catch {
         if (!cancelled) {
-          toast.error("Xizmatlarni yuklashda xato");
-          setDrawerInventory(null);
-          setDrawerItems([]);
+          setWeather(null);
+          setWeatherLive(false);
         }
       } finally {
-        if (!cancelled) setDrawerLoading(false);
+        if (!cancelled) setWeatherLoading(false);
       }
     }
-    void fetchDrawerInventory();
-    return () => { cancelled = true; };
-  }, [drawerOpen, destination]);
 
-  useEffect(() => {
-    if (!drawerInventory) return;
-    setDrawerItems(pickDrawerItems(drawerInventory, drawerTab));
-  }, [drawerInventory, drawerTab]);
+    void loadWeather();
+    const timer = window.setInterval(() => {
+      void loadWeather();
+    }, WEATHER_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [destination]);
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   const days = useMemo(() => {
@@ -538,7 +545,7 @@ export default function TripBuilderPage() {
     } finally { setSubmitting(false); }
   }
 
-  function drawerItemToCardProps(item: InventoryItem, tab: DrawerTab) {
+  function drawerItemToCardProps(item: InventoryItem, tab: CatalogKind) {
     if (tab === "hotel") {
       return {
         title: item.title,
@@ -588,22 +595,6 @@ export default function TripBuilderPage() {
     };
   }
 
-  function DrawerCatalogSkeleton() {
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {[1, 2, 3].map((k) => (
-          <ServiceCardSkeleton key={k} />
-        ))}
-      </div>
-    );
-  }
-
-  function catalogTabToDrawerTab(tabId: "hotel" | "transport" | "guide"): DrawerTab {
-    if (tabId === "hotel") return "hotel";
-    if (tabId === "guide") return "guide";
-    return "transport";
-  }
-
   function CatalogSkeleton() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -646,83 +637,11 @@ export default function TripBuilderPage() {
       );
     }
 
-    const drawerTab = catalogTabToDrawerTab(tabId);
-
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => {
           const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
-          return (
-            <ServiceCard
-              key={item.id}
-              {...cardProps}
-              isSelected={isSelected}
-              onClick={() => {
-                handleSelect(item);
-                triggerCartBounce();
-              }}
-            />
-          );
-        })}
-      </div>
-    );
-  }
-
-  function renderDrawerCatalog() {
-    const selectedItem =
-      drawerTab === "hotel"
-        ? selectedHotel
-        : drawerTab === "homestay"
-          ? selectedHomestay
-          : drawerTab === "guide"
-            ? selectedGuide
-            : selectedTaxi;
-    const setSelected =
-      drawerTab === "hotel"
-        ? setSelectedHotel
-        : drawerTab === "homestay"
-          ? setSelectedHomestay
-          : drawerTab === "guide"
-            ? setSelectedGuide
-            : setSelectedTaxi;
-    const label =
-      drawerTab === "hotel"
-        ? "mehmonxona"
-        : drawerTab === "homestay"
-          ? "homestay"
-          : drawerTab === "guide"
-            ? "gid"
-            : "transport";
-
-    const handleSelect = (item: InventoryItem) => {
-      const isDeselecting = selectedItem?.id === item.id;
-      setSelected(isDeselecting ? null : item);
-      if (aiSuggestedTotal != null) setAiSuggestedTotal(null);
-      if (!isDeselecting) setDrawerOpen(false);
-    };
-
-    if (drawerLoading) return <DrawerCatalogSkeleton />;
-
-    if (drawerItems.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-white/50">
-          <Info className="w-10 h-10 text-gray-400 mb-3" />
-          <h3 className="font-black text-gray-900">Tizimda takliflar yo&apos;q</h3>
-          <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
-            {destination
-              ? `${destination} hududida hozircha "${label}" mavjud emas.`
-              : `Hozircha "${label}" takliflari mavjud emas.`}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {drawerItems.map((item) => {
-          const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
+          const cardProps = drawerItemToCardProps(item, tabId);
           return (
             <ServiceCard
               key={item.id}
@@ -873,20 +792,8 @@ export default function TripBuilderPage() {
     );
   }
 
-  const getWeatherAdvice = () => {
-    if (!destination) return null;
-    const dest = destination.toLowerCase();
-    if (dest === "zomin" || dest === "chimyon" || dest.includes("tog")) {
-      return { icon: Wind, tip: `Tog'li muhit. ${destination} qishda sovuq, yozda salqin bo'ladi. Issiqroq kiyim olishni unutmang.`, temp: "+12°C" };
-    }
-    if (dest === "samarqand" || dest === "buxoro" || dest === "xiva") {
-      return { icon: Sun, tip: "Havo quruq va issiq. Qulay yozgi kiyim, bosh kiyim va suv zaxirasini olish maslahat beriladi.", temp: "+28°C" };
-    }
-    return { icon: CloudRain, tip: "O'zgaruvchan havo kutilmoqda. Safar sanasida ob-havoni tekshiring.", temp: "+20°C" };
-  };
-
-  const weather = getWeatherAdvice();
   const hasServices = !!(selectedHotel || selectedHomestay || selectedTaxi || selectedGuide);
+  const WeatherIcon = weather ? weatherIcon(weather.kind) : Cloud;
   const stepIndex = TABS.findIndex((t) => t.id === activeTab);
 
   const readinessPct = Math.min(
@@ -991,40 +898,6 @@ export default function TripBuilderPage() {
           {renderTripSidebar()}
         </div>
       </div>
-      )}
-
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[60]">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Yopish"
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl sm:rounded-none sm:bottom-auto sm:right-0 sm:top-0 sm:left-auto sm:h-full sm:max-h-none w-full sm:w-[480px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-              <h2 className="text-lg font-black text-gray-900">{DRAWER_TITLES[drawerTab]}</h2>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                aria-label="Yopish"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {destination && (
-                <div className="mb-4">
-                  <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
-                    {destination}
-                  </span>
-                </div>
-              )}
-              {renderDrawerCatalog()}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Mobile floating price bar */}
@@ -1330,7 +1203,12 @@ export default function TripBuilderPage() {
         <div className="mt-5 pt-5 border-t border-[#e9edf2] shrink-0 flex flex-col gap-3">
           <DestinationPreviewMap
             destination={destination}
-            height={112}
+            height={168}
+            destinations={destinations}
+            onSelectDestination={(title) => {
+              setDestination(title);
+              if (title) setActiveTab("basics");
+            }}
           />
           <div className="flex items-center justify-between text-sm px-1">
             <span className="text-[#64748B] font-[family-name:var(--font-sora)]">Jami</span>
@@ -1345,7 +1223,7 @@ export default function TripBuilderPage() {
             className="w-full py-3.5 bg-[#000917] text-white rounded-xl font-[family-name:var(--font-sora)] font-bold flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-40"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket size={18} />}
-            Safarni Bron Qilish
+            {destination ? "Safarni Bron Qilish" : "Avval manzil tanlang"}
           </button>
         </div>
       </div>
@@ -1355,19 +1233,39 @@ export default function TripBuilderPage() {
   function renderMainPanel() {
     return (
       <div className="bg-white rounded-[2rem] border border-gray-200 p-4 sm:p-8 min-h-[400px] transition-all relative overflow-hidden w-full">
-        {destination && weather && (
+        {destination && (weather || weatherLoading) ? (
           <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-2xl flex gap-4 items-start animate-in slide-in-from-top-4">
             <div className="w-11 h-11 bg-white border border-sky-200 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <weather.icon size={22} className="text-sky-500" />
+              {weatherLoading && !weather ? (
+                <Loader2 size={22} className="text-sky-500 animate-spin" />
+              ) : (
+                <WeatherIcon size={22} className="text-sky-500" />
+              )}
             </div>
-            <div>
-              <h3 className="font-black text-gray-900 text-sm mb-1">
-                {destination} — {weather.temp}
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{weather.tip}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h3 className="font-black text-gray-900 text-sm">
+                  {destination}
+                  {weather ? ` — ${weather.tempLabel}` : weatherLoading ? " — …" : ""}
+                </h3>
+                {weather ? (
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      weatherLive
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {weatherLive ? "Jonli" : "Taxminiy"}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {weather ? weather.tip : "Ob-havo yuklanmoqda…"}
+              </p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {activeTab === "basics" && (
           <div>
@@ -1615,7 +1513,7 @@ export default function TripBuilderPage() {
             title="HomeStay"
             time="1-KUN, 15:00"
             isAdded={!!selectedHomestay}
-            onNavigate={() => dispatchTripBuilderTab("homestay")}
+            onNavigate={() => router.push("/homestay")}
             onRemove={() => setSelectedHomestay(null)}
           >
             {selectedHomestay && (

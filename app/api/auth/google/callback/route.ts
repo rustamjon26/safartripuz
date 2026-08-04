@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth";
 import { randomBytes } from "node:crypto";
 import { requireEnv } from "@/src/shared/env";
+import { accountHomeForRole } from "@/lib/auth/accountHome";
 
 export async function GET(req: Request) {
   const baseUrl = process.env.NEXTAUTH_URL || "https://safartrip.uz";
@@ -84,17 +85,7 @@ export async function GET(req: Request) {
     });
 
     const redirectUrl =
-      user.role === "admin" || user.role === "super_admin"
-        ? "/admin"
-        : user.role === "hotel_manager"
-          ? "/hotel"
-          : user.role === "home_stay_partner"
-            ? "/homestay-partner"
-            : user.role === "guide"
-              ? "/guide-partner"
-              : user.role === "taxi"
-                ? "/taxi-partner"
-                : "/trip-builder";
+      user.role === "user" ? "/trip-builder" : accountHomeForRole(user.role);
 
     const response = NextResponse.redirect(new URL(redirectUrl, baseUrl));
 

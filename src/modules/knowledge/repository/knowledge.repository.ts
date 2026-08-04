@@ -136,6 +136,10 @@ export class KnowledgeRepository {
     });
   }
 
+  async deleteSite(id: string, client: DbClient = prisma) {
+    return client.site.delete({ where: { id } });
+  }
+
   async updateSite(
     id: string,
     data: {

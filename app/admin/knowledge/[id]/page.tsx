@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,7 @@ import {
   CheckCircle,
   Loader2,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import {
   SITE_CATEGORY_VALUES,
@@ -44,6 +45,7 @@ const DINING = new Set(["RESTORAN", "CHAYXONA", "KAFE"]);
 
 export default function AdminKnowledgeDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params.id;
 
   const [site, setSite] = useState<SiteDetail | null>(null);
@@ -51,6 +53,7 @@ export default function AdminKnowledgeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -182,6 +185,28 @@ export default function AdminKnowledgeDetailPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!site) return;
+    const ok = window.confirm(
+      `"${site.name}" ni o'chirib tashlamoqchimisiz?\nBu amalni qaytarib bo'lmaydi.`,
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/knowledge/sites/${id}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) throw new Error(data.message ?? "O'chirib bo'lmadi");
+      toast.success("O'chirildi");
+      router.push("/admin/knowledge");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "O'chirib bo'lmadi");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-400">
@@ -218,28 +243,43 @@ export default function AdminKnowledgeDetailPage() {
             {site.slug} · {site.status}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={
-            publishing ||
-            site.status === "PUBLISHED" ||
-            eligibility?.ok === false
-          }
-          onClick={() => void handlePublish()}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
-          title={
-            eligibility && !eligibility.ok
-              ? eligibility.reasons.join(", ")
-              : "Publish"
-          }
-        >
-          {publishing ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <CheckCircle size={14} />
-          )}
-          {site.status === "PUBLISHED" ? "Published" : "Publish"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={() => void handleDelete()}
+            className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-600 hover:text-white disabled:opacity-40"
+          >
+            {deleting ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Trash2 size={14} />
+            )}
+            O&apos;chirish
+          </button>
+          <button
+            type="button"
+            disabled={
+              publishing ||
+              site.status === "PUBLISHED" ||
+              eligibility?.ok === false
+            }
+            onClick={() => void handlePublish()}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
+            title={
+              eligibility && !eligibility.ok
+                ? eligibility.reasons.join(", ")
+                : "Publish"
+            }
+          >
+            {publishing ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <CheckCircle size={14} />
+            )}
+            {site.status === "PUBLISHED" ? "Published" : "Publish"}
+          </button>
+        </div>
       </div>
 
       {eligibility ? (
