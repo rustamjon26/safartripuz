@@ -32,6 +32,12 @@ export const listTasksQuerySchema = z.object({
     .default("all"),
 });
 
+export const patchStaffProfileSchema = z.object({
+  firstName: z.string().trim().min(1).max(100).optional(),
+  lastName: z.string().trim().max(100).optional().nullable(),
+  phone: z.string().trim().min(5).max(32).optional().nullable(),
+});
+
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(191),
   description: z.string().trim().max(5000).optional(),

@@ -17,6 +17,25 @@ export type StaffContext = {
   displayName: string;
 };
 
+export type StaffProfileView = {
+  firstName: string;
+  lastName: string | null;
+  fullName: string;
+  title: string;
+  role: string;
+  phone: string | null;
+  email: string | null;
+  hotelName: string | null;
+  initials: string;
+  isActive: boolean;
+  tasksDone: number;
+  tasksDoneMonth: number;
+  growth: string;
+  shiftsCompletedMonth: number;
+  /** Legacy HotelStaff.salary in SOM as display string; null if unset. */
+  baseSalaryLabel: string | null;
+};
+
 export type ShiftView = {
   id: string;
   title: string;

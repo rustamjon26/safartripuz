@@ -31,6 +31,37 @@ export class StaffService {
     return { ctx, ...stats };
   }
 
+  async profile(userId: string) {
+    const ctx = await resolveStaffContext(userId);
+    const profile = await staffRepository.getProfile(ctx.staffId, userId);
+    if (!profile) throw new StaffNotFoundError("Profil topilmadi");
+    return { ctx, profile };
+  }
+
+  async patchProfile(
+    userId: string,
+    patch: {
+      firstName?: string;
+      lastName?: string | null;
+      phone?: string | null;
+    },
+  ) {
+    const ctx = await resolveStaffContext(userId);
+    if (
+      patch.firstName === undefined &&
+      patch.lastName === undefined &&
+      patch.phone === undefined
+    ) {
+      throw new Error("VALIDATION");
+    }
+    const profile = await staffRepository.updateProfile(
+      ctx.staffId,
+      userId,
+      patch,
+    );
+    return { ctx, profile };
+  }
+
   async listShifts(userId: string, range?: { from?: Date; to?: Date }) {
     const ctx = await resolveStaffContext(userId);
     const from = range?.from ?? new Date(Date.now() - 2 * 24 * 3600 * 1000);

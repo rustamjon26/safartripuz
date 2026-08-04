@@ -5,8 +5,10 @@ export {
   StaffTaskStatusError,
 } from "./service/staff.service";
 export { departmentFromStaffRole } from "./service/staff-context";
+export { staffRoleTitle } from "./domain/staff-role-label";
 export type {
   StaffContext,
+  StaffProfileView,
   ShiftView,
   TaskView,
   ThreadView,
@@ -25,4 +27,5 @@ export {
   patchTaskSchema,
   sendMessageSchema,
   completeModuleSchema,
+  patchStaffProfileSchema,
 } from "./domain/validate";

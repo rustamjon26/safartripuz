@@ -6,10 +6,16 @@ import type {
   ShiftView,
   StaffContext,
   StaffOpsTaskStatus,
+  StaffProfileView,
   StaffShiftStatus,
   TaskView,
   ThreadView,
 } from "../domain/types";
+import {
+  growthLabel,
+  initialsFromName,
+  staffRoleTitle,
+} from "../domain/staff-role-label";
 
 function mapShift(row: {
   id: string;
@@ -680,6 +686,140 @@ export class StaffRepository {
     ]);
 
     return { todayTasks, todayShift: todayShift ? mapShift(todayShift) : null };
+  }
+
+  async getProfile(staffId: string, userId: string): Promise<StaffProfileView | null> {
+    const staff = await prisma.hotelStaff.findUnique({
+      where: { id: staffId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        salary: true,
+        isActive: true,
+        hotel: { select: { name: true } },
+        user: {
+          select: { email: true, phone: true, first_name: true, last_name: true },
+        },
+      },
+    });
+    if (!staff) return null;
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(monthStart.getTime() - 1);
+
+    const [tasksDone, tasksDoneMonth, tasksDonePrevMonth, shiftsCompletedMonth] =
+      await Promise.all([
+        prisma.staffOpsTask.count({
+          where: { staffId, status: "DONE" },
+        }),
+        prisma.staffOpsTask.count({
+          where: {
+            staffId,
+            status: "DONE",
+            completedAt: { gte: monthStart },
+          },
+        }),
+        prisma.staffOpsTask.count({
+          where: {
+            staffId,
+            status: "DONE",
+            completedAt: { gte: prevMonthStart, lte: prevMonthEnd },
+          },
+        }),
+        prisma.staffShift.count({
+          where: {
+            staffId,
+            status: "COMPLETED",
+            endsAt: { gte: monthStart },
+          },
+        }),
+      ]);
+
+    const firstName = staff.firstName || staff.user?.first_name || "Xodim";
+    const lastName = staff.lastName ?? staff.user?.last_name ?? null;
+    const fullName = `${firstName}${lastName ? ` ${lastName}` : ""}`.trim();
+    const salaryNum = Number(staff.salary);
+    const baseSalaryLabel =
+      Number.isFinite(salaryNum) && salaryNum > 0
+        ? `${Math.round(salaryNum).toLocaleString("uz-UZ")} UZS`
+        : null;
+
+    return {
+      firstName,
+      lastName,
+      fullName,
+      title: staffRoleTitle(staff.role),
+      role: staff.role,
+      phone: staff.phone ?? staff.user?.phone ?? null,
+      email: staff.user?.email ?? null,
+      hotelName: staff.hotel.name,
+      initials: initialsFromName(firstName, lastName),
+      isActive: staff.isActive,
+      tasksDone,
+      tasksDoneMonth,
+      growth: growthLabel(tasksDoneMonth, tasksDonePrevMonth),
+      shiftsCompletedMonth,
+      baseSalaryLabel,
+    };
+  }
+
+  async updateProfile(
+    staffId: string,
+    userId: string,
+    patch: {
+      firstName?: string;
+      lastName?: string | null;
+      phone?: string | null;
+    },
+  ): Promise<StaffProfileView> {
+    if (patch.phone) {
+      const taken = await prisma.user.findFirst({
+        where: { phone: patch.phone, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new Error("PHONE_TAKEN");
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.hotelStaff.update({
+        where: { id: staffId },
+        data: {
+          ...(patch.firstName !== undefined ? { firstName: patch.firstName } : {}),
+          ...(patch.lastName !== undefined ? { lastName: patch.lastName } : {}),
+          ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
+        },
+      });
+
+      if (
+        patch.firstName !== undefined ||
+        patch.lastName !== undefined ||
+        patch.phone !== undefined
+      ) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            ...(patch.firstName !== undefined
+              ? { first_name: patch.firstName }
+              : {}),
+            ...(patch.lastName !== undefined
+              ? { last_name: patch.lastName ?? "" }
+              : {}),
+            ...(patch.phone ? { phone: patch.phone } : {}),
+          },
+        });
+      }
+    });
+
+    const profile = await this.getProfile(staffId, userId);
+    if (!profile) throw new Error("Profile reload failed");
+    return profile;
   }
 }
 
