@@ -55,13 +55,23 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { partnerId, name, totalRooms, city, address, contactEmail, contactPhone, status } = body;
 
-    if (!partnerId || !name || !city) {
-      return NextResponse.json({ message: "Majburiy maydonlar to'ldirilmagan" }, { status: 400 });
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+    const trimmedCity = typeof city === "string" ? city.trim() : "";
+    const partnerIdStr = typeof partnerId === "string" ? partnerId.trim() : "";
+
+    if (!partnerIdStr) {
+      return NextResponse.json({ message: "Hamkorni tanlang" }, { status: 400 });
+    }
+    if (!trimmedName) {
+      return NextResponse.json({ message: "Mehmonxona nomini kiriting" }, { status: 400 });
+    }
+    if (!trimmedCity) {
+      return NextResponse.json({ message: "Shaharni kiriting" }, { status: 400 });
     }
 
     // Check if partner exists and is type hotel
     const partner = await prisma.partner.findFirst({
-       where: { id: partnerId, type: "hotel" },
+       where: { id: partnerIdStr, type: "hotel" },
        include: { hotel: true }
     });
     if (!partner) return NextResponse.json({ message: "Noto'g'ri hamkor (Partner not found)" }, { status: 404 });
@@ -69,13 +79,13 @@ export async function POST(req: Request) {
 
     const hotel = await prisma.hotel.create({
       data: {
-        partnerId,
-        name,
+        partnerId: partnerIdStr,
+        name: trimmedName,
         totalRooms: Number(totalRooms ?? 0),
-        city,
-        address,
-        contactEmail,
-        contactPhone,
+        city: trimmedCity,
+        address: typeof address === "string" ? address.trim() : address,
+        contactEmail: typeof contactEmail === "string" ? contactEmail.trim() : contactEmail,
+        contactPhone: typeof contactPhone === "string" ? contactPhone.trim() : contactPhone,
         status: status ?? "draft",
       },
     });

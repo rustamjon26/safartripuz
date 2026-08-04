@@ -6,12 +6,12 @@ export async function GET() {
   try {
     await requireRole(["admin", "super_admin"]);
 
-    // Fetch partners of type 'hotel' who don't have a record in the 'Hotel' model yet.
+    // Hotel partners without a Hotel yet (approved or pending — admin can attach during onboarding).
     const eligiblePartners = await prisma.partner.findMany({
       where: {
         type: "hotel",
-        status: "approved",
-        hotel: null 
+        status: { in: ["approved", "pending"] },
+        hotel: null,
       },
       include: {
         user: {
