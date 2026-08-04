@@ -17,12 +17,21 @@ import {
 } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useCurrentUser } from "@/components/dashboard/useCurrentUser";
+import {
+  isGooglePhonePlaceholder,
+  normalizeUzPhone,
+} from "@/lib/phone";
 
 type ProfileData = {
   first_name: string;
   last_name: string;
   phone: string;
 };
+
+function displayPhone(phone: string | null | undefined): string {
+  if (!phone || isGooglePhonePlaceholder(phone)) return "";
+  return phone;
+}
 
 type UserStats = {
   travelPlans: number;
@@ -45,6 +54,7 @@ export default function ProfilePage() {
 
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwdSaving, setPwdSaving] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -54,9 +64,31 @@ export default function ProfilePage() {
       setForm({
         first_name: user.first_name ?? "",
         last_name: user.last_name ?? "",
-        phone: user.phone ?? "",
+        phone: displayPhone(user.phone),
       });
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/user/profile/password", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { hasPassword?: boolean };
+        if (!cancelled && typeof data.hasPassword === "boolean") {
+          setHasPassword(data.hasPassword);
+        }
+      } catch {
+        /* optional */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   useEffect(() => {
@@ -76,24 +108,27 @@ export default function ProfilePage() {
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.first_name.trim() || !form.last_name.trim()) {
-      toast.error("Ism va familiya majburiy");
+    if (!form.first_name.trim()) {
+      toast.error("Ism majburiy");
       return;
     }
-    if (!form.phone.trim()) {
-      toast.error("Telefon raqam majburiy");
+    const phoneNormalized = normalizeUzPhone(form.phone);
+    if (!phoneNormalized) {
+      toast.error(
+        "Telefon formati noto‘g‘ri. Masalan: +998901234567 yoki 901234567",
+      );
       return;
     }
     setSaving(true);
     try {
       const res = await fetch("/api/user/profile", {
-        method: "PUT",
+        method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           first_name: form.first_name.trim(),
           last_name: form.last_name.trim(),
-          phone: form.phone.trim(),
+          phone: phoneNormalized,
         }),
       });
       const data = (await res.json()) as {
@@ -110,6 +145,11 @@ export default function ProfilePage() {
           phone: data.user.phone,
           role: data.user.role,
         });
+        setForm({
+          first_name: data.user.first_name ?? "",
+          last_name: data.user.last_name ?? "",
+          phone: displayPhone(data.user.phone),
+        });
       } else {
         await refetch();
       }
@@ -121,8 +161,19 @@ export default function ProfilePage() {
     }
   }
 
+  function openPasswordModal() {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPwdOpen(true);
+  }
+
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
+    if (hasPassword && !currentPassword) {
+      toast.error("Joriy parolni kiriting");
+      return;
+    }
     if (newPassword.length < 8) {
       toast.error("Yangi parol kamida 8 belgi bo‘lishi kerak");
       return;
@@ -137,11 +188,18 @@ export default function ProfilePage() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({
+          ...(hasPassword ? { currentPassword } : {}),
+          newPassword,
+        }),
       });
-      const data = (await res.json()) as { message?: string };
+      const data = (await res.json()) as {
+        message?: string;
+        setOnly?: boolean;
+      };
       if (!res.ok) throw new Error(data.message || "Parol o‘zgarmadi");
       toast.success(data.message || "Parol yangilandi ✓");
+      setHasPassword(true);
       setPwdOpen(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -248,10 +306,12 @@ export default function ProfilePage() {
             </div>
             <div>
               <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">
-                Familiya
+                Familiya{" "}
+                <span className="font-medium normal-case tracking-normal text-gray-400">
+                  (ixtiyoriy)
+                </span>
               </label>
               <input
-                required
                 value={form.last_name}
                 onChange={(e) =>
                   setForm({ ...form, last_name: e.target.value })
@@ -281,9 +341,14 @@ export default function ProfilePage() {
               required
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="+998901234567"
+              placeholder="+998 90 123 45 67"
+              inputMode="tel"
+              autoComplete="tel"
               className={inputClass}
             />
+            <p className="mt-1.5 text-xs text-gray-500">
+              Format: +998XXXXXXXXX yoki 90XXXXXXX
+            </p>
           </div>
 
           <div className="pt-2">
@@ -323,18 +388,20 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200 gap-3">
             <div>
               <div className="font-bold text-gray-900 text-sm">
-                Parolni o&apos;zgartirish
+                {hasPassword ? "Parolni o'zgartirish" : "Parol o'rnatish"}
               </div>
               <div className="text-xs text-gray-600 mt-0.5">
-                Parolingizni muntazam yangilab turing
+                {hasPassword
+                  ? "Parolingizni muntazam yangilab turing"
+                  : "Google orqali kirdingiz — email/parol uchun parol o‘rnating"}
               </div>
             </div>
             <button
               type="button"
-              onClick={() => setPwdOpen(true)}
+              onClick={openPasswordModal}
               className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors shrink-0"
             >
-              O&apos;zgartirish →
+              {hasPassword ? "O'zgartirish →" : "O'rnatish →"}
             </button>
           </div>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
@@ -360,7 +427,7 @@ export default function ProfilePage() {
           <div className="relative w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-gray-900 text-lg">
-                Parolni o&apos;zgartirish
+                {hasPassword ? "Parolni o'zgartirish" : "Parol o'rnatish"}
               </h3>
               <button
                 type="button"
@@ -371,20 +438,28 @@ export default function ProfilePage() {
                 <X size={18} />
               </button>
             </div>
+            {!hasPassword ? (
+              <p className="mb-3 text-sm text-gray-600">
+                Google hisobida parol yo‘q. Yangi parol o‘rnating — keyin
+                email/parol bilan ham kirishingiz mumkin.
+              </p>
+            ) : null}
             <form onSubmit={changePassword} className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
-                  Joriy parol
-                </label>
-                <input
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
+              {hasPassword ? (
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                    Joriy parol
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              ) : null}
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
                   Yangi parol
@@ -423,7 +498,11 @@ export default function ProfilePage() {
                 ) : (
                   <Key size={16} />
                 )}
-                {pwdSaving ? "Saqlanmoqda..." : "Parolni yangilash"}
+                {pwdSaving
+                  ? "Saqlanmoqda..."
+                  : hasPassword
+                    ? "Parolni yangilash"
+                    : "Parolni o'rnatish"}
               </button>
             </form>
           </div>

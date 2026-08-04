@@ -5,12 +5,17 @@ import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
-  currentPassword: z.string().min(1),
+  /** Required when the account already has a password. */
+  currentPassword: z.string().optional().default(""),
   newPassword: z
     .string()
     .min(8, "Yangi parol kamida 8 belgi bo‘lishi kerak")
     .max(128),
 });
+
+function hasPasswordHash(password: string | null | undefined): boolean {
+  return Boolean(password && password.length > 0);
+}
 
 export async function PATCH(req: Request) {
   try {
@@ -19,8 +24,7 @@ export async function PATCH(req: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         {
-          message:
-            parsed.error.issues[0]?.message ?? "Validation error",
+          message: parsed.error.issues[0]?.message ?? "Validation error",
         },
         { status: 400 },
       );
@@ -31,30 +35,33 @@ export async function PATCH(req: Request) {
       select: { password: true },
     });
     if (!user) {
-      return NextResponse.json({ message: "Foydalanuvchi topilmadi" }, { status: 404 });
-    }
-
-    // Google/OAuth accounts may have an empty password hash.
-    if (!user.password) {
       return NextResponse.json(
-        {
-          message:
-            "Bu hisobda parol yo‘q (Google orqali kirilgan). Parol o‘rnatish tez orada qo‘shiladi.",
-        },
-        { status: 400 },
+        { message: "Foydalanuvchi topilmadi" },
+        { status: 404 },
       );
     }
 
-    const ok = await bcrypt.compare(
-      parsed.data.currentPassword,
-      user.password,
-    );
-    if (!ok) {
-      return NextResponse.json(
-        { message: "Joriy parol noto‘g‘ri" },
-        { status: 400 },
+    const hasExisting = hasPasswordHash(user.password);
+
+    if (hasExisting) {
+      if (!parsed.data.currentPassword) {
+        return NextResponse.json(
+          { message: "Joriy parolni kiriting" },
+          { status: 400 },
+        );
+      }
+      const ok = await bcrypt.compare(
+        parsed.data.currentPassword,
+        user.password,
       );
+      if (!ok) {
+        return NextResponse.json(
+          { message: "Joriy parol noto‘g‘ri" },
+          { status: 400 },
+        );
+      }
     }
+    // else: Google/OAuth account with empty password — allow first-time set.
 
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
     await prisma.user.update({
@@ -62,7 +69,42 @@ export async function PATCH(req: Request) {
       data: { password: passwordHash },
     });
 
-    return NextResponse.json({ message: "Parol yangilandi" }, { status: 200 });
+    return NextResponse.json(
+      {
+        message: hasExisting
+          ? "Parol yangilandi"
+          : "Parol o‘rnatildi — endi email/parol bilan ham kirishingiz mumkin",
+        setOnly: !hasExisting,
+      },
+      { status: 200 },
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Server xatosi";
+    if (msg === "UNAUTHORIZED") {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[user/profile/password] failed", e);
+    return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
+  }
+}
+
+/** Does this account already have a password? (for UI: hide current-password field) */
+export async function GET() {
+  try {
+    const actor = await requireUser();
+    const user = await prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { password: true },
+    });
+    if (!user) {
+      return NextResponse.json(
+        { message: "Foydalanuvchi topilmadi" },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({
+      hasPassword: hasPasswordHash(user.password),
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
