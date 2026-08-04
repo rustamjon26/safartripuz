@@ -192,12 +192,24 @@ export default function TripBuilderPage() {
     async function loadDestinations() {
       try {
         const res = await fetch("/api/builder/destinations");
-        setDestinations(await res.json());
+        const list = (await res.json()) as Destination[];
+        setDestinations(list);
+        // Support /trip-builder?dest=Zomin from deep links / Xizmatlar
+        if (typeof window !== "undefined" && !destination) {
+          const q = new URLSearchParams(window.location.search).get("dest");
+          if (q?.trim()) {
+            const match = list.find(
+              (d) => d.title.toLowerCase() === q.trim().toLowerCase(),
+            );
+            setDestination(match?.title ?? q.trim());
+          }
+        }
       } catch {
         toast.error("Manzillarni yuklashda xatolik");
       } finally { setLoadingDest(false); }
     }
     void loadDestinations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial URL dest once
   }, []);
 
   useEffect(() => {
@@ -708,11 +720,13 @@ export default function TripBuilderPage() {
       return (
         <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-white/50">
           <Info className="w-10 h-10 text-gray-400 mb-3" />
-          <h3 className="font-black text-gray-900">Tizimda takliflar yo&apos;q</h3>
+          <h3 className="font-black text-gray-900">
+            {destination ? "Tizimda takliflar yo'q" : "Avval manzil tanlang"}
+          </h3>
           <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
             {destination
-              ? `${destination} hududida hozircha "${label}" mavjud emas.`
-              : `Hozircha "${label}" takliflari mavjud emas.`}
+              ? `${destination} hududida hozircha "${label}" mavjud emas. Manzil yoki sanalarni o'zgartirib ko'ring.`
+              : `Xizmatlarni ko'rish uchun trip-builderda manzil (masalan Zomin) tanlang.`}
           </p>
         </div>
       );

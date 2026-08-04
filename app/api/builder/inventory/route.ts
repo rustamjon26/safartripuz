@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { HotelStatus, PartnerStatus, PartnerType, type Prisma } from "@prisma/client";
+import {
+  cityContainsAny,
+  cityOrRegionContainsAny,
+  destinationSearchTerms,
+} from "@/lib/trip-builder/destinationAliases";
 
 function parseStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -47,7 +52,7 @@ function starRating(meta: unknown): number {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const destRaw = searchParams.get("dest");
-  const dest = destRaw?.trim() ? destRaw.toLowerCase() : "";
+  const destTerms = destinationSearchTerms(destRaw);
 
   const approvedHotelPartner = {
     status: PartnerStatus.approved,
@@ -65,15 +70,19 @@ export async function GET(req: Request) {
   const hotelWhere: Prisma.HotelWhereInput = {
     status: HotelStatus.active,
     partner: approvedHotelPartner,
-    ...(dest ? { city: { contains: dest } } : {}),
+    ...(destTerms.length ? { OR: cityContainsAny(destTerms) } : {}),
   };
 
   const guideWhere: Prisma.GuideListingWhereInput = {
     isActive: true,
     partner: approvedGuidePartner,
-    ...(dest
+    ...(destTerms.length
       ? {
-          OR: [{ region: { contains: dest } }, { region: { equals: "" } }, { region: null }],
+          OR: [
+            ...destTerms.map((t) => ({ region: { contains: t } })),
+            { region: { equals: "" } },
+            { region: null },
+          ],
         }
       : {}),
   };
@@ -85,7 +94,7 @@ export async function GET(req: Request) {
 
   const homestayWhere: Prisma.HomeStayListingWhereInput = {
     status: "ACTIVE",
-    ...(dest ? { city: { contains: dest } } : {}),
+    ...(destTerms.length ? { OR: cityOrRegionContainsAny(destTerms) } : {}),
   };
 
   const hotelsFromDb = await prisma.hotel.findMany({
