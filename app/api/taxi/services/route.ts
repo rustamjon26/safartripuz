@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/authz";
+import { requireRole, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { getApprovedPartnerContextByUserId } from "@/lib/partner";
 import { fail, handleApiError, ok } from "../_utils";
@@ -15,10 +15,41 @@ const createSchema = z.object({
   isActive: z.boolean().optional().default(true),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const mine = url.searchParams.get("mine") === "1";
+
+    let partnerIdFilter: string | undefined;
+    if (mine) {
+      const actor = await requireUser();
+      // Admins see all when mine=1 without a taxi partner row.
+      if (
+        actor.role === "admin" ||
+        actor.role === "super_admin"
+      ) {
+        partnerIdFilter = undefined;
+      } else {
+        const partner = await getApprovedPartnerContextByUserId(
+          actor.id,
+          "taxi",
+        );
+        if (!partner) {
+          return fail("Tasdiqlangan taxi partner topilmadi", 404);
+        }
+        partnerIdFilter = partner.id;
+      }
+    }
+
     const items = await prisma.taxiService.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(partnerIdFilter ? { partnerId: partnerIdFilter } : {}),
+        // Public catalog: only services from approved taxi partners.
+        ...(!mine
+          ? { partner: { status: "approved", type: "taxi" } }
+          : {}),
+      },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -76,7 +107,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const actor = await requireRole(["taxi"]);
+    const actor = await requireRole(["taxi", "taxi_partner"]);
     const partner = await getApprovedPartnerContextByUserId(actor.id, "taxi");
     if (!partner) {
       return fail("Tasdiqlangan taxi partner topilmadi", 404);

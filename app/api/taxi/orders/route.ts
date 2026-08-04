@@ -89,7 +89,11 @@ export async function POST(req: Request) {
     const body = parsed.data;
 
     const service = await prisma.taxiService.findFirst({
-      where: { id: body.serviceId, isActive: true },
+      where: {
+        id: body.serviceId,
+        isActive: true,
+        partner: { status: "approved", type: "taxi" },
+      },
       select: { id: true, price: true, serviceType: true },
     });
     if (!service) return fail("Taxi service topilmadi", 404);
