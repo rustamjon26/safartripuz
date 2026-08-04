@@ -1344,7 +1344,12 @@ export default function TripBuilderPage() {
         <div className="mt-5 pt-5 border-t border-[#e9edf2] shrink-0 flex flex-col gap-3">
           <DestinationPreviewMap
             destination={destination}
-            height={112}
+            height={168}
+            destinations={destinations}
+            onSelectDestination={(title) => {
+              setDestination(title);
+              if (title) setActiveTab("basics");
+            }}
           />
           <div className="flex items-center justify-between text-sm px-1">
             <span className="text-[#64748B] font-[family-name:var(--font-sora)]">Jami</span>
@@ -1359,7 +1364,7 @@ export default function TripBuilderPage() {
             className="w-full py-3.5 bg-[#000917] text-white rounded-xl font-[family-name:var(--font-sora)] font-bold flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-40"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket size={18} />}
-            Safarni Bron Qilish
+            {destination ? "Safarni Bron Qilish" : "Avval manzil tanlang"}
           </button>
         </div>
       </div>
