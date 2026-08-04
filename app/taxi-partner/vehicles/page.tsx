@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Car, Plus, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/Skeleton";
+import ImageUploader from "@/components/ui/ImageUploader";
 
 type Vehicle = {
   id: string;
@@ -26,7 +27,7 @@ type Form = {
   plateNumber: string;
   year: number;
   category: "STANDARD" | "COMFORT" | "MINIVAN" | "PREMIUM";
-  imagesText: string;
+  images: string[];
 };
 
 const emptyForm: Form = {
@@ -36,7 +37,7 @@ const emptyForm: Form = {
   plateNumber: "",
   year: new Date().getFullYear(),
   category: "STANDARD",
-  imagesText: "",
+  images: [],
 };
 
 export default function TaxiVehiclesPage() {
@@ -80,10 +81,6 @@ export default function TaxiVehiclesPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const images = form.imagesText
-        .split("\n")
-        .map((x) => x.trim())
-        .filter(Boolean);
       const payload = {
         make: form.make,
         model: form.model,
@@ -91,7 +88,7 @@ export default function TaxiVehiclesPage() {
         plateNumber: form.plateNumber,
         year: form.year,
         category: form.category,
-        images,
+        images: form.images,
       };
       const url = form.id ? `/api/taxi/driver/vehicles/${form.id}` : "/api/taxi/driver/vehicles";
       const method = form.id ? "PUT" : "POST";
@@ -134,7 +131,7 @@ export default function TaxiVehiclesPage() {
       plateNumber: vehicle.plateNumber,
       year: vehicle.year,
       category: vehicle.category,
-      imagesText: vehicle.images.join("\n"),
+      images: vehicle.images ?? [],
     });
     setShowForm(true);
   }
@@ -218,12 +215,17 @@ export default function TaxiVehiclesPage() {
               <option value="PREMIUM">PREMIUM</option>
             </select>
           </div>
-          <textarea
-            className="tp-input min-h-[100px]"
-            placeholder="Rasm URL (har qatorda bittadan)"
-            value={form.imagesText}
-            onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))}
-          />
+          <div>
+            <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wide text-[#64748B] mb-2">
+              Rasmlar
+            </p>
+            <ImageUploader
+              value={form.images}
+              onChange={(urls) => setForm((p) => ({ ...p, images: urls }))}
+              maxImages={8}
+              placeholder="Mashina rasmini yuklash uchun bosing yoki shu yerga tashlang"
+            />
+          </div>
           <div className="flex gap-2">
             <button disabled={saving} className="tp-btn tp-btn-primary">
               {saving ? "Saqlanmoqda..." : form.id ? "Yangilash" : "Qo‘shish"}
