@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
   Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind,
   ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building, Tent,
-  Send, Rocket, Eye, Hotel, Map as MapIcon,
+  Send, Rocket, Eye, Hotel,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
@@ -31,6 +32,18 @@ import {
   fetchTripAiPlan,
   type TripAiPlan,
 } from "./tripAiClient";
+
+const DestinationPreviewMap = dynamic(
+  () => import("@/components/trip-builder/DestinationPreviewMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-[#f0f3ff] border border-[#d8e3fb] h-24 flex items-center justify-center text-[12px] font-semibold text-[#64748B]">
+        <Loader2 size={16} className="animate-spin mr-2" /> Xarita…
+      </div>
+    ),
+  },
+);
 
 type Destination = { id: string; title: string };
 
@@ -1058,7 +1071,7 @@ export default function TripBuilderPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 space-y-5 min-h-0">
+        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 flex flex-col gap-5 min-h-0">
           {aiChat.map((msg) => (
             <div
               key={msg.id}
@@ -1073,7 +1086,7 @@ export default function TripBuilderPage() {
               >
                 {msg.role === "user" ? <Users size={14} /> : <Sparkles size={14} />}
               </div>
-              <div className={`max-w-[85%] space-y-1 ${msg.role === "user" ? "text-right" : ""}`}>
+              <div className={`max-w-[85%] flex flex-col gap-1 ${msg.role === "user" ? "text-right" : ""}`}>
                 <div
                   className={`px-4 py-3 text-sm leading-relaxed shadow-sm ${
                     msg.role === "user"
@@ -1083,7 +1096,7 @@ export default function TripBuilderPage() {
                 >
                   <p className="whitespace-pre-wrap text-left">{msg.text}</p>
                   {msg.plan && msg.plan.days.length > 0 ? (
-                    <div className="mt-3 space-y-2 border-t border-[#c4c6cd]/40 pt-3 text-left">
+                    <div className="mt-3 flex flex-col gap-2 border-t border-[#c4c6cd]/40 pt-3 text-left">
                       {msg.plan.days.map((day) => (
                         <div
                           key={`${msg.id}-${day.day}`}
@@ -1093,7 +1106,7 @@ export default function TripBuilderPage() {
                             {day.title || `${day.day}-kun`}
                             <span className="ml-2 text-[#64748B] font-medium">{day.date}</span>
                           </p>
-                          <ul className="space-y-1">
+                          <ul className="flex flex-col gap-1">
                             {day.slots.slice(0, 4).map((slot, idx) => (
                               <li
                                 key={`${msg.id}-${day.day}-${idx}`}
@@ -1314,14 +1327,11 @@ export default function TripBuilderPage() {
           )}
         </div>
 
-        <div className="mt-5 pt-5 border-t border-[#e9edf2] shrink-0 space-y-3">
-          <div className="rounded-2xl bg-[#f0f3ff] border border-[#d8e3fb] h-24 relative overflow-hidden flex items-center justify-center">
-            <MapIcon size={28} className="text-[#006781]/40 absolute" />
-            <span className="relative z-10 bg-white/90 px-3 py-1.5 rounded-full text-[11px] font-bold text-[#000917] border border-[#0d2137]/10 flex items-center gap-1">
-              <MapPin size={12} />
-              {destination || "Xarita"}
-            </span>
-          </div>
+        <div className="mt-5 pt-5 border-t border-[#e9edf2] shrink-0 flex flex-col gap-3">
+          <DestinationPreviewMap
+            destination={destination}
+            height={112}
+          />
           <div className="flex items-center justify-between text-sm px-1">
             <span className="text-[#64748B] font-[family-name:var(--font-sora)]">Jami</span>
             <span className="font-bold text-[#000917]">

@@ -61,10 +61,16 @@
   }
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/*
+ * Keep the universal reset inside @layer base so Tailwind utilities like
+ * `space-y-*` (which set margin) are not wiped by this zero-specificity rule.
+ */
+@layer base {
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
 }
 
 html, body {

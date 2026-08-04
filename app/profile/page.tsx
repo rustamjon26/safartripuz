@@ -184,32 +184,32 @@ export default function ProfilePage() {
 
       <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden mt-6">
         <div className="flex items-center gap-2 px-6 py-5 border-b border-gray-200">
-          <Key size={18} className="text-amber-400" />
-          <h3 className="font-black text-white">Hisob Xavfsizligi</h3>
+          <Key size={18} className="text-amber-500" />
+          <h3 className="font-black text-gray-900">Hisob Xavfsizligi</h3>
         </div>
-        <div className="p-6 space-y-3">
+        <div className="p-6 flex flex-col gap-3">
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
-              <div className="font-bold text-white text-sm">Email tasdiqlangan</div>
-              <div className="text-xs text-gray-500 mt-0.5">{user?.email}</div>
+              <div className="font-bold text-gray-900 text-sm">Email tasdiqlangan</div>
+              <div className="text-xs text-gray-600 mt-0.5">{user?.email}</div>
             </div>
-            <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               <CheckCircle2 size={12} /> Tasdiqlangan
             </span>
           </div>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
-              <div className="font-bold text-white text-sm">Parolni o&apos;zgartirish</div>
-              <div className="text-xs text-gray-500 mt-0.5">Parolingizni muntazam yangilab turing</div>
+              <div className="font-bold text-gray-900 text-sm">Parolni o&apos;zgartirish</div>
+              <div className="text-xs text-gray-600 mt-0.5">Parolingizni muntazam yangilab turing</div>
             </div>
-            <button type="button" className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">
+            <button type="button" className="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors">
               O&apos;zgartirish →
             </button>
           </div>
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200">
             <div>
-              <div className="font-bold text-white text-sm">Hisob turi</div>
-              <div className="text-xs text-gray-500 mt-0.5">{user?.role ? (roleLabel[user.role.toLowerCase()] ?? user.role) : "—"}</div>
+              <div className="font-bold text-gray-900 text-sm">Hisob turi</div>
+              <div className="text-xs text-gray-600 mt-0.5">{user?.role ? (roleLabel[user.role.toLowerCase()] ?? user.role) : "—"}</div>
             </div>
             <Shield size={18} className="text-gray-500" />
           </div>
