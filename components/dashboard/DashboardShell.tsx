@@ -22,7 +22,7 @@ import {
   List,
   Package,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
@@ -100,6 +100,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
 
   async function fetchNotifications() {
     try {
@@ -191,7 +192,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     );
   }
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-white">
       <Link
         href="/"
@@ -270,7 +271,11 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2">
+        <Link
+          href="/profile"
+          onClick={() => setSidebarOpen(false)}
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
+        >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
             {initials}
           </div>
@@ -280,7 +285,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             </div>
             <div className="text-xs text-gray-500 truncate">{user?.email}</div>
           </div>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={() => void handleLogout()}
@@ -296,7 +301,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   return (
     <div className="dashboard-root min-h-screen bg-gray-50 flex">
       <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-gray-200 flex-col fixed top-0 left-0 h-full z-30">
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       {sidebarOpen && (
@@ -317,7 +322,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <X size={20} />
               </button>
             </div>
-            <SidebarContent />
+            {renderSidebarContent()}
           </aside>
         </div>
       )}
@@ -348,10 +353,13 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 relative">
+            <div className="flex items-center gap-2 shrink-0">
               <button
+                ref={notifBtnRef}
                 type="button"
-                onClick={() => setShowNotif(!showNotif)}
+                aria-expanded={showNotif}
+                aria-haspopup="dialog"
+                onClick={() => setShowNotif((v) => !v)}
                 className={`p-2.5 rounded-xl transition-all relative border ${
                   showNotif
                     ? "bg-amber-50 border-amber-200 text-amber-600"
@@ -366,17 +374,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 )}
               </button>
 
-              {showNotif && (
+              {showNotif ? (
                 <NotificationPopover
                   notifications={notifications}
                   onMarkRead={handleMarkRead}
                   onClose={() => setShowNotif(false)}
+                  anchorEl={notifBtnRef.current}
                 />
-              )}
+              ) : null}
 
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20">
+              <Link
+                href="/profile"
+                title="Mening profilim"
+                aria-label="Mening profilim"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
                 {initials}
-              </div>
+              </Link>
             </div>
           </div>
 

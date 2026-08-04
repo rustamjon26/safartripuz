@@ -97,7 +97,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
         ? "Tajribalarni qidirish..."
         : "Qidiruv...";
 
-  function Sidebar({ mobile = false }: { mobile?: boolean }) {
+  function renderSidebar(mobile = false) {
     return (
       <div className="flex flex-col h-full bg-[#0d2137] text-white">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 min-h-[64px]">
@@ -152,17 +152,23 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
             Yangi tajriba
           </Link>
           <div className="flex items-center gap-3 px-1 pt-1">
-            <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-semibold text-white truncate">
-                {user ? `${user.first_name} ${user.last_name}` : "Guide"}
+            <Link
+              href="/profile"
+              className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
+              title="Profil"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                {initials}
               </div>
-              <div className="text-[10px] text-white/45 truncate uppercase tracking-wide">
-                Professional Guide
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-white truncate">
+                  {user ? `${user.first_name} ${user.last_name}` : "Guide"}
+                </div>
+                <div className="text-[10px] text-white/45 truncate uppercase tracking-wide">
+                  Professional Guide
+                </div>
               </div>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => void handleLogout()}
@@ -180,7 +186,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
   return (
     <div className="gp-root flex h-screen overflow-hidden">
       <aside className="hidden lg:flex w-[250px] bg-[#0d2137] shrink-0 shadow-[2px_0_16px_rgba(0,9,23,0.18)]">
-        <Sidebar />
+        {renderSidebar()}
       </aside>
 
       {drawerOpen ? (
@@ -190,7 +196,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
             onClick={() => setDrawerOpen(false)}
           />
           <aside className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10">
-            <Sidebar mobile />
+            {renderSidebar(true)}
           </aside>
         </div>
       ) : null}
@@ -257,7 +263,12 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
               <Plus size={14} />
               Yangi tajriba
             </Link>
-            <div className="hidden sm:flex items-center gap-2 pl-1">
+            <Link
+              href="/profile"
+              className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
+              title="Profil"
+              aria-label="Profil"
+            >
               <div className="text-right leading-tight">
                 <div className="text-[12px] font-semibold text-[#111c2d]">
                   {user?.first_name || "Guide"}
@@ -269,7 +280,7 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
               <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white font-bold flex items-center justify-center text-sm">
                 {initials}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

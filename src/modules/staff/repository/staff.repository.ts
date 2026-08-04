@@ -72,6 +72,68 @@ export class StaffRepository {
     return owned?.id ?? null;
   }
 
+  /**
+   * hotel_manager can open /staff without a HotelStaff row — create one so
+   * dashboard/shifts/tasks resolve. Idempotent on userId unique.
+   */
+  async ensureManagerStaffProfile(
+    userId: string,
+    hotelId: string,
+  ): Promise<{
+    id: string;
+    hotelId: string;
+    role: string;
+    firstName: string;
+    lastName: string | null;
+    hotelStatus: string;
+  }> {
+    const existing = await this.findActiveStaffForUser(userId);
+    if (existing) return existing;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { first_name: true, last_name: true },
+    });
+    const hotel = await prisma.hotel.findUnique({
+      where: { id: hotelId },
+      select: { status: true },
+    });
+
+    try {
+      const created = await prisma.hotelStaff.create({
+        data: {
+          hotelId,
+          userId,
+          firstName: user?.first_name?.trim() || "Manager",
+          lastName: user?.last_name?.trim() || null,
+          role: "MANAGER",
+          isActive: true,
+        },
+        select: {
+          id: true,
+          hotelId: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      return {
+        id: created.id,
+        hotelId: created.hotelId,
+        role: created.role,
+        firstName: created.firstName,
+        lastName: created.lastName,
+        hotelStatus: hotel?.status ?? "draft",
+      };
+    } catch {
+      // Concurrent create (userId unique) — re-read.
+      const raced = await this.findActiveStaffForUser(userId);
+      if (raced) return raced;
+      throw new Error("HotelStaff profil yaratilmadi");
+    }
+  }
+
   async listShiftsForStaff(input: {
     staffId: string;
     from?: Date;

@@ -4,8 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Printer } from "lucide-react";
-import { DEMO_INVOICE } from "../../mock-pack10";
-
 type InvoiceLine = {
   name: string;
   description: string | null;
@@ -107,46 +105,70 @@ function InvoicePreviewInner() {
     };
   }, [id]);
 
-  const vatRate = invoice
-    ? invoice.vatRateBps / 100
-    : DEMO_INVOICE.vatRate;
-  const rows = invoice
-    ? invoice.lines.map((l) => ({
-        name: l.name,
-        desc: l.description || "",
-        qty: l.quantity,
-        price: l.unitPriceSom,
-        total: l.lineTotalSom,
-      }))
-    : [
-        {
-          name: "Deluxe Room Blocks",
-          desc: "Standard corporate accommodation package",
-          qty: 12,
-          price: 1_200_000,
-          total: 14_400_000,
-        },
-      ];
-  const subtotal = invoice
-    ? invoice.subtotalSom
-    : rows.reduce((a, r) => a + r.total, 0);
-  const vat = invoice ? invoice.vatSom : Math.round((subtotal * vatRate) / 100);
-  const total = invoice ? invoice.totalSom : subtotal + vat;
-  const number = invoice?.number ?? DEMO_INVOICE.number;
-  const clientName = invoice?.clientName ?? DEMO_INVOICE.client.name;
-  const clientCity = invoice?.clientCity ?? DEMO_INVOICE.client.city;
-  const clientCountry =
-    invoice?.clientCountry ?? DEMO_INVOICE.client.country;
-  const clientTin = invoice?.clientTin ?? DEMO_INVOICE.client.stir;
-  const clientAddress =
-    invoice?.clientAddress ?? DEMO_INVOICE.client.address;
-  const terms = invoice?.terms ?? DEMO_INVOICE.terms;
-  const dateLabel = invoice?.issuedAt
+  if (!id) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4 pb-16 p-6">
+        <p className="text-[14px] font-semibold text-[#64748B]">
+          Invoys tanlanmagan. Avval yangi invoys yarating yoki ro‘yxatdan oching.
+        </p>
+        <Link
+          href="/hotel/invoices/new"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#006781] text-white text-[13px] font-bold"
+        >
+          <ArrowLeft size={16} />
+          Invoys yaratish
+        </Link>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <p className="text-[13px] font-semibold text-[#64748B] p-6">
+        Yuklanmoqda…
+      </p>
+    );
+  }
+
+  if (error || !invoice) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4 pb-16 p-6">
+        <p className="text-[14px] font-semibold text-rose-600">
+          {error || "Invoys topilmadi"}
+        </p>
+        <Link
+          href="/hotel/invoices/new"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#d8e3fb] text-[13px] font-bold text-[#64748B]"
+        >
+          <ArrowLeft size={16} />
+          Orqaga
+        </Link>
+      </div>
+    );
+  }
+
+  const vatRate = invoice.vatRateBps / 100;
+  const rows = invoice.lines.map((l) => ({
+    name: l.name,
+    desc: l.description || "",
+    qty: l.quantity,
+    price: l.unitPriceSom,
+    total: l.lineTotalSom,
+  }));
+  const subtotal = invoice.subtotalSom;
+  const vat = invoice.vatSom;
+  const total = invoice.totalSom;
+  const number = invoice.number;
+  const clientName = invoice.clientName;
+  const clientCity = invoice.clientCity;
+  const clientCountry = invoice.clientCountry;
+  const clientTin = invoice.clientTin;
+  const clientAddress = invoice.clientAddress;
+  const terms = invoice.terms;
+  const dateLabel = invoice.issuedAt
     ? new Date(invoice.issuedAt).toLocaleDateString("uz-UZ")
-    : invoice?.createdAt
-      ? new Date(invoice.createdAt).toLocaleDateString("uz-UZ")
-      : DEMO_INVOICE.dateLabel;
-  const status = invoice ? statusLabel(invoice.status) : DEMO_INVOICE.status;
+    : new Date(invoice.createdAt).toLocaleDateString("uz-UZ");
+  const status = statusLabel(invoice.status);
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-16">
@@ -178,19 +200,6 @@ function InvoicePreviewInner() {
         </div>
       </div>
 
-      {loading ? (
-        <p className="text-[13px] font-semibold text-[#64748B]">Yuklanmoqda…</p>
-      ) : null}
-      {error ? (
-        <p className="text-[13px] font-semibold text-rose-600">{error}</p>
-      ) : null}
-      {!id && !loading ? (
-        <p className="text-[12px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          Demo ko‘rinish — yangi invoys yarating, yoki URL ga{" "}
-          <code>?id=…</code> qo‘shing.
-        </p>
-      ) : null}
-
       <article className="bg-white border border-[#d8e3fb] rounded-2xl shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
         <div className="bg-[#0d2137] text-white px-6 sm:px-8 py-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -218,19 +227,11 @@ function InvoicePreviewInner() {
               Yetkazib beruvchi
             </div>
             <div className="mt-2 text-[15px] font-bold text-[#0d2137]">
-              {DEMO_INVOICE.supplier.name}
+              Mehmonxona (SafarTrip Partner)
             </div>
             <p className="mt-1 text-[13px] font-semibold text-[#64748B] leading-relaxed">
-              {DEMO_INVOICE.supplier.address}
-              <br />
-              {DEMO_INVOICE.supplier.city}
-              <br />
-              {DEMO_INVOICE.supplier.country}
-            </p>
-            <p className="mt-2 text-[12px] font-semibold text-[#006781]">
-              {DEMO_INVOICE.supplier.email}
-              <br />
-              {DEMO_INVOICE.supplier.phone}
+              Yetkazib beruvchi rekvizitlari mehmonxona sozlamalaridan
+              olinadi.
             </p>
           </div>
           <div>
@@ -303,11 +304,7 @@ function InvoicePreviewInner() {
               Bank rekvizitlari
             </div>
             <p className="mt-2 text-[12px] font-semibold text-[#111c2d] leading-relaxed">
-              Bank: {DEMO_INVOICE.bank.name}
-              <br />
-              IBAN: {DEMO_INVOICE.bank.iban}
-              <br />
-              SWIFT: {DEMO_INVOICE.bank.swift}
+              Bank rekvizitlari — mehmonxona sozlamalaridan.
             </p>
           </div>
           <div className="rounded-xl border border-[#d8e3fb] p-4 space-y-2 text-[13px] font-semibold">

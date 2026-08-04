@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react";
-import { DEMO_INVOICE, INVOICE_LINE_PRESETS } from "../../mock-pack10";
+import { INVOICE_LINE_PRESETS } from "../../mock-pack10";
 
 type Line = { id: string; name: string; qty: number; price: number };
 
 const STEPS = ["Mijoz", "Xizmatlar", "Shartlar", "Ko‘rib chiqish"] as const;
-const VAT_RATE = DEMO_INVOICE.vatRate;
+/** Default VAT % for new invoices (8%). */
+const VAT_RATE = 8;
 
 function formatSom(n: number): string {
   return `${n.toLocaleString("uz-UZ")} UZS`;
@@ -20,20 +21,16 @@ export default function InvoiceWizardPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [clientName, setClientName] = useState(DEMO_INVOICE.client.name);
-  const [clientCity, setClientCity] = useState("Toshkent, O‘zbekiston");
-  const [clientTin, setClientTin] = useState(DEMO_INVOICE.client.stir);
-  const [project, setProject] = useState(DEMO_INVOICE.project);
-  const [terms, setTerms] = useState(DEMO_INVOICE.terms);
+  // Empty defaults — never ship DEMO client/TIN into a real B2B invoice.
+  const [clientName, setClientName] = useState("");
+  const [clientCity, setClientCity] = useState("");
+  const [clientTin, setClientTin] = useState("");
+  const [project, setProject] = useState("");
+  const [terms, setTerms] = useState("");
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>(
-    INVOICE_LINE_PRESETS.slice(0, 3).map((p, i) => ({
-      id: `l${i}`,
-      name: p.name,
-      qty: p.qty,
-      price: p.price,
-    })),
-  );
+  const [lines, setLines] = useState<Line[]>([
+    { id: "l0", name: "", qty: 1, price: 0 },
+  ]);
 
   const subtotal = useMemo(
     () => lines.reduce((acc, l) => acc + l.qty * l.price, 0),
@@ -61,8 +58,11 @@ export default function InvoiceWizardPage() {
 
   async function finish() {
     if (saving) return;
-    if (!clientName.trim() || lines.length === 0) {
-      toast.error("Mijoz va kamida 1 ta xizmat kerak");
+    const validLines = lines.filter(
+      (l) => l.name.trim() && l.qty > 0 && l.price > 0,
+    );
+    if (!clientName.trim() || validLines.length === 0) {
+      toast.error("Mijoz va kamida 1 ta to‘liq xizmat (nom, miqdor, narx) kerak");
       return;
     }
     setSaving(true);
@@ -79,8 +79,8 @@ export default function InvoiceWizardPage() {
           notes: notes.trim() || undefined,
           vatRateBps: VAT_RATE * 100,
           issue: true,
-          lines: lines.map((l) => ({
-            name: l.name,
+          lines: validLines.map((l) => ({
+            name: l.name.trim(),
             quantity: l.qty,
             unitPriceSom: l.price,
           })),
@@ -94,11 +94,18 @@ export default function InvoiceWizardPage() {
         throw new Error(data.message || "Invoys saqlanmadi");
       }
       // ISSUED → SENT for "yuborish"
-      await fetch(`/api/hotel/invoices/${data.invoice.id}`, {
+      const sendRes = await fetch(`/api/hotel/invoices/${data.invoice.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "SENT" }),
       });
+      const sendData = (await sendRes.json()) as { message?: string };
+      if (!sendRes.ok) {
+        throw new Error(
+          sendData.message ||
+            "Invoys yaratildi, lekin yuborish (SENT) muvaffaqiyatsiz",
+        );
+      }
       toast.success("Invoys yaratildi va yuborildi");
       router.push(`/hotel/invoices/preview?id=${data.invoice.id}`);
     } catch (e) {

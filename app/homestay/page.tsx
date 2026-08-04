@@ -6,6 +6,10 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import { Search, SlidersHorizontal, MapPin, Calendar, Users, Home } from "lucide-react";
 import { formatUzInteger } from "@/lib/displayHelpers";
+import {
+  HOMESTAY_AMENITIES,
+  getAmenityMeta,
+} from "@/lib/homestay/amenityIcons";
 
 type Listing = {
   id: string;
@@ -18,21 +22,6 @@ type Listing = {
   amenities: string[];
   rooms: number;
 };
-
-const AMENITY_ICONS: Record<string, string> = {
-  wifi: "📶",
-  parking: "🚗",
-  kitchen: "🍳",
-  AC: "❄️",
-  TV: "📺",
-  pool: "🏊",
-  BBQ: "🔥",
-  "washing machine": "🫧",
-};
-
-function amenityEmoji(a: string) {
-  return AMENITY_ICONS[a] ?? "✓";
-}
 
 const fieldCls =
   "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 [color-scheme:light]";
@@ -54,8 +43,6 @@ export default function HomeStaySearchPage() {
     minRooms: 1,
     amenities: [] as string[],
   });
-
-  const amenityOptions = ["wifi", "parking", "kitchen", "AC", "TV", "washing machine", "pool", "BBQ"];
 
   async function runSearch(patch?: Partial<typeof query>) {
     const q = { ...query, ...patch };
@@ -194,23 +181,31 @@ export default function HomeStaySearchPage() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">
                   Qulayliklar
                 </label>
-                <div className="space-y-2">
-                  {amenityOptions.map((a) => (
-                    <label key={a} className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <div className="flex flex-col gap-2">
+                  {HOMESTAY_AMENITIES.map(({ key, label, Icon }) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
-                        checked={activeAmenities.includes(a)}
+                        checked={activeAmenities.includes(key)}
                         onChange={(e) =>
                           setQuery((p) => ({
                             ...p,
                             amenities: e.target.checked
-                              ? [...p.amenities, a]
-                              : p.amenities.filter((x) => x !== a),
+                              ? [...p.amenities, key]
+                              : p.amenities.filter((x) => x !== key),
                           }))
                         }
-                        className="accent-orange-500"
+                        className="accent-orange-500 shrink-0"
                       />
-                      <span className="font-medium">{amenityEmoji(a)} {a}</span>
+                      <Icon
+                        size={16}
+                        className="text-slate-500 shrink-0"
+                        strokeWidth={2}
+                      />
+                      <span className="font-medium">{label}</span>
                     </label>
                   ))}
                 </div>
@@ -278,10 +273,10 @@ export default function HomeStaySearchPage() {
                   priceUnit="so'm/kecha"
                   rating={item.avgRating}
                   ratingCount={item.reviewCount}
-                  amenities={item.amenities?.slice(0, 4).map((a) => ({
-                    label: a,
-                    emoji: amenityEmoji(a),
-                  }))}
+                  amenities={item.amenities?.slice(0, 4).map((a) => {
+                    const meta = getAmenityMeta(a);
+                    return { label: meta.label, Icon: meta.Icon };
+                  })}
                   actionLabel="Ko'rish →"
                 />
               ))}

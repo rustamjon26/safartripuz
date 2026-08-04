@@ -1,8 +1,11 @@
-import type { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
+import {
+  isProtectedPlatformRole,
+  jobRoleToPlatformRole,
+} from "@/lib/hotel/staffPlatformRole";
 import bcrypt from "bcryptjs";
 
 export async function GET(req: Request) {
@@ -42,19 +45,6 @@ export async function POST(req: Request) {
       let user = await tx.user.findUnique({ where: { email } });
       
       if (!user) {
-        // Map HotelStaff job role → platform Role (Staff PWA login)
-        const job = String(role ?? "").toUpperCase();
-        const platformRole: Role =
-          job === "CLEANER"
-            ? "cleaner"
-            : job === "RECEPTION" || job === "RECEPTIONIST"
-              ? "receptionist"
-              : job === "WAITER"
-                ? "waiter"
-                : job === "MANAGER" || job === "ADMIN"
-                  ? "hotel_staff"
-                  : "hotel_staff";
-
         user = await tx.user.create({
           data: {
             first_name: firstName,
@@ -62,23 +52,15 @@ export async function POST(req: Request) {
             email: email,
             phone: phone || `+998${Math.floor(Math.random()*1000000000)}`,
             password: passwordHash,
-            role: platformRole,
+            role: jobRoleToPlatformRole(role),
           }
         });
-      } else if (!user.role || user.role === "user") {
-        // Upgrade legacy staff users so /staff PWA gate works
-        const job = String(role ?? "").toUpperCase();
-        const platformRole: Role =
-          job === "CLEANER"
-            ? "cleaner"
-            : job === "RECEPTION" || job === "RECEPTIONIST"
-              ? "receptionist"
-              : job === "WAITER"
-                ? "waiter"
-                : "hotel_staff";
+      } else if (!isProtectedPlatformRole(user.role)) {
+        // Remap legacy / staff users so /staff PWA gate matches the job.
+        // Never overwrite hotel_manager / admin / support.
         user = await tx.user.update({
           where: { id: user.id },
-          data: { role: platformRole },
+          data: { role: jobRoleToPlatformRole(role) },
         });
       }
 
@@ -116,15 +98,34 @@ export async function PATCH(req: Request) {
     const json = await req.json();
     const { id, ...data } = json;
 
-    const staff = await prisma.hotelStaff.update({
-      where: { id, hotelId: ctx.hotel.id },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
-        role: data.role,
-        isActive: data.isActive
+    const staff = await prisma.$transaction(async (tx) => {
+      const updated = await tx.hotelStaff.update({
+        where: { id, hotelId: ctx.hotel.id },
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          role: data.role,
+          isActive: data.isActive,
+        },
+      });
+
+      // Keep platform User.role in sync with the job (CLEANER→cleaner, …)
+      // so middleware /staff gates match the new HotelStaff.role.
+      if (data.role !== undefined && updated.userId) {
+        const linked = await tx.user.findUnique({
+          where: { id: updated.userId },
+          select: { role: true },
+        });
+        if (linked && !isProtectedPlatformRole(linked.role)) {
+          await tx.user.update({
+            where: { id: updated.userId },
+            data: { role: jobRoleToPlatformRole(String(data.role)) },
+          });
+        }
       }
+
+      return updated;
     });
 
     return NextResponse.json({ staff }, { status: 200 });

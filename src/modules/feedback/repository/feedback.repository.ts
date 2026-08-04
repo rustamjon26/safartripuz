@@ -40,9 +40,13 @@ function buildWhere(filter: ListFeedbackFilter): Prisma.FeedbackTicketWhereInput
   const where: Prisma.FeedbackTicketWhereInput = {};
 
   if (filter.status && filter.status !== "all") {
-    // Inbox UX: “javob berilgan” = ANSWERED + CLOSED
+    // Inbox UX:
+    //   “javob berilgan”   = ANSWERED + CLOSED
+    //   “javob berilmagan” = OPEN + ESCALATED
     if (filter.status === "ANSWERED") {
       where.status = { in: ["ANSWERED", "CLOSED"] };
+    } else if (filter.status === "OPEN") {
+      where.status = { in: ["OPEN", "ESCALATED"] };
     } else {
       where.status = filter.status;
     }
@@ -202,7 +206,9 @@ export class FeedbackRepository {
     const [total, open, answeredLike, agg, positive, neutral, negative] =
       await Promise.all([
         prisma.feedbackTicket.count(),
-        prisma.feedbackTicket.count({ where: { status: "OPEN" } }),
+        prisma.feedbackTicket.count({
+          where: { status: { in: ["OPEN", "ESCALATED"] } },
+        }),
         prisma.feedbackTicket.count({
           where: { status: { in: ["ANSWERED", "CLOSED"] } },
         }),

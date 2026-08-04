@@ -72,12 +72,25 @@ export async function PATCH(req: Request) {
     }
     const { first_name, last_name, phone } = parsed.data;
 
+    if (phone) {
+      const taken = await prisma.user.findFirst({
+        where: { phone, NOT: { id: user.id } },
+        select: { id: true },
+      });
+      if (taken) {
+        return NextResponse.json(
+          { message: "Bu telefon raqami band" },
+          { status: 409 },
+        );
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
-        ...(first_name && { first_name }),
-        ...(last_name && { last_name }),
-        ...(phone && { phone }),
+        ...(first_name ? { first_name } : {}),
+        ...(last_name ? { last_name } : {}),
+        ...(phone ? { phone } : {}),
       },
       // Never return the full row — it contains the password hash.
       select: {

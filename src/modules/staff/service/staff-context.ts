@@ -19,10 +19,16 @@ export function departmentFromStaffRole(role: string): string {
 }
 
 export async function resolveStaffContext(userId: string): Promise<StaffContext> {
-  const staff = await staffRepository.findActiveStaffForUser(userId);
+  let staff = await staffRepository.findActiveStaffForUser(userId);
 
   if (!staff) {
-    throw new StaffContextError("HotelStaff profil topilmadi");
+    // hotel_manager owns the property but may lack a HotelStaff row — /staff
+    // APIs all require one. Auto-provision a MANAGER profile for the owned hotel.
+    const hotelId = await staffRepository.findHotelIdOwnedByUser(userId);
+    if (!hotelId) {
+      throw new StaffContextError("HotelStaff profil topilmadi");
+    }
+    staff = await staffRepository.ensureManagerStaffProfile(userId, hotelId);
   }
   // allow draft for partner testing; block suspended
   if (staff.hotelStatus === "suspended") {

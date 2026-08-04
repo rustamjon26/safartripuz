@@ -285,7 +285,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Settings size={18} />
             </Link>
 
-            <div className="hidden sm:flex items-center gap-2 pl-1">
+            <Link
+              href="/admin/settings"
+              className="hidden sm:flex items-center gap-2 pl-1 hover:opacity-90 transition-opacity"
+              title="Sozlamalar / akkaunt"
+              aria-label="Sozlamalar"
+            >
               <div className="text-right leading-tight">
                 <div className="text-[12px] font-semibold text-[#111c2d]">
                   {user ? `${user.first_name}` : "Admin"}
@@ -295,7 +300,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 </div>
               </div>
               <div className="adm-user-avatar">{initials}</div>
-            </div>
+            </Link>
           </div>
         </header>
 

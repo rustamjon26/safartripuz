@@ -18,8 +18,10 @@ import {
   Building2,
   Map as MapIcon,
 } from "lucide-react";
+import type { ElementType } from "react";
 import { toast } from "sonner";
 import { formatPricePerUnit, taxiServiceTypeLabel } from "@/lib/displayHelpers";
+import { geocodeAddress } from "@/lib/taxi/geocodeAddress";
 
 type TaxiService = {
   id: string;
@@ -36,7 +38,7 @@ type Estimate = {
   estimatedMinutes: number;
 };
 
-const SERVICE_TYPE_ICONS: Record<string, React.ElementType> = {
+const SERVICE_TYPE_ICONS: Record<string, ElementType> = {
   STANDARD: Car,
   COMFORT: Car,
   BUSINESS: Car,
@@ -98,8 +100,16 @@ export default function TaxiBookingPage() {
     [services, selectedServiceId],
   );
 
-  const defaultPickup = { lat: 41.3111, lng: 69.2797 };
-  const defaultDropoff = { lat: 41.2995, lng: 69.2401 };
+  async function resolveRouteCoords() {
+    if (!pickupAddress.trim() || !dropoffAddress.trim()) {
+      throw new Error("Qayerdan va qayerga manzillarini kiriting");
+    }
+    const [pickup, dropoff] = await Promise.all([
+      geocodeAddress(pickupAddress),
+      geocodeAddress(dropoffAddress),
+    ]);
+    return { pickup, dropoff };
+  }
 
   async function calculateEstimate() {
     if (!selectedServiceId) {
@@ -108,14 +118,15 @@ export default function TaxiBookingPage() {
     }
     setEstimating(true);
     try {
+      const { pickup, dropoff } = await resolveRouteCoords();
       const res = await fetch("/api/taxi/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickupLat: defaultPickup.lat,
-          pickupLng: defaultPickup.lng,
-          dropoffLat: defaultDropoff.lat,
-          dropoffLng: defaultDropoff.lng,
+          pickupLat: pickup.lat,
+          pickupLng: pickup.lng,
+          dropoffLat: dropoff.lat,
+          dropoffLng: dropoff.lng,
           serviceId: selectedServiceId,
         }),
       });
@@ -140,16 +151,17 @@ export default function TaxiBookingPage() {
     }
     setSubmitting(true);
     try {
+      const { pickup, dropoff } = await resolveRouteCoords();
       const res = await fetch("/api/taxi/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pickupAddress,
-          pickupLat: defaultPickup.lat,
-          pickupLng: defaultPickup.lng,
-          dropoffAddress,
-          dropoffLat: defaultDropoff.lat,
-          dropoffLng: defaultDropoff.lng,
+          pickupAddress: pickup.label || pickupAddress.trim(),
+          pickupLat: pickup.lat,
+          pickupLng: pickup.lng,
+          dropoffAddress: dropoff.label || dropoffAddress.trim(),
+          dropoffLat: dropoff.lat,
+          dropoffLng: dropoff.lng,
           serviceId: selectedServiceId,
           scheduledAt: scheduleType === "SCHEDULED" ? scheduledAt : undefined,
           customerNote: customerNote || undefined,
@@ -263,9 +275,15 @@ export default function TaxiBookingPage() {
                   ))}
                 </div>
               ) : services.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                   <Car size={40} className="text-slate-300 mb-3" />
-                  <p className="text-gray-500 text-sm">Xizmatlar mavjud emas</p>
+                  <p className="text-gray-900 text-sm font-bold">
+                    Hozircha faol taxi xizmati yo‘q
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1.5 max-w-sm">
+                    Tez orada partnerlar xizmat qo‘shadi. Keyinroq qayta urinib
+                    ko‘ring yoki support bilan bog‘laning.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
