@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import ImageListInput from "@/app/homestay-partner/_components/ImageListInput";
+import ImageUploader from "@/components/ui/ImageUploader";
 
 const CATEGORIES = ["CITY_TOUR", "NATURE", "HISTORY", "ADVENTURE", "FOOD", "CUSTOM"] as const;
 const LANGUAGES = ["uz", "ru", "en", "tr", "de", "fr", "ar"];
@@ -152,10 +152,14 @@ export default function GuideListingForm({
         </div>
 
         <div>
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 block">Image URLs</label>
-          <ImageListInput
-            images={form.images}
+          <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-2 block">
+            Rasmlar
+          </label>
+          <ImageUploader
+            value={form.images}
             onChange={(nextImages) => setForm((prev) => ({ ...prev, images: nextImages }))}
+            maxImages={20}
+            placeholder="Tur rasmini yuklash uchun bosing yoki shu yerga tashlang"
           />
         </div>
 
