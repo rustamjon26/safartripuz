@@ -22,7 +22,7 @@ import {
   List,
   Package,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
@@ -100,6 +100,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
 
   async function fetchNotifications() {
     try {
@@ -348,10 +349,13 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 relative">
+            <div className="flex items-center gap-2 shrink-0">
               <button
+                ref={notifBtnRef}
                 type="button"
-                onClick={() => setShowNotif(!showNotif)}
+                aria-expanded={showNotif}
+                aria-haspopup="dialog"
+                onClick={() => setShowNotif((v) => !v)}
                 className={`p-2.5 rounded-xl transition-all relative border ${
                   showNotif
                     ? "bg-amber-50 border-amber-200 text-amber-600"
@@ -366,13 +370,14 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 )}
               </button>
 
-              {showNotif && (
+              {showNotif ? (
                 <NotificationPopover
                   notifications={notifications}
                   onMarkRead={handleMarkRead}
                   onClose={() => setShowNotif(false)}
+                  anchorEl={notifBtnRef.current}
                 />
-              )}
+              ) : null}
 
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20">
                 {initials}
