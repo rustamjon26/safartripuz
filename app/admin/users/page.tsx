@@ -66,6 +66,26 @@ const ROLE_LABELS: Record<Role, string> = {
   hotel_staff: "Hotel Staff",
 };
 
+/** Holat column — prefer role so stale Partner.type (e.g. hotel after taxi assign) never misleads. */
+function holatLabel(u: UserRow): { text: string; className: string } {
+  if (u.role === "home_stay_partner") {
+    return { text: "Uy Mehmonxona", className: "text-purple-600" };
+  }
+  if (u.role === "taxi" || u.role === "taxi_partner") {
+    return { text: "Taxi", className: "text-teal-600" };
+  }
+  if (u.role === "hotel_manager") {
+    return { text: "Hotel", className: "text-teal-600" };
+  }
+  if (u.role === "guide") {
+    return { text: "Guide", className: "text-teal-600" };
+  }
+  if (u.partnerProfile) {
+    return { text: u.partnerProfile.type, className: "text-teal-600" };
+  }
+  return { text: "Oddiy", className: "text-slate-300" };
+}
+
 export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<UserRow[]>([]);
@@ -304,17 +324,14 @@ export default function AdminUsersPage() {
                        </div>
                     </td>
                     <td className="py-4 text-xs font-bold">
-                        {u.partnerProfile ? (
-                          u.role === "home_stay_partner" ? (
-                            <span className="text-purple-600 uppercase text-[10px]">Uy Mehmonxona</span>
-                          ) : (
-                            <span className="text-teal-600 uppercase text-[10px]">{u.partnerProfile.type}</span>
-                          )
-                        ) : u.role === "home_stay_partner" ? (
-                          <span className="text-purple-400 uppercase text-[10px]">Uy Mehmonxona</span>
-                        ) : (
-                          <span className="text-slate-300 uppercase text-[10px]">Oddiy</span>
-                        )}
+                      {(() => {
+                        const holat = holatLabel(u);
+                        return (
+                          <span className={`${holat.className} uppercase text-[10px]`}>
+                            {holat.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-4">
                         <div className="text-xs font-black text-slate-900 border border-slate-100 bg-slate-50 px-3 py-2 rounded-xl inline-block min-w-[140px]">
