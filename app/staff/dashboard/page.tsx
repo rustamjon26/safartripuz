@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bell, HelpCircle, Play, School } from "lucide-react";
 import { toast } from "sonner";
+import { staffFetch } from "../_lib/staffFetch";
 
 type Dash = {
   ctx: { displayName: string; department: string };
@@ -32,7 +33,7 @@ export default function StaffDashboardPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/staff/dashboard", { credentials: "include" });
+      const res = await staffFetch("/api/staff/dashboard", { credentials: "include" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || "Xato");
       setData(json);
@@ -57,7 +58,7 @@ export default function StaffDashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/staff/shifts/${data.todayShift.id}`, {
+      const res = await staffFetch(`/api/staff/shifts/${data.todayShift.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

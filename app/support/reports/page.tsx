@@ -70,6 +70,8 @@ export default function SupportReportsPage() {
       const res = await fetch("/api/support/feedback/sync", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
       });
       const data = (await res.json()) as {
         created?: number;

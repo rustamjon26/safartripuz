@@ -1,3 +1,4 @@
+import { normalizeUzPhone } from "@/lib/phone";
 import {
   assertShiftTransition,
   StaffShiftStatusError,
@@ -54,11 +55,18 @@ export class StaffService {
     ) {
       throw new Error("VALIDATION");
     }
-    const profile = await staffRepository.updateProfile(
-      ctx.staffId,
-      userId,
-      patch,
-    );
+
+    let phone = patch.phone;
+    if (phone !== undefined && phone !== null) {
+      const normalized = normalizeUzPhone(phone);
+      if (!normalized) throw new Error("PHONE_INVALID");
+      phone = normalized;
+    }
+
+    const profile = await staffRepository.updateProfile(ctx.staffId, userId, {
+      ...patch,
+      ...(phone !== undefined ? { phone } : {}),
+    });
     return { ctx, profile };
   }
 

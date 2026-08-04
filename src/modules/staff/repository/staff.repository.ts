@@ -712,24 +712,29 @@ export class StaffRepository {
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonthEnd = new Date(monthStart.getTime() - 1);
 
+    // Prefer completedAt; fall back to updatedAt for legacy DONE rows.
+    const doneInRange = (from: Date, to?: Date) => ({
+      staffId,
+      status: "DONE" as const,
+      OR: [
+        { completedAt: { gte: from, ...(to ? { lte: to } : {}) } },
+        {
+          completedAt: null,
+          updatedAt: { gte: from, ...(to ? { lte: to } : {}) },
+        },
+      ],
+    });
+
     const [tasksDone, tasksDoneMonth, tasksDonePrevMonth, shiftsCompletedMonth] =
       await Promise.all([
         prisma.staffOpsTask.count({
           where: { staffId, status: "DONE" },
         }),
         prisma.staffOpsTask.count({
-          where: {
-            staffId,
-            status: "DONE",
-            completedAt: { gte: monthStart },
-          },
+          where: doneInRange(monthStart),
         }),
         prisma.staffOpsTask.count({
-          where: {
-            staffId,
-            status: "DONE",
-            completedAt: { gte: prevMonthStart, lte: prevMonthEnd },
-          },
+          where: doneInRange(prevMonthStart, prevMonthEnd),
         }),
         prisma.staffShift.count({
           where: {
@@ -777,6 +782,7 @@ export class StaffRepository {
       phone?: string | null;
     },
   ): Promise<StaffProfileView> {
+    // User.phone is required+unique — only update it when a new number is set.
     if (patch.phone) {
       const taken = await prisma.user.findFirst({
         where: { phone: patch.phone, NOT: { id: userId } },
@@ -800,7 +806,7 @@ export class StaffRepository {
       if (
         patch.firstName !== undefined ||
         patch.lastName !== undefined ||
-        patch.phone !== undefined
+        Boolean(patch.phone)
       ) {
         await tx.user.update({
           where: { id: userId },

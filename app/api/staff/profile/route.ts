@@ -43,6 +43,15 @@ export async function PATCH(req: Request) {
         { status: 400 },
       );
     }
+    if (e instanceof Error && e.message === "PHONE_INVALID") {
+      return NextResponse.json(
+        {
+          message:
+            "Telefon formati noto‘g‘ri. Masalan: +998901234567 yoki 901234567",
+        },
+        { status: 400 },
+      );
+    }
     if (e instanceof Error && e.message === "PHONE_TAKEN") {
       return NextResponse.json(
         { message: "Bu telefon raqami band" },

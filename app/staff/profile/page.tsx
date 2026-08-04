@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { staffFetch } from "../_lib/staffFetch";
 
 type StaffProfile = {
   firstName: string;
@@ -51,14 +52,15 @@ export default function StaffProfilePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/staff/profile", {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const res = await staffFetch("/api/staff/profile", { cache: "no-store" });
       const data = (await res.json()) as {
         profile?: StaffProfile;
         message?: string;
       };
+      if (res.status === 401) {
+        router.push("/login?next=/staff/profile");
+        return;
+      }
       if (!res.ok || !data.profile) {
         throw new Error(data.message || "Profil yuklanmadi");
       }
@@ -69,7 +71,7 @@ export default function StaffProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     void load();
@@ -87,9 +89,8 @@ export default function StaffProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/staff/profile", {
+      const res = await staffFetch("/api/staff/profile", {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firstName: firstName.trim(),
@@ -101,6 +102,10 @@ export default function StaffProfilePage() {
         profile?: StaffProfile;
         message?: string;
       };
+      if (res.status === 401) {
+        router.push("/login?next=/staff/profile");
+        return;
+      }
       if (!res.ok || !data.profile) {
         throw new Error(data.message || "Saqlab bo'lmadi");
       }
@@ -116,7 +121,7 @@ export default function StaffProfilePage() {
 
   async function logout() {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch {
       // ignore
     }
@@ -192,6 +197,11 @@ export default function StaffProfilePage() {
               {profile.title}
               {profile.email ? ` · ${profile.email}` : ""}
             </div>
+            {profile.phone ? (
+              <div className="text-[12px] font-semibold text-[#006781] mt-0.5">
+                {profile.phone}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
@@ -230,7 +240,7 @@ export default function StaffProfilePage() {
                 Bajarilgan vazifalar (oy)
               </div>
               <div className="text-[11px] font-semibold text-[#94A3B8]">
-                StaffOpsTask · DONE
+                Shu oyda yakunlangan
               </div>
             </div>
             <div className="text-[13px] font-black text-emerald-600 shrink-0">
@@ -243,7 +253,7 @@ export default function StaffProfilePage() {
                 Yakunlangan smenalar
               </div>
               <div className="text-[11px] font-semibold text-[#94A3B8]">
-                StaffShift · COMPLETED
+                Shu oyda tugagan
               </div>
             </div>
             <div className="text-[13px] font-black text-emerald-600 shrink-0">
@@ -254,10 +264,10 @@ export default function StaffProfilePage() {
             <div className="rounded-xl border border-[#d8e3fb] px-3 py-3 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-[13px] font-bold text-[#0d2137]">
-                  Asosiy oylik (HR)
+                  Asosiy oylik
                 </div>
                 <div className="text-[11px] font-semibold text-[#94A3B8]">
-                  HotelStaff.salary
+                  HR ma&apos;lumoti
                 </div>
               </div>
               <div className="text-[13px] font-black text-[#0d2137] shrink-0">
@@ -267,8 +277,8 @@ export default function StaffProfilePage() {
           ) : null}
         </div>
         <p className="mt-3 text-[11px] font-semibold text-[#64748B]">
-          KPI komissiya / bonus ledger hali alohida modelda emas — faqat ops
-          faoliyat ko&apos;rsatiladi.
+          Komissiya va bonus hisobi keyinroq qo&apos;shiladi — hozir faqat smena
+          va vazifa ko&apos;rsatkichlari.
         </p>
       </section>
 
@@ -287,7 +297,7 @@ export default function StaffProfilePage() {
             type="button"
             onClick={() => {
               if (row.href.startsWith("/")) router.push(row.href);
-              else toast.message(`${row.label} — tez orada`);
+              else toast.message("Tez orada");
             }}
             className="w-full flex items-center gap-3 px-4 py-3.5 border-b border-[#d8e3fb] last:border-0 text-left hover:bg-[#f9f9ff]"
           >
@@ -311,7 +321,7 @@ export default function StaffProfilePage() {
       </section>
 
       <p className="text-center text-[10px] font-bold text-[#94A3B8] uppercase tracking-wider pb-2">
-        SafarTrip Staff · live profil
+        SafarTrip Staff
       </p>
 
       {editOpen ? (
@@ -361,7 +371,8 @@ export default function StaffProfilePage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full rounded-xl border border-[#d8e3fb] bg-[#f9f9ff] px-3 py-2.5 text-sm font-semibold outline-none focus:border-[#006781]"
-                placeholder="+998…"
+                placeholder="+998 90 123 45 67"
+                inputMode="tel"
               />
             </div>
             <button

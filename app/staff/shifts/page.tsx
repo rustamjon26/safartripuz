@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, MapPin } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { staffFetch } from "../_lib/staffFetch";
 
 type Shift = {
   id: string;
@@ -31,7 +32,7 @@ export default function StaffShiftsPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/staff/shifts", { credentials: "include" });
+      const res = await staffFetch("/api/staff/shifts", { credentials: "include" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message);
       setItems(json.items ?? []);
@@ -48,7 +49,7 @@ export default function StaffShiftsPage() {
 
   async function setStatus(id: string, status: string) {
     try {
-      const res = await fetch(`/api/staff/shifts/${id}`, {
+      const res = await staffFetch(`/api/staff/shifts/${id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
