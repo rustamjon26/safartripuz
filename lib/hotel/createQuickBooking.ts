@@ -1,6 +1,9 @@
 import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { bookingService } from "@/src/modules/booking";
+import {
+  bookingService,
+  RoomAlreadyAssignedError,
+} from "@/src/modules/booking";
 import { InsufficientInventoryError } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
 import { Money } from "@/src/shared/money";
@@ -76,20 +79,6 @@ export async function createQuickBooking(input: QuickBookingInput) {
     );
   }
 
-  const conflict = await prisma.bookingRoomAssignment.findFirst({
-    where: {
-      physicalRoomId: input.roomId,
-      status: "ACTIVE",
-      checkInDate: { lt: checkOutDate },
-      checkOutDate: { gt: checkInDate },
-      booking: { status: { notIn: ["CANCELLED", "NO_SHOW", "EXPIRED"] } },
-    },
-  });
-
-  if (conflict) {
-    throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
-  }
-
   const quote = await ratesService.quoteHotel({
     roomTypeId: room.roomTypeId,
     checkIn: checkInDate,
@@ -126,23 +115,17 @@ export async function createQuickBooking(input: QuickBookingInput) {
       note,
       pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
       guests: [{ firstName: input.guestName, lastName: "" }],
+      assignPhysicalRoomId: input.roomId,
     });
   } catch (err) {
-    if (err instanceof InsufficientInventoryError) {
+    if (
+      err instanceof InsufficientInventoryError ||
+      err instanceof RoomAlreadyAssignedError
+    ) {
       throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
     }
     throw err;
   }
-
-  await prisma.bookingRoomAssignment.create({
-    data: {
-      bookingId: booking.id,
-      physicalRoomId: input.roomId,
-      checkInDate,
-      checkOutDate,
-      status: "ACTIVE",
-    },
-  });
 
   await prisma.hotelPayment.create({
     data: {

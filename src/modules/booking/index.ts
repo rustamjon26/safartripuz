@@ -2,6 +2,7 @@ export {
   bookingService,
   BookingService,
   IllegalTransitionError,
+  RoomAlreadyAssignedError,
 } from "./service/booking.service";
 export type {
   TransitionCtx,

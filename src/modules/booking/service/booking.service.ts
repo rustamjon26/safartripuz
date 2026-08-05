@@ -38,6 +38,13 @@ function asStatus(s: PrismaBookingStatus | string): BookingStatus {
   return s as BookingStatus;
 }
 
+export class RoomAlreadyAssignedError extends Error {
+  constructor(message = "Tanlangan sanalarda xona band") {
+    super(message);
+    this.name = "RoomAlreadyAssignedError";
+  }
+}
+
 /**
  * Gross actually collected for a homestay/guide booking, in tiyin.
  *
@@ -367,6 +374,8 @@ export class BookingService {
     input: CreateHeldHotelBookingInput & {
       paidAmount?: number;
       status?: "CONFIRMED";
+      /** Pin the stay to one physical room, checked under the same lock. */
+      assignPhysicalRoomId?: string;
     },
   ): Promise<HotelBooking> {
     return inventoryService.withSerializableRetry(async (tx) => {
@@ -418,6 +427,37 @@ export class BookingService {
         } as Prisma.HotelBookingCreateInput,
         tx,
       );
+
+      if (input.assignPhysicalRoomId) {
+        // Room-type inventory alone allows two bookings when the type has
+        // several rooms; the physical room row is what serializes assignment.
+        await tx.$queryRawUnsafe(
+          `SELECT id FROM PhysicalRoom WHERE id = ? FOR UPDATE`,
+          input.assignPhysicalRoomId,
+        );
+
+        const clash = await tx.bookingRoomAssignment.findFirst({
+          where: {
+            physicalRoomId: input.assignPhysicalRoomId,
+            status: "ACTIVE",
+            checkInDate: { lt: input.checkOutDate },
+            checkOutDate: { gt: input.checkInDate },
+            booking: { status: { notIn: ["CANCELLED", "NO_SHOW", "EXPIRED"] } },
+          },
+          select: { id: true },
+        });
+        if (clash) throw new RoomAlreadyAssignedError();
+
+        await tx.bookingRoomAssignment.create({
+          data: {
+            bookingId: booking.id,
+            physicalRoomId: input.assignPhysicalRoomId,
+            checkInDate: input.checkInDate,
+            checkOutDate: input.checkOutDate,
+            status: "ACTIVE",
+          },
+        });
+      }
 
       await bookingEventRepository.create(
         {
