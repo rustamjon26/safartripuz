@@ -9,6 +9,7 @@ import {
   ensureApprovedTaxiPartner,
 } from "@/lib/partner";
 import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
+import { isForeignKeyViolation } from "@/lib/prismaErrors";
 
 const roleSchema = z.enum([
   "super_admin",
@@ -214,6 +215,15 @@ export async function DELETE(
     const msg = e instanceof Error ? e.message : "";
     if (msg === "UNAUTHORIZED") return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     if (msg === "FORBIDDEN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (isForeignKeyViolation(e)) {
+      return NextResponse.json(
+        {
+          message:
+            "Bu foydalanuvchida moliyaviy yozuvlar bor — o'chirib bo'lmaydi. Hisobni bloklang.",
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }
