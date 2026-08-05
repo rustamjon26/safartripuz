@@ -252,14 +252,6 @@ export class SupportChatRepository {
     });
   }
 
-  async isMember(threadId: string, userId: string): Promise<boolean> {
-    const row = await prisma.supportThreadMember.findUnique({
-      where: { threadId_userId: { threadId, userId } },
-      select: { id: true },
-    });
-    return Boolean(row);
-  }
-
   async listMessages(
     threadId: string,
     viewerUserId: string,

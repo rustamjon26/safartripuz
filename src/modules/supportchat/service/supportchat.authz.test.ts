@@ -11,7 +11,6 @@ const repo = vi.hoisted(() => ({
   listMessages: vi.fn(),
   sendMessage: vi.fn(),
   updateStatus: vi.fn(),
-  isMember: vi.fn(),
 }));
 
 vi.mock("../repository/supportchat.repository", () => ({
@@ -96,8 +95,6 @@ describe("SupportChatService authz", () => {
         role: "hotel_manager",
       },
     });
-    repo.isMember.mockResolvedValue(true);
-
     await expect(
       svc.getMessagesForParty("intruder1", "t1"),
     ).rejects.toBeInstanceOf(SupportChatForbiddenError);
