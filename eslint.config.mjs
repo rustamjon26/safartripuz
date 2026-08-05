@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import { PRISMA_ROUTE_DEBT } from "./eslint.prisma-route-debt.mjs";
 
 /**
  * Restricted-import path groups.
@@ -33,6 +34,30 @@ const prismaDebtPaths = [
       "Migration debt: move this Prisma access into a module repository (src/modules/*/repository).",
   },
 ];
+
+/**
+ * Route handlers are the layer that must never reach the database itself:
+ * route → service → repository → prisma. Anything the route needs belongs
+ * behind a module's index.ts.
+ */
+const prismaRoutePaths = [
+  {
+    name: "@/lib/prisma",
+    message:
+      "Route handlers must not import Prisma. Call a module service (src/modules/*/index.ts); the repository layer owns the query.",
+  },
+  {
+    name: "@/src/shared/db/prisma",
+    message:
+      "Route handlers must not import Prisma. Call a module service (src/modules/*/index.ts); the repository layer owns the query.",
+  },
+];
+
+/**
+ * `ignores` entries are globs, so a dynamic segment like `[id]` would be read
+ * as a character class and match nothing. The debt list stays as real paths.
+ */
+const escapeGlob = (p) => p.replace(/[[\]]/g, (c) => `\\${c}`);
 
 const somTiyinPaths = [
   {
@@ -122,6 +147,33 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": [
         "warn",
         { paths: [...prismaDebtPaths, ...somTiyinPaths] },
+      ],
+    },
+  },
+
+  /**
+   * Zone D — API route handlers. Prisma here is an ERROR, not debt.
+   *
+   * Deliberately placed after Zone C: flat config replaces (never merges) a
+   * rule's options, so for the files matched here this block supersedes Zone C's
+   * warn. It therefore has to restate somTiyinPaths, or those files would lose
+   * that check entirely.
+   *
+   * PRISMA_ROUTE_DEBT is the ~149-file baseline that predates this rule; those
+   * stay on Zone C's warn via the `ignores` below until each module's routes are
+   * moved onto a repository. See eslint.prisma-route-debt.mjs.
+   */
+  {
+    files: ["app/api/**/route.ts"],
+    ignores: [
+      ...PRISMA_ROUTE_DEBT.map(escapeGlob),
+      "**/*.test.ts",
+      "**/*.integration.test.ts",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: [...prismaRoutePaths, ...somTiyinPaths] },
       ],
     },
   },
