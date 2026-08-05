@@ -1,27 +1,12 @@
 import { createHash } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
+import { type AppRole, isAppRole } from "@/src/shared/roles";
 
 export function hashToken(rawToken: string): string {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
-export type AppRole =
-  | "super_admin"
-  | "admin"
-  | "user"
-  | "taxi"
-  | "taxi_partner"
-  | "hotel_manager"
-  | "home_stay_partner"
-  | "hotel_staff"
-  | "cleaner"
-  | "receptionist"
-  | "waiter"
-  | "guide"
-  | "guide_partner"
-  | "restaurant_manager"
-  /** Feedback & Support panel — Prisma Role enum backendda keyin qo‘shiladi */
-  | "support";
+export type { AppRole };
 
 export type AuthUser = {
   id: string;
@@ -64,10 +49,9 @@ export async function verifyAccessToken(token: string): Promise<{
   role: AppRole;
 }> {
   const { payload } = await jwtVerify(token, getSecret("JWT_ACCESS_SECRET"));
-  const role = payload.role;
   if (typeof payload.sub !== "string") throw new Error("Invalid token subject");
-  if (typeof role !== "string") throw new Error("Invalid token role");
-  return { sub: payload.sub, role: role as AppRole };
+  if (!isAppRole(payload.role)) throw new Error("Invalid token role");
+  return { sub: payload.sub, role: payload.role };
 }
 
 export async function verifyRefreshToken(token: string): Promise<{ sub: string }> {
