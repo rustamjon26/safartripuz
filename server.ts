@@ -1,13 +1,10 @@
-import { config as loadEnv } from "dotenv";
-import { resolve } from "path";
+// Loads .env/.env.local under PM2 and refuses to start on bad config.
+// Must stay the first import — see src/shared/boot.ts.
+import "./src/shared/boot";
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
 import { Server as SocketIOServer } from "socket.io";
-
-// Ensure Payme and other runtime secrets are loaded under PM2 before Next.js starts.
-loadEnv({ path: resolve(process.cwd(), ".env.local"), override: true });
-loadEnv({ path: resolve(process.cwd(), ".env"), override: true });
 
 // Sentry for custom Node server (Socket.IO shares this process). No-op without DSN.
 if (process.env.SENTRY_DSN) {

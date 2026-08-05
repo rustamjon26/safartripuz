@@ -6,6 +6,7 @@
  * Each step is isolated: a failing taxi sweep must not stop the guide sweep,
  * and neither may stop hotel/homestay hold expiry.
  */
+import "../src/shared/boot";
 import { bookingService } from "../src/modules/booking";
 import { expirePendingTaxiOrders } from "../lib/taxi/expireOrders";
 import { expireGuideBookings } from "../lib/guide/expireBookings";

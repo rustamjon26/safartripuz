@@ -5,6 +5,7 @@
  * Usage: npx tsx scripts/outbox-relay.ts
  * Env: OUTBOX_POLL_MS (default 2000), OUTBOX_BATCH (20), OUTBOX_MAX_ATTEMPTS (8)
  */
+import "../src/shared/boot";
 import {
   loadRelayConfig,
   processOutboxBatch,
