@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 type AvailabilityConflict = {
@@ -10,6 +11,56 @@ export type AvailabilityCheckResult = {
   available: boolean;
   conflicts: AvailabilityConflict[];
 };
+
+/** PENDING rows hold the dates for 15 minutes while the guest pays. */
+const BLOCKING_BOOKING_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "CHECKED_IN",
+] as const;
+
+export class HomeStayDatesTakenError extends Error {
+  constructor() {
+    super("DATES_UNAVAILABLE");
+    this.name = "HomeStayDatesTakenError";
+  }
+}
+
+/**
+ * Re-check the dates with the listing row locked. Callers that only run
+ * {@link checkHomeStayAvailability} before their transaction can be raced by a
+ * concurrent booking; this is the authoritative guard.
+ */
+export async function assertHomeStayDatesFreeInTx(
+  tx: Prisma.TransactionClient,
+  input: { listingId: string; checkIn: Date; checkOut: Date },
+): Promise<void> {
+  await tx.$queryRawUnsafe(
+    `SELECT id FROM HomeStayListing WHERE id = ? FOR UPDATE`,
+    input.listingId,
+  );
+
+  const conflict = await tx.homeStayBooking.findFirst({
+    where: {
+      listingId: input.listingId,
+      status: { in: [...BLOCKING_BOOKING_STATUSES] },
+      checkIn: { lt: input.checkOut },
+      checkOut: { gt: input.checkIn },
+    },
+    select: { id: true },
+  });
+  if (conflict) throw new HomeStayDatesTakenError();
+
+  const blocked = await tx.homeStayAvailability.findFirst({
+    where: {
+      listingId: input.listingId,
+      startDate: { lt: input.checkOut },
+      endDate: { gt: input.checkIn },
+    },
+    select: { id: true },
+  });
+  if (blocked) throw new HomeStayDatesTakenError();
+}
 
 export async function checkHomeStayAvailability(
   listingId: string,
@@ -33,7 +84,7 @@ export async function checkHomeStayAvailability(
     prisma.homeStayBooking.findMany({
       where: {
         listingId,
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
+        status: { in: [...BLOCKING_BOOKING_STATUSES] },
         checkIn: { lt: checkOut },
         checkOut: { gt: checkIn },
       },
