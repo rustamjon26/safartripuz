@@ -191,10 +191,11 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="tp-root flex h-screen overflow-hidden">
-      <aside className="hidden lg:flex w-[250px] bg-[#0d2137] border-r border-[#0d2137] shrink-0 shadow-[2px_0_16px_rgba(0,9,23,0.18)]">
+    <div className="tp-root">
+      <aside className="tp-sidebar-desktop" aria-label="Taxi partner navigation">
         {renderSidebar()}
       </aside>
+      <div className="tp-sidebar-spacer" aria-hidden />
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-50 flex lg:hidden">
@@ -208,12 +209,12 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
         </div>
       ) : null}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-[64px] border-b border-[#d8e3fb]/80 bg-white/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 sticky top-0 z-10">
+      <div className="tp-main">
+        <header className="tp-topbar">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               type="button"
-              className="lg:hidden p-2 text-[#64748B] hover:bg-[#f0f3ff] rounded-lg"
+              className="lg:hidden p-2 text-[#64748B] hover:bg-[#f0f3ff] rounded-lg shrink-0"
               onClick={() => setDrawerOpen(true)}
             >
               <Menu size={20} />
@@ -261,8 +262,8 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 relative">
-          <div className="max-w-[1400px] mx-auto pb-20 lg:pb-0">
+        <main className="tp-content">
+          <div className="tp-content-inner">
             <Suspense
               fallback={
                 <div className="flex min-h-[40vh] items-center justify-center text-[#64748B] text-sm font-semibold">
@@ -275,7 +276,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           </div>
         </main>
 
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#d8e3fb] px-2 py-2 flex items-center justify-around z-40 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+        <nav className="tp-bottom-nav" aria-label="Mobile navigation">
           {NAV_ITEMS.slice(0, 4).map((item) => {
             const active = isActive(item.href);
             return (
