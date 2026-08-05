@@ -91,6 +91,12 @@ export default function GlobalError({
                 Qayta urinish
               </button>
             ) : null}
+            {/*
+              A plain anchor on purpose: global-error replaces a root layout
+              that just failed, so a client-side navigation would re-render the
+              same broken tree. This has to be a full document load.
+            */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{

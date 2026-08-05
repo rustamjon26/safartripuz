@@ -31,7 +31,6 @@ export function AuthGate({
   const [state, setState] = useState<GateState>("checking");
 
   const check = useCallback(async () => {
-    setState("checking");
     try {
       const res = await fetch("/api/auth/me", {
         credentials: "include",
@@ -64,8 +63,17 @@ export function AuthGate({
   }, [router, pathname, allow, fallbackPath]);
 
   useEffect(() => {
+    // The gate's whole job is to fetch on mount and record the answer, so the
+    // React Compiler rule cannot be satisfied without a different data-loading
+    // shape. Same trade-off the panel layouts already make.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void check();
   }, [check]);
+
+  function retry() {
+    setState("checking");
+    void check();
+  }
 
   if (state === "offline") {
     return (
@@ -76,7 +84,7 @@ export function AuthGate({
         </p>
         <button
           type="button"
-          onClick={() => void check()}
+          onClick={retry}
           className="rounded-xl bg-slate-900 px-5 py-2.5 text-[13px] font-bold text-white"
         >
           Qayta urinish
