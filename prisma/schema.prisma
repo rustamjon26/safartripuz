@@ -71,6 +71,25 @@ enum FeedbackTicketStatus {
   CLOSED
 }
 
+/// Support live chat — who the conversation is with.
+enum SupportPartyType {
+  hotel
+  homestay
+  taxi
+  guide
+  customer
+}
+
+enum SupportThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum SupportMemberRole {
+  AGENT
+  PARTY
+}
+
 enum FeedbackSentiment {
   POSITIVE
   NEUTRAL
@@ -343,6 +362,10 @@ model User {
   staffChatMessages    StaffChatMessage[]  @relation("StaffChatMessageAuthor")
   staffCourseEnrollments StaffCourseEnrollment[]
   staffOpsTasksCreated StaffOpsTask[]      @relation("StaffOpsTaskCreator")
+
+  supportThreadsOwned      SupportThread[]       @relation("SupportThreadParty")
+  supportThreadMemberships SupportThreadMember[]
+  supportMessagesAuthored  SupportMessage[]      @relation("SupportMessageAuthor")
 
   hotelBookingsAsGuest HotelBooking[] @relation("HotelBookingGuestUser")
 
@@ -2101,6 +2124,54 @@ model FeedbackReply {
   createdAt    DateTime @default(now())
 
   @@index([ticketId, createdAt])
+  @@index([authorUserId])
+}
+
+/// Live support chat: hotel / homestay / taxi / guide / customer ↔ support agent.
+model SupportThread {
+  id            String              @id @default(cuid())
+  subject       String
+  partyType     SupportPartyType
+  partyUserId   String
+  partyUser     User                @relation("SupportThreadParty", fields: [partyUserId], references: [id], onDelete: Cascade)
+  status        SupportThreadStatus @default(OPEN)
+  lastMessageAt DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  members  SupportThreadMember[]
+  messages SupportMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([partyUserId, status])
+  @@index([partyType, status])
+}
+
+model SupportThreadMember {
+  id         String            @id @default(cuid())
+  threadId   String
+  thread     SupportThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       SupportMemberRole
+  lastReadAt DateTime?
+  joinedAt   DateTime          @default(now())
+
+  @@unique([threadId, userId])
+  @@index([userId])
+}
+
+/// Immutable support chat messages (append-only).
+model SupportMessage {
+  id           String        @id @default(cuid())
+  threadId     String
+  thread       SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author       User          @relation("SupportMessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  body         String        @db.Text
+  createdAt    DateTime      @default(now())
+
+  @@index([threadId, createdAt])
   @@index([authorUserId])
 }
 

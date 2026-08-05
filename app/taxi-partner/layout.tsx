@@ -152,7 +152,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
             Profil / Transport
           </Link>
           <Link
-            href="/taxi-partner/profile"
+            href="/support-chat"
             className="flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold text-white/55 hover:bg-white/5 hover:text-white"
           >
             <LifeBuoy size={16} />
