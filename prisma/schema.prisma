@@ -244,6 +244,10 @@ enum PaymentProvider {
 enum PaymentStatus {
   INITIATED
   PENDING
+  /// Money captured by the PSP, but a linked booking could not be confirmed, so
+  /// the ledger holds less than the captured amount. Ops must resolve; never
+  /// treat as revenue.
+  PENDING_REVIEW
   SUCCESS
   FAILED
   CANCELLED

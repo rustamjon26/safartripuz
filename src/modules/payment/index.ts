@@ -12,6 +12,11 @@ export {
   timingSafeStringEqual,
   type PaymeAuthResult,
 } from "./domain/payme-auth";
+export {
+  CAPTURED_PAYMENT_STATUSES,
+  isPaymentCaptured,
+  isPaymentSettled,
+} from "./domain/payment-status";
 export { paymeHttpHandler, type PaymeAccountMode } from "./adapters/payme/httpHandler";
 export { clickHttpHandler } from "./adapters/click/handler";
 export {
