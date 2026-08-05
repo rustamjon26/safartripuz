@@ -10,10 +10,20 @@ import { useLanguage } from "@/context/LanguageContext";
 
 interface Feedback { id: string; guestName: string; rating: number; comment: string | null; source: string; createdAt: string; }
 
+interface Loyalty { platinum: number; gold: number; silver: number; }
+interface Metrics { avgRating: number; totalFeedbacks: number; promoterRate: number; loyalty: Loyalty; }
+
+const EMPTY_METRICS: Metrics = {
+  avgRating: 0,
+  totalFeedbacks: 0,
+  promoterRate: 0,
+  loyalty: { platinum: 0, gold: 0, silver: 0 },
+};
+
 export default function MarketingPage() {
   const { t } = useLanguage();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [metrics, setMetrics] = useState({ avgRating: 0, totalFeedbacks: 0, promoterRate: 0 });
+  const [metrics, setMetrics] = useState<Metrics>(EMPTY_METRICS);
   const [loading, setLoading] = useState(true);
   const [addingFeed, setAddingFeed] = useState(false);
   const [addingPromo, setAddingPromo] = useState(false);
@@ -25,7 +35,10 @@ export default function MarketingPage() {
     try {
       const res = await fetch("/api/hotel/marketing");
       const data = await res.json();
-      if (res.ok) { setFeedbacks(data.feedbacks); setMetrics(data.metrics); }
+      if (res.ok) {
+        setFeedbacks(data.feedbacks);
+        setMetrics({ ...EMPTY_METRICS, ...data.metrics });
+      }
     } catch { toast.error(t("common.toasts.error")); }
     setLoading(false);
   }
@@ -152,9 +165,9 @@ export default function MarketingPage() {
                
                <div className="space-y-4">
                   {[
-                     { label: "Platinum", min: 5, count: (metrics as any).loyalty?.platinum || 0, color: "bg-blue-600", key: 'platinum' },
-                     { label: "Gold", min: 2, count: (metrics as any).loyalty?.gold || 0, color: "bg-amber-500", key: 'gold' },
-                     { label: "Silver", min: 1, count: (metrics as any).loyalty?.silver || 0, color: "bg-slate-400", key: 'silver' },
+                     { label: "Platinum", min: 5, count: metrics.loyalty.platinum, color: "bg-blue-600", key: 'platinum' },
+                     { label: "Gold", min: 2, count: metrics.loyalty.gold, color: "bg-amber-500", key: 'gold' },
+                     { label: "Silver", min: 1, count: metrics.loyalty.silver, color: "bg-slate-400", key: 'silver' },
                   ].map((lvl, idx) => (
                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-[var(--accent)] transition-all">
                         <div className="flex items-center gap-3">

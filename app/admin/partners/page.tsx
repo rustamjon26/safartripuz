@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { 
-  Users, UserPlus, Search, Filter, Loader2, ShieldCheck, 
+import {   Users, UserPlus, Search, Filter, Loader2, ShieldCheck, 
   CheckCircle, XCircle, Clock, MapPin, Mail, Phone, 
   MoreVertical, Calendar, Info, Globe, ChevronLeft, ChevronRight,
   User, Briefcase, Building2, Compass, Trash2, Edit2, X, Lock,
   Fingerprint, KeyRound, UserRound, Smartphone
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Partner = {
   id: string;
@@ -63,13 +63,13 @@ const EMPTY_FORM: FormData = {
   newUser: { first_name: "", last_name: "", email: "", phone: "", password: "" }
 };
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
   approved: { label: "Aktiv", cls: "bg-emerald-50 text-emerald-600 ring-emerald-100", icon: CheckCircle },
   pending: { label: "Kutilmoqda", cls: "bg-amber-50 text-amber-600 ring-amber-100", icon: Clock },
   rejected: { label: "Rad etilgan", cls: "bg-rose-50 text-rose-600 ring-rose-100", icon: XCircle },
 };
 
-const TYPE_CONFIG: Record<string, { label: string; icon: any; cls: string }> = {
+const TYPE_CONFIG: Record<string, { label: string; icon: LucideIcon; cls: string }> = {
   agency: { label: "Agentlik", icon: Briefcase, cls: "bg-blue-50 text-blue-600" },
   hotel: { label: "Mehmonxona", icon: Building2, cls: "bg-teal-50 text-teal-600" },
   guide: { label: "Gid", icon: Compass, cls: "bg-purple-50 text-purple-600" },
@@ -178,8 +178,8 @@ export default function AdminPartnersPage() {
       const url = editItem ? `/api/admin/partners/${editItem.id}` : "/api/admin/partners";
       const method = editItem ? "PATCH" : "POST";
       
-      const payload: any = { ...form };
-      if (!form.isNewUser) delete payload.newUser;
+      const { newUser, ...rest } = form;
+      const payload = form.isNewUser ? { ...rest, newUser } : rest;
 
       const res = await fetch(url, {
         method,
