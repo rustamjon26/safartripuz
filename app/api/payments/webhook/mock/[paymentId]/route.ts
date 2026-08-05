@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
 import { mockPaymentsEnabled } from "@/lib/payments/mockGate";
+import { isPaymentCaptured } from "@/src/modules/payment";
 
 function appBaseUrl() {
   return (
@@ -59,7 +60,7 @@ export async function POST(
       );
     }
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       if (shouldRedirect) {
         return successRedirect(paymentId, true);
       }

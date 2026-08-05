@@ -3,6 +3,7 @@ import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessful
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
+import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
 
 type Params = {
@@ -75,7 +76,7 @@ export async function handleOrderIdMethod(
     if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.WRONG_AMOUNT);
     }
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.ORDER_ALREADY_PAID);
     }
     return paymeRpcSuccess(rpcId, { allow: true });
@@ -89,7 +90,7 @@ export async function handleOrderIdMethod(
     if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.WRONG_AMOUNT);
     }
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.ORDER_ALREADY_PAID);
     }
 
@@ -126,7 +127,7 @@ export async function handleOrderIdMethod(
 
     setMoneyPathContext({ paymentId: payment.id });
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return respond(
         paymeRpcSuccess(rpcId, {
           perform_time: payment.paidAt?.getTime() ?? Date.now(),
@@ -171,7 +172,7 @@ export async function handleOrderIdMethod(
       return paymeRpcError(rpcId, PAYME_ERRORS.TRANSACTION_NOT_FOUND);
     }
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.UNABLE_TO_CANCEL);
     }
 
@@ -196,8 +197,13 @@ export async function handleOrderIdMethod(
       return paymeRpcError(rpcId, PAYME_ERRORS.TRANSACTION_NOT_FOUND);
     }
 
-    const state =
-      payment.status === "SUCCESS" ? 2 : payment.status === "CANCELLED" ? -1 : 1;
+    // Payme only cares that the money was captured; PENDING_REVIEW is our own
+    // bookkeeping gap, so the transaction must still report as performed.
+    const state = isPaymentCaptured(payment.status)
+      ? 2
+      : payment.status === "CANCELLED"
+        ? -1
+        : 1;
 
     return paymeRpcSuccess(rpcId, {
       create_time: payment.createdAt.getTime(),
