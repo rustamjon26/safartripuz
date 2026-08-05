@@ -301,6 +301,11 @@ model User {
   password   String
   role       Role     @default(user)
   isBlocked  Boolean  @default(false)
+  /// Set when an identity provider proved ownership of `email`. A password-only
+  /// signup never proves it, so those credentials lose to a verified Google login.
+  emailVerifiedAt DateTime?
+  /// Google `sub`, bound on first verified Google login.
+  googleId   String?  @unique
   expoPushToken String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

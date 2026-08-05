@@ -21,10 +21,10 @@ export async function POST() {
 
     const user = await prisma.user.findUnique({
       where: { id: sub },
-      select: { id: true, role: true },
+      select: { id: true, role: true, isBlocked: true },
     });
 
-    if (!user) {
+    if (!user || user.isBlocked) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
