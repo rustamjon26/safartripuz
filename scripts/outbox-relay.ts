@@ -10,8 +10,23 @@ import {
   loadRelayConfig,
   processOutboxBatch,
 } from "../src/modules/outbox";
+import { healthService, WORKERS } from "../src/modules/ops";
 
 const pollMs = Number(process.env.OUTBOX_POLL_MS ?? 2000);
+/** The relay polls every couple of seconds; /api/health only needs a coarse pulse. */
+const HEARTBEAT_INTERVAL_MS = 30_000;
+
+let lastHeartbeat = 0;
+
+async function heartbeat() {
+  if (Date.now() - lastHeartbeat < HEARTBEAT_INTERVAL_MS) return;
+  try {
+    await healthService.recordWorkerRun(WORKERS.outboxRelay);
+    lastHeartbeat = Date.now();
+  } catch (err) {
+    console.error("[outbox-relay] heartbeat failed", err);
+  }
+}
 
 async function tick() {
   try {
@@ -21,6 +36,7 @@ async function tick() {
         `[outbox-relay] claimed=${result.claimed} sent=${result.sent} retried=${result.retried} failed=${result.failed}`,
       );
     }
+    await heartbeat();
   } catch (err) {
     console.error("[outbox-relay] tick failed", err);
   }
