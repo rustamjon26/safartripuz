@@ -20,6 +20,9 @@ module.exports = {
       max_restarts: 10,
     },
     {
+      // Expires hotel/homestay holds AND taxi/guide bookings. Every minute:
+      // the taxi PENDING timeout is 5 min and guide transitions are wall-clock,
+      // so a coarser schedule would leave orders visibly stuck.
       name: "safartrip-expire-holds",
       cwd: "/var/www/safar",
       script: "npx",
