@@ -9,7 +9,7 @@ import {
   getPaymentProvidersConfig,
   getPaymeConfig,
   paymeMerchantKey,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 import { getPaymeSecretKey } from "@/app/api/payme/utils/helpers";
 import {
   isPaymeErrorResponse,

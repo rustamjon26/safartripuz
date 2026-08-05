@@ -4,7 +4,7 @@ import {
   isProtectedPlatformRole,
   jobRoleToPlatformRole,
   platformRoleToJobRole,
-} from "./staffPlatformRole";
+} from "./platform-role";
 
 describe("jobRoleToPlatformRole", () => {
   it("maps HotelStaff jobs to /staff gate roles", () => {

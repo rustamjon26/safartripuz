@@ -24,3 +24,11 @@ export {
   buildClickSignString,
   timingSafeEqualHex,
 } from "./adapters/click/sign";
+export {
+  appBaseUrl,
+  getClickConfig,
+  getPaymeConfig,
+  getPaymentProvidersConfig,
+  paymeMerchantKey,
+} from "./domain/provider-config";
+export type { ClickProviderConfig, PaymeProviderConfig } from "./domain/provider-config";

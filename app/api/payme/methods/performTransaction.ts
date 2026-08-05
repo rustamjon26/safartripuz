@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { commissionService } from "@/src/modules/commission";
-import { createPartnerEarningIfMissing } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { createPartnerEarningIfMissing } from "@/src/modules/booking";
 import { MissingPartnerError, ledgerService } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
