@@ -42,10 +42,10 @@ describe("loadPartnerEarningsHybrid", () => {
         partnerId: "partner_1",
         bookingType: "HOTEL",
         bookingId: "bk1",
-        grossAmount: 10000,
+        grossTiyin: 1_000_000n,
         commissionRate: 10,
-        commissionFee: 1000,
-        netAmount: 9000,
+        commissionFeeTiyin: 100_000n,
+        netTiyin: 900_000n,
         status: "PENDING",
         paidAt: null,
         createdAt: new Date(),
@@ -110,10 +110,10 @@ describe("loadPartnerEarningsHybrid", () => {
         partnerId: "partner_1",
         bookingType: "GUIDE",
         bookingId: "g1",
-        grossAmount: 50000,
+        grossTiyin: 5_000_000n,
         commissionRate: 10,
-        commissionFee: 5000,
-        netAmount: 45000,
+        commissionFeeTiyin: 500_000n,
+        netTiyin: 4_500_000n,
         status: "PENDING",
         paidAt: null,
         createdAt: new Date(),
@@ -133,6 +133,21 @@ describe("loadPartnerEarningsHybrid", () => {
 
     expect(res.summary.totalCommission).toBe(Money.fromTiyin(50n).toSomNumber());
     expect(res.summary.totalCommission).not.toBe(5000);
-    expect(res.earnings[0]?.commissionFee).toBe(5000);
+    expect(res.earnings[0]?.commissionFeeSom).toBe(5000);
+  });
+
+  it("serializes line-item tiyin as strings (BigInt has no JSON form)", async () => {
+    const res = await loadPartnerEarningsHybrid({
+      partnerUserId: "partner_1",
+      bookingType: "HOTEL",
+    });
+
+    const row = res.earnings[0];
+    expect(row?.grossTiyin).toBe("1000000");
+    expect(row?.commissionFeeTiyin).toBe("100000");
+    expect(row?.netTiyin).toBe("900000");
+    expect(row?.grossSom).toBe(10_000);
+    expect(row?.netSom).toBe(9_000);
+    expect(() => JSON.stringify(res)).not.toThrow();
   });
 });

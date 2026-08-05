@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
-import { Money } from "@/src/shared/money";
 import { createPartnerEarningIfMissing } from "./payment-confirmation.service";
 import { MissingPartnerError } from "@/src/modules/ledger";
 
@@ -28,11 +27,36 @@ describe("createPartnerEarningIfMissing (payment completion split)", () => {
     expect(data).toBeDefined();
     expect(data?.partnerId).toBe("partner_user_1");
     expect(data?.commissionRate).toBe(10);
-    expect(data?.grossAmount).toBe(Money.fromTiyin(grossTiyin).toSomNumber());
-    // 10% of 1_000_000 tiyin = 100_000 tiyin fee → 1000 som; net 9000 som
-    expect(data?.commissionFee).toBe(Money.fromTiyin(100_000n).toSomNumber());
-    expect(data?.netAmount).toBe(Money.fromTiyin(900_000n).toSomNumber());
-    expect(Number(data?.netAmount)).toBeLessThan(Number(data?.grossAmount));
+    // Tiyin BigInt straight through — no som round-trip on the way to the DB.
+    expect(data?.grossTiyin).toBe(grossTiyin);
+    expect(data?.commissionFeeTiyin).toBe(100_000n);
+    expect(data?.netTiyin).toBe(900_000n);
+    expect(
+      (data?.commissionFeeTiyin as bigint) + (data?.netTiyin as bigint),
+    ).toBe(grossTiyin);
+  });
+
+  it("keeps odd tiyin amounts exact (no rounding to som)", async () => {
+    const create = vi.fn(
+      async (_args: { data: Record<string, unknown> }) => ({ id: "pe2" }),
+    );
+    const tx = {
+      partnerEarning: { findUnique: vi.fn(async () => null), create },
+    } as unknown as Prisma.TransactionClient;
+
+    // 333 tiyin is 3.33 som; a float som round-trip is where drift creeps in.
+    await createPartnerEarningIfMissing(tx, {
+      partnerId: "p1",
+      bookingType: "HOMESTAY",
+      bookingId: "hs1",
+      grossTiyin: 333n,
+      rate: 10,
+    });
+
+    const data = create.mock.calls[0]?.[0]?.data;
+    expect(data?.grossTiyin).toBe(333n);
+    expect(data?.commissionFeeTiyin).toBe(33n);
+    expect(data?.netTiyin).toBe(300n);
   });
 
   it("is idempotent when earning already exists", async () => {

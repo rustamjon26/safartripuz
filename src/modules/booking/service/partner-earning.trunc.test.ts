@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
-import { Money } from "@/src/shared/money";
 import { reversePartnerEarningInTx } from "./partner-earning";
-
-const som = (tiyin: bigint) => Money.fromTiyin(tiyin).toSomNumber();
 
 function makeTx(earning: {
   grossTiyin: bigint;
@@ -18,9 +15,9 @@ function makeTx(earning: {
       findUnique: vi.fn(async () => ({
         id: "pe1",
         status: "PENDING",
-        grossAmount: { toString: () => som(earning.grossTiyin).toFixed(2) },
-        commissionFee: { toString: () => som(earning.feeTiyin).toFixed(2) },
-        netAmount: { toString: () => som(earning.netTiyin).toFixed(2) },
+        grossTiyin: earning.grossTiyin,
+        commissionFeeTiyin: earning.feeTiyin,
+        netTiyin: earning.netTiyin,
       })),
       update,
     },
@@ -28,17 +25,26 @@ function makeTx(earning: {
   return { tx, update };
 }
 
+type ReverseData = {
+  data: {
+    grossTiyin: bigint;
+    commissionFeeTiyin: bigint;
+    netTiyin: bigint;
+  };
+};
+
 describe("reversePartnerEarningInTx — trunc parity with ledger refund", () => {
   it("keeps exactly gross - refundTiyin (computeRefund truncation)", async () => {
-    // gross = 101 som = 10_100 tiyin, 30% refund.
-    // computeRefund: refund = (10100*30)/100 = 3030 → retained 7070.
-    // Old buggy math: (10100*70)/100 = 7070 — same here, so pick a case that
-    // actually diverges: gross 10101 tiyin, 30% → refund 3030 (trunc 3030.3),
-    // retained 7071. Old math: (10101*70)/100 = 7070 (drift −1 tiyin).
+    // gross 10101 tiyin, 30% → refund 3030 (trunc of 3030.3), retained 7071.
+    // `(gross * remain) / 100n` would truncate the other way and give 7070.
     const gross = 10_101n;
     const fee = 1_010n;
     const net = gross - fee; // 9_091
-    const { tx, update } = makeTx({ grossTiyin: gross, feeTiyin: fee, netTiyin: net });
+    const { tx, update } = makeTx({
+      grossTiyin: gross,
+      feeTiyin: fee,
+      netTiyin: net,
+    });
 
     await reversePartnerEarningInTx(tx, "HOTEL", "hb1", 30);
 
@@ -46,24 +52,30 @@ describe("reversePartnerEarningInTx — trunc parity with ledger refund", () => 
     const refundFee = (fee * 30n) / 100n; // 303
     const refundNet = refundGross - refundFee; // 2727
 
-    const data = update.mock.calls[0]?.[0] as unknown as {
-      data: { grossAmount: number; commissionFee: number; netAmount: number };
-    };
-    expect(data.data.grossAmount).toBe(som(gross - refundGross)); // 7071 tiyin
-    expect(data.data.commissionFee).toBe(som(fee - refundFee)); // 707
-    expect(data.data.netAmount).toBe(som(net - refundNet)); // 6364
+    const { data } = update.mock.calls[0]?.[0] as unknown as ReverseData;
+    expect(data.grossTiyin).toBe(gross - refundGross); // 7071
+    expect(data.commissionFeeTiyin).toBe(fee - refundFee); // 707
+    expect(data.netTiyin).toBe(net - refundNet); // 6364
 
     // Invariant preserved: fee + net == gross after reverse.
-    const nextGross = Money.fromSomNumber(
-      data.data.grossAmount.toFixed(2),
-    ).toTiyin();
-    const nextFee = Money.fromSomNumber(
-      data.data.commissionFee.toFixed(2),
-    ).toTiyin();
-    const nextNet = Money.fromSomNumber(
-      data.data.netAmount.toFixed(2),
-    ).toTiyin();
-    expect(nextFee + nextNet).toBe(nextGross);
+    expect(data.commissionFeeTiyin + data.netTiyin).toBe(data.grossTiyin);
+  });
+
+  it("survives amounts beyond Number.MAX_SAFE_INTEGER tiyin", async () => {
+    const gross = 90_071_992_547_409_930n; // > 2^53 tiyin
+    const fee = 9_007_199_254_740_993n;
+    const net = gross - fee;
+    const { tx, update } = makeTx({
+      grossTiyin: gross,
+      feeTiyin: fee,
+      netTiyin: net,
+    });
+
+    await reversePartnerEarningInTx(tx, "HOMESTAY", "hs1", 25);
+
+    const { data } = update.mock.calls[0]?.[0] as unknown as ReverseData;
+    expect(data.grossTiyin).toBe(gross - (gross * 25n) / 100n);
+    expect(data.commissionFeeTiyin + data.netTiyin).toBe(data.grossTiyin);
   });
 
   it("cancels fully at 100%", async () => {

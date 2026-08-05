@@ -20,6 +20,10 @@ function somDecimalToNumber(value: { toString(): string }): number {
   return Money.fromSomNumber(value.toString()).toSomNumber();
 }
 
+function tiyinSumToSom(value: bigint | null): number {
+  return Money.fromTiyin(value ?? 0n).toSomNumber();
+}
+
 export async function GET(req: Request) {
   try {
     await requireRole(["admin", "super_admin"]);
@@ -73,9 +77,9 @@ export async function GET(req: Request) {
           },
           _count: { _all: true },
           _sum: {
-            grossAmount: true,
-            commissionFee: true,
-            netAmount: true,
+            grossTiyin: true,
+            commissionFeeTiyin: true,
+            netTiyin: true,
           },
         }),
       ]);
@@ -113,11 +117,9 @@ export async function GET(req: Request) {
     const commissionSummary = peGroups.map((g) => ({
       type: g.bookingType,
       count: g._count._all,
-      totalGross: somDecimalToNumber(g._sum.grossAmount ?? { toString: () => "0" }),
-      totalCommission: somDecimalToNumber(
-        g._sum.commissionFee ?? { toString: () => "0" },
-      ),
-      totalNet: somDecimalToNumber(g._sum.netAmount ?? { toString: () => "0" }),
+      totalGross: tiyinSumToSom(g._sum.grossTiyin),
+      totalCommission: tiyinSumToSom(g._sum.commissionFeeTiyin),
+      totalNet: tiyinSumToSom(g._sum.netTiyin),
     }));
 
     const totalPlatformCommission = Money.fromTiyin(

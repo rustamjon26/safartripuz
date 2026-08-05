@@ -1,5 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import { Money } from "@/src/shared/money";
 
 type Tx = Prisma.TransactionClient;
 
@@ -28,9 +27,9 @@ export async function reversePartnerEarningInTx(
     return;
   }
 
-  const gross = Money.fromSomNumber(earning.grossAmount.toString()).toTiyin();
-  const fee = Money.fromSomNumber(earning.commissionFee.toString()).toTiyin();
-  const net = Money.fromSomNumber(earning.netAmount.toString()).toTiyin();
+  const gross = earning.grossTiyin;
+  const fee = earning.commissionFeeTiyin;
+  const net = earning.netTiyin;
 
   // Mirror computeRefund's truncation exactly: refund share is truncated,
   // PE keeps the complement. `(x * remain) / 100n` would truncate the OTHER
@@ -48,9 +47,9 @@ export async function reversePartnerEarningInTx(
   await tx.partnerEarning.update({
     where: { id: earning.id },
     data: {
-      grossAmount: Money.fromTiyin(nextGross).toSomNumber(),
-      commissionFee: Money.fromTiyin(nextFee).toSomNumber(),
-      netAmount: Money.fromTiyin(nextNet).toSomNumber(),
+      grossTiyin: nextGross,
+      commissionFeeTiyin: nextFee,
+      netTiyin: nextNet,
     },
   });
 }
