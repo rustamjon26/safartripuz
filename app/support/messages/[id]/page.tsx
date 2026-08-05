@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
-import { partyTypeLabel } from "@/src/modules/supportchat";
+import { partyTypeLabel } from "@/src/modules/supportchat/domain/party-type";
 
 type Thread = {
   id: string;
@@ -34,9 +34,9 @@ export default function SupportMessageDetailPage() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!id) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(`/api/support/chat/threads/${id}/messages`, {
         credentials: "include",
@@ -51,15 +51,25 @@ export default function SupportMessageDetailPage() {
       setThread(data.thread ?? null);
       setMessages(data.messages ?? []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Xato");
+      if (!opts?.silent) {
+        toast.error(e instanceof Error ? e.message : "Xato");
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!id) return;
+    const timer = window.setInterval(() => {
+      void load({ silent: true });
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [id, load]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,13 +86,15 @@ export default function SupportMessageDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body }),
       });
-      const data = (await res.json()) as { message?: Msg; messageText?: string };
+      const data = (await res.json()) as { message?: Msg | string };
       if (!res.ok) {
         throw new Error(
-          (data as { message?: string }).message || "Yuborilmadi",
+          typeof data.message === "string" ? data.message : "Yuborilmadi",
         );
       }
-      if (data.message) setMessages((prev) => [...prev, data.message as Msg]);
+      if (data.message && typeof data.message === "object") {
+        setMessages((prev) => [...prev, data.message as Msg]);
+      }
       setText("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Yuborilmadi");

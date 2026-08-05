@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, MessageSquare, Search } from "lucide-react";
 import { toast } from "sonner";
-import { partyTypeLabel } from "@/src/modules/supportchat";
+import { partyTypeLabel } from "@/src/modules/supportchat/domain/party-type";
 
 type Thread = {
   id: string;

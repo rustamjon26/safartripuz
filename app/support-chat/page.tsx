@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, MessageSquarePlus, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { partyTypeLabel } from "@/src/modules/supportchat";
+import { partyTypeLabel } from "@/src/modules/supportchat/domain/party-type";
 
 type Thread = {
   id: string;

@@ -27,7 +27,7 @@ export class SupportChatForbiddenError extends Error {
 export class SupportChatService {
   async openThreadAsParty(
     userId: string,
-    input: { subject: string; body: string; partyType?: SupportPartyType },
+    input: { subject: string; body: string },
   ): Promise<SupportThreadView> {
     const user = await supportChatRepository.findUser(userId);
     if (!user) throw new SupportChatNotFoundError("Foydalanuvchi topilmadi");
@@ -36,7 +36,8 @@ export class SupportChatService {
         "Agentlar party sifatida yangi suhbat ochmaydi",
       );
     }
-    const partyType = input.partyType ?? partyTypeFromRole(user.role);
+    // Always derive from role — never trust client partyType.
+    const partyType = partyTypeFromRole(user.role);
     return supportChatRepository.createThread({
       subject: input.subject,
       body: input.body,
@@ -119,9 +120,9 @@ export class SupportChatService {
   }> {
     const thread = await supportChatRepository.getThread(threadId);
     if (!thread) throw new SupportChatNotFoundError();
+    // Owner-only: membership must not grant read after role demotion.
     if (thread.partyUserId !== userId) {
-      const member = await supportChatRepository.isMember(threadId, userId);
-      if (!member) throw new SupportChatForbiddenError();
+      throw new SupportChatForbiddenError();
     }
 
     await supportChatRepository.ensureMember({

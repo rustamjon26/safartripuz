@@ -31,9 +31,9 @@ export default function PartySupportChatDetailPage() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!id) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(`/api/support-chat/threads/${id}/messages`, {
         credentials: "include",
@@ -52,15 +52,25 @@ export default function PartySupportChatDetailPage() {
       setThread(data.thread ?? null);
       setMessages(data.messages ?? []);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Xato");
+      if (!opts?.silent) {
+        toast.error(e instanceof Error ? e.message : "Xato");
+      }
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [id, router]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!id) return;
+    const timer = window.setInterval(() => {
+      void load({ silent: true });
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [id, load]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,6 +124,9 @@ export default function PartySupportChatDetailPage() {
           </div>
           <div className="text-[11px] font-bold text-[#10B981]">
             SafarTrip Support · {thread?.status ?? "…"}
+            {thread?.status === "CLOSED"
+              ? " — yozsangiz qayta ochiladi"
+              : ""}
           </div>
         </div>
       </header>

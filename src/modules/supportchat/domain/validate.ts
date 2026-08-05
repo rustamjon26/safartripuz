@@ -11,8 +11,6 @@ export const supportPartyTypeSchema = z.enum([
 export const createSupportThreadSchema = z.object({
   subject: z.string().trim().min(3).max(160),
   body: z.string().trim().min(1).max(4000),
-  /** Optional override; default inferred from actor role. */
-  partyType: supportPartyTypeSchema.optional(),
 });
 
 export const sendSupportMessageSchema = z.object({
