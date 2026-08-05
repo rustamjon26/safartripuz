@@ -2,8 +2,13 @@ import { Prisma, type GuideBookingStatus } from "@prisma/client";
 import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { checkGuideSlot } from "@/lib/guide/checkAvailability";
+import {
+  assertGuideSlotFreeInTx,
+  checkGuideSlot,
+  GuideSlotTakenError,
+} from "@/lib/guide/checkAvailability";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { inventoryService } from "@/src/modules/inventory";
 import { fail, handleApiError, ok } from "../_utils";
 
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
@@ -119,7 +124,16 @@ export async function POST(req: Request) {
       calculatedAt: new Date().toISOString(),
     };
 
-    const created = await prisma.$transaction(async (tx) => {
+    const created = await inventoryService.withSerializableRetry(async (tx) => {
+      // checkGuideSlot ran outside any transaction; re-assert under a row lock
+      // so two concurrent requests cannot claim the same slot.
+      await assertGuideSlotFreeInTx(tx, {
+        listingId: body.listingId,
+        date,
+        startTime: body.startTime,
+        endTime: body.endTime,
+      });
+
       let travelPlanId = body.travelPlanId ?? null;
       let shouldIncrementPlanTotal = false;
       if (travelPlanId) {
@@ -207,6 +221,9 @@ export async function POST(req: Request) {
 
     return ok(created, 201);
   } catch (error) {
+    if (error instanceof GuideSlotTakenError) {
+      return fail(GUIDE_ERRORS.SLOT_UNAVAILABLE, 409);
+    }
     if (error instanceof Error && error.message === "TRAVEL_PLAN_NOT_FOUND") {
       return fail("Travel plan topilmadi", 404);
     }

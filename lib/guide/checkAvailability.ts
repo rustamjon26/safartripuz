@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
 import { ratesService } from "@/src/modules/rates";
@@ -25,6 +26,68 @@ function toMinutes(time: string) {
 
 function overlaps(startA: string, endA: string, startB: string, endB: string) {
   return toMinutes(startA) < toMinutes(endB) && toMinutes(endA) > toMinutes(startB);
+}
+
+export class GuideSlotTakenError extends Error {
+  constructor() {
+    super(GUIDE_ERRORS.SLOT_UNAVAILABLE);
+    this.name = "GuideSlotTakenError";
+  }
+}
+
+/**
+ * Re-check the slot with the listing row locked. The pre-flight
+ * {@link checkGuideSlot} runs outside any transaction, so two concurrent
+ * bookings can both pass it; this is the authoritative guard.
+ */
+export async function assertGuideSlotFreeInTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    listingId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+  },
+): Promise<void> {
+  await tx.$queryRawUnsafe(
+    `SELECT id FROM GuideListing WHERE id = ? FOR UPDATE`,
+    input.listingId,
+  );
+
+  const dayStart = new Date(input.date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(input.date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const blockedSlots = await tx.guideBlockedSlot.findMany({
+    where: {
+      listingId: input.listingId,
+      date: { gte: dayStart, lte: dayEnd },
+    },
+    select: { startTime: true, endTime: true },
+  });
+  for (const slot of blockedSlots) {
+    if (!slot.startTime || !slot.endTime) throw new GuideSlotTakenError();
+    if (overlaps(input.startTime, input.endTime, slot.startTime, slot.endTime)) {
+      throw new GuideSlotTakenError();
+    }
+  }
+
+  const bookings = await tx.guideBooking.findMany({
+    where: {
+      listingId: input.listingId,
+      date: { gte: dayStart, lte: dayEnd },
+      status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
+    },
+    select: { startTime: true, endTime: true },
+  });
+  for (const booking of bookings) {
+    if (
+      overlaps(input.startTime, input.endTime, booking.startTime, booking.endTime)
+    ) {
+      throw new GuideSlotTakenError();
+    }
+  }
 }
 
 export async function checkGuideSlot(input: CheckGuideSlotInput) {

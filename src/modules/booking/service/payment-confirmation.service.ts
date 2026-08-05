@@ -602,10 +602,10 @@ export async function createPartnerEarningIfMissing(
       partnerId: opts.partnerId,
       bookingType: opts.bookingType,
       bookingId: opts.bookingId,
-      grossAmount: Money.fromTiyin(opts.grossTiyin).toSomNumber(),
+      grossTiyin: opts.grossTiyin,
       commissionRate: opts.rate,
-      commissionFee: Money.fromTiyin(commissionFee).toSomNumber(),
-      netAmount: Money.fromTiyin(netAmount).toSomNumber(),
+      commissionFeeTiyin: commissionFee,
+      netTiyin: netAmount,
       status: "PENDING",
     },
   });

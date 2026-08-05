@@ -96,3 +96,55 @@ describe("integer rate parsing + bps (no float drift)", () => {
   });
 });
 
+describe("integer tiyin inputs produce no floating point artifacts", () => {
+  /** Amounts whose som representation is not exactly representable as a float. */
+  const AWKWARD_TIYIN = [
+    1n,
+    7n,
+    29n,
+    333n,
+    1_010_1n,
+    70_007n,
+    999_999n,
+    1_000_000_007n,
+  ];
+
+  it("fee + net reconstructs gross exactly for every rate", () => {
+    for (const gross of AWKWARD_TIYIN) {
+      for (let percent = 0; percent <= 100; percent++) {
+        const { commissionFee, netAmount } = calcCommissionTiyin(gross, percent);
+        expect(commissionFee + netAmount).toBe(gross);
+        expect(commissionFee).toBeGreaterThanOrEqual(0n);
+        expect(netAmount).toBeGreaterThanOrEqual(0n);
+      }
+    }
+  });
+
+  it("stays exact past Number.MAX_SAFE_INTEGER", () => {
+    // 2^53 tiyin would already lose precision as a float som value.
+    const gross = 90_071_992_547_409_931n;
+    const { commissionFee, netAmount } = calcCommissionTiyin(gross, 15);
+    expect(commissionFee).toBe((gross * 15n) / 100n);
+    expect(commissionFee + netAmount).toBe(gross);
+  });
+
+  it("bps half-up never leaks a fractional tiyin", () => {
+    for (const gross of AWKWARD_TIYIN) {
+      for (const percent of [0, 5, 10, 15, 33, 100]) {
+        const r = calcCommissionTiyinFromBps(gross, ratePercentToBps(percent));
+        expect(typeof r.commissionFee).toBe("bigint");
+        expect(typeof r.netAmount).toBe("bigint");
+        expect(r.commissionFee + r.netAmount).toBe(gross);
+      }
+    }
+  });
+
+  it("rejects a fractional-looking rate instead of silently flooring money", () => {
+    // 10.9% is truncated to 10 at parse time; money math never sees a float.
+    const gross = 1_000_000n;
+    expect(calcCommissionTiyin(gross, asRatePercent(10.9, 10))).toEqual(
+      calcCommissionTiyin(gross, 10),
+    );
+  });
+});
+

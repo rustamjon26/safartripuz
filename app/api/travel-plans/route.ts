@@ -3,7 +3,11 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { checkHomeStayAvailability } from "@/lib/homestay/checkAvailability";
+import {
+  assertHomeStayDatesFreeInTx,
+  checkHomeStayAvailability,
+  HomeStayDatesTakenError,
+} from "@/lib/homestay/checkAvailability";
 import { bookingService } from "@/src/modules/booking";
 import {
   HOLD_TTL_MS,
@@ -396,6 +400,13 @@ export async function POST(req: Request) {
             throw new Error("HomeStay topilmadi");
           }
 
+          // The pre-flight check above ran outside this transaction.
+          await assertHomeStayDatesFreeInTx(tx, {
+            listingId: listing.id,
+            checkIn: startDate,
+            checkOut: endDate,
+          });
+
           const snapshotPricePerNight = Number(listing.pricePerNight);
           const priceSnapshot: Prisma.InputJsonValue = {
             pricePerNight: snapshotPricePerNight,
@@ -468,6 +479,12 @@ export async function POST(req: Request) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    if (e instanceof HomeStayDatesTakenError) {
+      return NextResponse.json(
+        { message: "Tanlangan sanalar uchun HomeStay band" },
+        { status: 409 },
+      );
     }
     if (e instanceof InsufficientInventoryError) {
       return NextResponse.json({ message: "Hotel availability yetarli emas" }, { status: 409 });

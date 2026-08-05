@@ -48,10 +48,31 @@ else
 fi
 
 # Tradeoff: stopping the Next.js app (and optionally MySQL + workers) during build
-# frees RAM on ~8 GB hosts. Cost: site DOWN for the build window.
-STOP_MYSQL_FOR_BUILD="${STOP_MYSQL_FOR_BUILD:-1}"
+# frees RAM on ~8 GB hosts. Cost: site AND database DOWN for the whole build window,
+# which also fails in-flight Payme/Click webhooks. Opt in per run on RAM-starved
+# hosts: STOP_MYSQL_FOR_BUILD=1 bash scripts/deploy-safe.sh
+STOP_MYSQL_FOR_BUILD="${STOP_MYSQL_FOR_BUILD:-0}"
 MYSQL_WAS_STOPPED=0
 MYSQL_UNIT=""
+PM2_STOPPED_FOR_BUILD=0
+
+# Anything after this point has already taken production down. `set -e` on a failed
+# build would otherwise leave PM2 stopped until someone logs in and starts it.
+restore_services_on_failure() {
+  local code=$?
+  if [[ $code -eq 0 ]]; then
+    return 0
+  fi
+  echo "==> Deploy failed (exit ${code}); restoring previous services..." >&2
+  if [[ "$MYSQL_WAS_STOPPED" == "1" && -n "$MYSQL_UNIT" ]]; then
+    start_mysql_unit "$MYSQL_UNIT" || \
+      echo "==> FATAL: could not restart ${MYSQL_UNIT}." >&2
+  fi
+  if [[ "$PM2_STOPPED_FOR_BUILD" == "1" ]]; then
+    pm2 start "${PM2_APPS[@]}" 2>/dev/null || pm2 start ecosystem.config.js || true
+  fi
+  return $code
+}
 
 # Bare `systemctl stop` as non-root triggers polkit interactive auth, hangs the
 # deploy, then times out — leaving PM2 stopped. Only stop MySQL as root or via
@@ -82,10 +103,13 @@ start_mysql_unit() {
   sudo -n systemctl start "$unit"
 }
 
+trap restore_services_on_failure EXIT
+
 if [[ "$STOP_MYSQL_FOR_BUILD" == "1" ]]; then
   # MySQL down → workers will fail; stop the full PM2 set.
   echo "==> Stopping all PM2 apps (MySQL may stop for build)..."
   pm2 stop all || true
+  PM2_STOPPED_FOR_BUILD=1
 
   if command -v systemctl >/dev/null 2>&1; then
     if systemctl is-active --quiet mysql 2>/dev/null; then
@@ -112,6 +136,7 @@ else
   # Keep outbox + expire-holds running; only free RAM from the Next.js process.
   echo "==> Stopping PM2 app safartrip only (workers stay up; STOP_MYSQL_FOR_BUILD=0)..."
   pm2 stop safartrip || true
+  PM2_STOPPED_FOR_BUILD=1
 fi
 
 # ~8 GB VPS: do NOT request 8192 MB old-space. V8 treats max-old-space-size as a soft
@@ -163,6 +188,7 @@ if ! pm2 start "${PM2_APPS[@]}" --update-env 2>/dev/null; then
   pm2 restart "${PM2_APPS[@]}" --update-env
 fi
 pm2 save
+PM2_STOPPED_FOR_BUILD=0
 
 echo "==> PM2 status:"
 pm2 status

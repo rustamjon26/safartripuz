@@ -1,3 +1,5 @@
+// PM2 runs the custom Socket.IO server through tsx, so tsx is a production
+// dependency — an `npm ci --omit=dev` would otherwise leave nothing to start.
 module.exports = {
   apps: [
     {

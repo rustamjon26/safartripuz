@@ -15,21 +15,30 @@ export type PartnerEarningsHybridSummary = {
   pendingCount: number;
 };
 
+/**
+ * Line item shape. Tiyin values are the source of truth but travel as strings —
+ * BigInt has no JSON representation. The `*Som` numbers are display-only.
+ */
+export type PartnerEarningLineItem = {
+  id: string;
+  partnerId: string;
+  bookingType: PartnerEarningType;
+  bookingId: string;
+  grossTiyin: string;
+  commissionFeeTiyin: string;
+  netTiyin: string;
+  grossSom: number;
+  commissionFeeSom: number;
+  netSom: number;
+  commissionRate: number;
+  status: string;
+  paidAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type PartnerEarningsHybridResponse = {
-  earnings: Array<{
-    id: string;
-    partnerId: string;
-    bookingType: PartnerEarningType;
-    bookingId: string;
-    grossAmount: unknown;
-    commissionRate: unknown;
-    commissionFee: unknown;
-    netAmount: unknown;
-    status: string;
-    paidAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }>;
+  earnings: PartnerEarningLineItem[];
   summary: PartnerEarningsHybridSummary;
 };
 
@@ -62,7 +71,23 @@ export async function loadPartnerEarningsHybrid(opts: {
   ).toSomNumber();
 
   return {
-    earnings,
+    earnings: earnings.map((e) => ({
+      id: e.id,
+      partnerId: e.partnerId,
+      bookingType: e.bookingType,
+      bookingId: e.bookingId,
+      grossTiyin: e.grossTiyin.toString(),
+      commissionFeeTiyin: e.commissionFeeTiyin.toString(),
+      netTiyin: e.netTiyin.toString(),
+      grossSom: Money.fromTiyin(e.grossTiyin).toSomNumber(),
+      commissionFeeSom: Money.fromTiyin(e.commissionFeeTiyin).toSomNumber(),
+      netSom: Money.fromTiyin(e.netTiyin).toSomNumber(),
+      commissionRate: e.commissionRate,
+      status: e.status,
+      paidAt: e.paidAt,
+      createdAt: e.createdAt,
+      updatedAt: e.updatedAt,
+    })),
     summary: {
       source: "ledger",
       payableTiyin: balances.payableTiyin.toString(),

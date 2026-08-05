@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 type EarningRow = {
   id: string;
   bookingId: string;
-  grossAmount: number | string;
-  commissionFee: number | string;
-  netAmount: number | string;
+  /** Som values are display-only; the API's tiyin strings stay the source of truth. */
+  grossSom: number;
+  commissionFeeSom: number;
+  netSom: number;
   status: string;
   createdAt: string;
   paidAt: string | null;
@@ -25,7 +26,7 @@ type Summary = {
   pendingCount: number;
 };
 
-function money(v: number | string): number {
+function money(v: number | undefined): number {
   return Number(v ?? 0);
 }
 
@@ -169,7 +170,7 @@ export default function GuidePartnerFinancePage() {
           <p className="text-[28px] font-display font-bold text-[#0d2137] mt-3 leading-none tabular-nums">
             {loading || !lastPayment
               ? "—"
-              : `${money(lastPayment.netAmount).toLocaleString("uz-UZ")} UZS`}
+              : `${money(lastPayment.netSom).toLocaleString("uz-UZ")} UZS`}
           </p>
           <p className="text-[12px] text-[#64748B] mt-2 font-medium">
             {lastPayment
@@ -291,13 +292,13 @@ export default function GuidePartnerFinancePage() {
                       {new Date(e.createdAt).toLocaleDateString("uz-UZ")}
                     </td>
                     <td className="py-3 px-5 font-bold tabular-nums">
-                      {money(e.grossAmount).toLocaleString("uz-UZ")}
+                      {money(e.grossSom).toLocaleString("uz-UZ")}
                     </td>
                     <td className="py-3 px-5 tabular-nums">
-                      {money(e.commissionFee).toLocaleString("uz-UZ")}
+                      {money(e.commissionFeeSom).toLocaleString("uz-UZ")}
                     </td>
                     <td className="py-3 px-5 font-bold tabular-nums text-[#006781]">
-                      {money(e.netAmount).toLocaleString("uz-UZ")}
+                      {money(e.netSom).toLocaleString("uz-UZ")}
                     </td>
                     <td className="py-3 px-5">
                       <span className={statusBadge(e.status)}>{statusLabel(e.status)}</span>

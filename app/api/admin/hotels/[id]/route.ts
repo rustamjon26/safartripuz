@@ -2,6 +2,7 @@ import type { HotelStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/authz";
+import { isForeignKeyViolation } from "@/lib/prismaErrors";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -52,6 +53,15 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "UNAUTHORIZED") return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     if (msg === "FORBIDDEN") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (isForeignKeyViolation(e)) {
+      return NextResponse.json(
+        {
+          message:
+            "Bu mehmonxonada bronlar bor — o'chirib bo'lmaydi. Statusni 'inactive' qiling.",
+        },
+        { status: 409 },
+      );
+    }
     console.error(e);
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
