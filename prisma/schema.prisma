@@ -1011,6 +1011,8 @@ model RefreshToken {
   revokedAt DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {
@@ -1025,6 +1027,9 @@ model AuditLog {
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  /// AuditLog's "user" column is actorId — admin screens filter by actor.
+  @@index([actorId, createdAt])
 }
 
 model Notification {
