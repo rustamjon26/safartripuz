@@ -8,6 +8,7 @@ import {
   topKeywords,
 } from "../domain/reports";
 import type {
+  FeedbackDashboardView,
   FeedbackOverview,
   FeedbackReportsView,
   FeedbackTicketView,
@@ -139,6 +140,35 @@ export class FeedbackService {
       positiveKeywords: topKeywords(positive, 12),
       negativeKeywords: topKeywords(negative, 12),
       improvements: buildImprovements(raw.negativeGroups, 4),
+    };
+  }
+
+  async dashboard(days: number): Promise<FeedbackDashboardView> {
+    const [overview, reports, recent] = await Promise.all([
+      this.overview(),
+      this.reports(days),
+      this.list({ page: 1, pageSize: 5 }),
+    ]);
+
+    return {
+      days: reports.days,
+      overview,
+      channels: reports.marketCompare,
+      improvements: reports.improvements,
+      positiveKeywords: reports.positiveKeywords.slice(0, 8),
+      negativeKeywords: reports.negativeKeywords.slice(0, 8),
+      recent: recent.items.map((t) => ({
+        id: t.id,
+        authorName: t.authorName,
+        rating: t.rating,
+        body: t.body,
+        channel: t.channel,
+        sentiment: t.sentiment,
+        createdAt:
+          t.createdAt instanceof Date
+            ? t.createdAt.toISOString()
+            : String(t.createdAt),
+      })),
     };
   }
 

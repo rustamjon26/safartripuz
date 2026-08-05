@@ -66,3 +66,8 @@ export const reportsQuerySchema = z.object({
   /** Lookback window in days (default 90). */
   days: z.coerce.number().int().min(7).max(365).default(90),
 });
+
+export const dashboardQuerySchema = z.object({
+  /** Lookback window in days (default 30). */
+  days: z.coerce.number().int().min(7).max(365).default(30),
+});

@@ -16,6 +16,7 @@ export type {
   ListFeedbackFilter,
   FeedbackOverview,
   FeedbackReportsView,
+  FeedbackDashboardView,
 } from "./domain/types";
 export {
   listFeedbackQuerySchema,
@@ -23,4 +24,5 @@ export {
   patchTicketSchema,
   ingestFeedbackSchema,
   reportsQuerySchema,
+  dashboardQuerySchema,
 } from "./domain/validate";
