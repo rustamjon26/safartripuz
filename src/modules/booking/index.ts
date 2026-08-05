@@ -21,6 +21,8 @@ export {
 } from "./service/payment-confirmation.service";
 export {
   reconcileLedgerPartnerEarnings,
+  reconcilePaymentsAgainstLedger,
+  paymentIdFromLedgerKey,
   loadReconcileInput,
   formatReconcileReportHuman,
   LEGACY_UNCLASSIFIED_PAYOUT_NOTE,
@@ -30,6 +32,7 @@ export type {
   ReconcileFinding,
   ReconcileCheck,
   ReconcileInput,
+  ReconcilePaymentRow,
   ReconcilePayoutOwnerType,
 } from "./service/reconcile-ledger";
 export {
