@@ -175,17 +175,17 @@ export default function SupportDashboardPage() {
         {
           label: "Ijobiy",
           pct: pct(overview.bySentiment.positive, overview.total),
-          color: "bg-emerald-500",
+          color: "#10b981",
         },
         {
           label: "Neytral",
           pct: pct(overview.bySentiment.neutral, overview.total),
-          color: "bg-slate-400",
+          color: "#94a3b8",
         },
         {
           label: "Salbiy",
           pct: pct(overview.bySentiment.negative, overview.total),
-          color: "bg-rose-500",
+          color: "#f43f5e",
         },
       ]
     : [];
@@ -415,7 +415,12 @@ export default function SupportDashboardPage() {
                       <span className="text-[#006781]">{g.pct}%</span>
                     </div>
                     <div className="sp-bar">
-                      <span className={g.color} style={{ width: `${g.pct}%` }} />
+                      <span
+                        style={{
+                          width: `${g.pct}%`,
+                          background: g.color,
+                        }}
+                      />
                     </div>
                   </div>
                 ))}
