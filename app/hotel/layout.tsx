@@ -11,7 +11,7 @@ import {
   Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2,
   LifeBuoy, Plus, FileText,
 } from "lucide-react";
-import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
+import { LanguageProvider, useLanguage, type Translate } from "@/context/LanguageContext";
 import { normalizeHotelNavRole } from "./nav-role";
 
 interface HotelUser { 
@@ -22,7 +22,7 @@ interface HotelUser {
   hotelStaff?: { role: string };
 }
 
-const GET_NAV_GROUPS = (t: any) => [
+const GET_NAV_GROUPS = (t: Translate) => [
   {
     label: t("nav.front"),
     items: [
