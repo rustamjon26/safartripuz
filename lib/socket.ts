@@ -31,3 +31,8 @@ export function emitToDriver(driverId: string, event: string, data: unknown) {
     io.to(`driver:${driverId}`).emit(event, data);
   }
 }
+
+// deliberate CI lint check — reverted before merge
+export function deliberateLintError(value: any) {
+  return value;
+}
