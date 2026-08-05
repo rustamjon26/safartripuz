@@ -1,7 +1,12 @@
 import { Money } from "@/src/shared/money";
 import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
-import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../../domain/errors";
+import {
+  isPaymeErrorResponse,
+  PAYME_ERRORS,
+  paymeRpcError,
+  paymeRpcSuccess,
+} from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
 import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
@@ -51,12 +56,14 @@ export async function handleOrderIdMethod(
   if (cached) return cached;
 
   const respond = async (response: object) => {
-    // Cache mutating / idempotent success paths
+    // Cache mutating / idempotent success paths. Never an error envelope — a
+    // memoized transient failure would be replayed to every Payme retry.
     if (
-      method === "PerformTransaction" ||
-      method === "CreateTransaction" ||
-      method === "CancelTransaction" ||
-      method === "SetFiscalData"
+      !isPaymeErrorResponse(response) &&
+      (method === "PerformTransaction" ||
+        method === "CreateTransaction" ||
+        method === "CancelTransaction" ||
+        method === "SetFiscalData")
     ) {
       await paymentService.storeProcessedResponse({
         provider: "PAYME",
