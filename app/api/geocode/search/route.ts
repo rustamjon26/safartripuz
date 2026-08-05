@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * Server-side proxy to OpenStreetMap Nominatim (avoids browser CORS + sets UA).
@@ -7,6 +8,15 @@ import { NextRequest, NextResponse } from "next/server";
  * Nominatim usage policy: https://operations.osmfoundation.org/policies/nominatim/
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * Searches are user-initiated (the picker submits a form, it does not fire per
+ * keystroke), so this is generous for a person and tight for a script. It also
+ * protects our single outbound IP: Nominatim bans sources that exceed their
+ * policy, which would break location search for everyone.
+ */
+const SEARCHES_PER_WINDOW = 30;
+const SEARCH_WINDOW_MS = 60_000;
 
 type NominatimItem = {
   lat: string;
@@ -18,6 +28,14 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) {
     return NextResponse.json({ results: [] as { lat: number; lon: number; label: string }[] });
+  }
+
+  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+  if (!(await checkRateLimit(`geocode:${ip}`, SEARCHES_PER_WINDOW, SEARCH_WINDOW_MS))) {
+    return NextResponse.json(
+      { message: "Juda ko'p qidiruv. Bir daqiqadan so'ng qayta urining." },
+      { status: 429 },
+    );
   }
 
   const url = new URL("https://nominatim.openstreetmap.org/search");

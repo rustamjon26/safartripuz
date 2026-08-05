@@ -40,6 +40,47 @@ const EXT_BY_MIME: Record<string, string> = {
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_FILES_PER_REQUEST = 20;
 
+/**
+ * Ceiling for one request. Per-file × per-request alone allowed 200 MB, which
+ * is far past any real gallery upload: a 20-photo listing at typical phone
+ * sizes lands well under this.
+ */
+export const MAX_TOTAL_BYTES = 40 * 1024 * 1024; // 40 MB
+
+export function formatMb(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(0);
+}
+
+export class UploadTooLargeError extends Error {
+  readonly code = "UPLOAD_TOO_LARGE" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "UploadTooLargeError";
+  }
+}
+
+/**
+ * Validate the whole batch before a single byte is written. `saveImage` used to
+ * be the only gate, so a batch that failed halfway left the already-written
+ * files orphaned on disk.
+ */
+export function assertBatchWithinLimits(files: File[]): void {
+  let total = 0;
+  for (const file of files) {
+    if (file.size > MAX_FILE_BYTES) {
+      throw new UploadTooLargeError(
+        `Fayl hajmi ${formatMb(MAX_FILE_BYTES)} MB dan oshmasligi kerak`,
+      );
+    }
+    total += file.size;
+  }
+  if (total > MAX_TOTAL_BYTES) {
+    throw new UploadTooLargeError(
+      `Umumiy hajm ${formatMb(MAX_TOTAL_BYTES)} MB dan oshmasligi kerak`,
+    );
+  }
+}
+
 export type SavedImage = {
   url: string;
   size: number;
