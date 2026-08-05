@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { createPartnerEarningIfMissing } from "@/lib/payments/completeSuccessfulPaymentTx";
 import { MissingPartnerError, ledgerService } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
@@ -87,7 +87,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
         data: { status: "PAID", payoutOwnerType },
       });
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       const grossTiyin = BigInt(expired.amount);
 
       if (payoutOwnerType === "PLATFORM") {

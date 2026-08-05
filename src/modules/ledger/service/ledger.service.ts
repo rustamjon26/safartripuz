@@ -3,7 +3,7 @@ import { assertBalanced } from "../domain/balance";
 import {
   calcPlatformCommissionTiyin,
   splitBookingCommission,
-} from "../domain/commission";
+} from "@/src/modules/commission";
 import { LedgerTxType, UNATTRIBUTED_OWNER } from "../domain/types";
 import {
   ledgerRepository,

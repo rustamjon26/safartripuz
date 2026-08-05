@@ -7,7 +7,7 @@ import type {
   HotelBooking,
   Prisma,
 } from "@prisma/client";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
@@ -673,7 +673,7 @@ export class BookingService {
             `Hotel partner missing for cancel accounting on booking ${bookingId}`,
           );
         }
-        const rates = await getCommissionRates(tx);
+        const rates = await commissionService.getRates(tx);
         await postCancelAccountingInTx(tx, {
           bookingType: "HOTEL",
           bookingId,
@@ -740,7 +740,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "HOMESTAY",
         bookingId: booking.id,
@@ -846,7 +846,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "GUIDE",
         bookingId: booking.id,

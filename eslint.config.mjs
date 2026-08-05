@@ -190,7 +190,6 @@ const eslintConfig = defineConfig([
       "src/modules/payment/**/*.{ts,tsx}",
       "src/modules/commission/**/*.{ts,tsx}",
       "lib/payments/**/*.{ts,tsx}",
-      "lib/getCommissionRates.ts",
       "app/api/taxi/driver/orders/**/*.{ts,tsx}",
     ],
     ignores: ["**/*.test.ts", "**/*.integration.test.ts"],
@@ -203,7 +202,8 @@ const eslintConfig = defineConfig([
         },
         {
           selector: "BinaryExpression[operator='*'] > Literal[value=0.15]",
-          message: "Hardcoded 0.15 float commission banned — use calcCommissionTiyin.",
+          message:
+            "Hardcoded 0.15 float commission banned — use calcPlatformCommissionTiyin.",
         },
         {
           selector: "BinaryExpression[operator='*'] > Literal[raw=/^0\\.\\d+$/]",

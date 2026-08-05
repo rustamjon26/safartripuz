@@ -7,7 +7,7 @@ import {
   resolveCancelAmounts,
 } from "./cancel-amounts";
 import { computeRefund, type RefundBreakdown } from "./refund";
-import { calcPlatformCommissionTiyin } from "@/src/modules/ledger";
+import { calcPlatformCommissionTiyin } from "@/src/modules/commission";
 
 /** The formula this change removed: gross recovered by inverting the percent. */
 function invertedGross(refund: RefundBreakdown): bigint {

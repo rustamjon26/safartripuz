@@ -1,8 +1,14 @@
-import { asTiyin, type Tiyin } from "../../../shared/money";
+import { asTiyin, type Tiyin } from "@/src/shared/money";
 
 /**
- * ONE pure commission function (tiyin BigInt). Floor division.
- * `ratePercent` is integer 0..100.
+ * THE platform commission function. Tiyin BigInt, floor division.
+ *
+ * Floor — not half-up — is the ledger's rounding policy: the remainder stays
+ * with the partner, so `platformTotal + partnerNet === gross` exactly and
+ * `assertBalanced` holds without a rounding leg. Anything that needs a
+ * different policy needs a ledger change, not a second function.
+ *
+ * `ratePercent` is an integer 0..100 (see `asRatePercent`).
  */
 export function calcPlatformCommissionTiyin(
   grossTiyin: bigint | Tiyin,
@@ -19,8 +25,13 @@ export function calcPlatformCommissionTiyin(
 }
 
 /**
- * Hotel/Homestay default: 5% + 5% = 10% platform; partner net = gross - platform.
- * Remainder from integer division stays on bookingFee leg via platformTotal - hmsFee.
+ * The 5% booking fee + 5% HMS fee breakdown behind the default 10% hotel and
+ * homestay rate. `platformTotal`/`partnerNet` are identical to
+ * `calcPlatformCommissionTiyin(gross, 10)`; the extra legs exist to report the
+ * two revenue streams separately.
+ *
+ * The integer-division remainder lands on `bookingFee` via
+ * `platformTotal - bookingFee`, so the two legs always re-sum to the total.
  */
 export function splitBookingCommission(grossTiyin: bigint | Tiyin): {
   bookingFee: Tiyin;
