@@ -15,6 +15,9 @@ enum Role {
   taxi_partner
   hotel_manager
   guide
+  /// Guide panel operator. `guide` is the older value for the same panel;
+  /// both are accepted (see src/shared/roles.ts GUIDE_PANEL_ROLES).
+  guide_partner
   restaurant_manager
   home_stay_partner
   /// Feedback & Support inbox agent
