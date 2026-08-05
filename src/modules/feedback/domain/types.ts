@@ -94,3 +94,22 @@ export type FeedbackReportsView = {
     status: string;
   }>;
 };
+
+/** Support ops dashboard — composed from overview + reports + recent tickets. */
+export type FeedbackDashboardView = {
+  days: number;
+  overview: FeedbackOverview;
+  channels: FeedbackReportsView["marketCompare"];
+  improvements: FeedbackReportsView["improvements"];
+  positiveKeywords: Array<{ word: string; count: number }>;
+  negativeKeywords: Array<{ word: string; count: number }>;
+  recent: Array<{
+    id: string;
+    authorName: string;
+    rating: number;
+    body: string;
+    channel: FeedbackChannel;
+    sentiment: FeedbackSentiment;
+    createdAt: string;
+  }>;
+};
