@@ -22,6 +22,7 @@ import "./support.css";
 
 const NAV_ITEMS = [
   { href: "/support/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/support/messages", label: "Chat", icon: Headphones },
   { href: "/support/sentiment", label: "Sentiment", icon: SmilePlus },
   { href: "/support/feed", label: "Feedback Feed", icon: MessageSquareText },
   { href: "/support/categories", label: "Categories", icon: FolderKanban },
@@ -141,7 +142,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
 
         <div className="border-t border-white/10 p-3 space-y-2 bg-black/15">
           <div className="px-2 py-2 rounded-xl bg-white/5 text-[11px] text-[#8fdfff] font-[family-name:var(--font-sora)] leading-snug">
-            Frontend demo — API/backend keyinchalik ulanadi.
+            Live feedback + support chat.
           </div>
           <div className="flex items-center gap-3 px-1 pt-1">
             <Link

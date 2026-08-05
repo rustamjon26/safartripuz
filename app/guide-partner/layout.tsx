@@ -153,6 +153,13 @@ export default function GuidePartnerLayout({ children }: { children: ReactNode }
             <Plus size={14} />
             Yangi tajriba
           </Link>
+          <Link
+            href="/support-chat"
+            className="flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold text-white/55 hover:bg-white/5 hover:text-white"
+          >
+            <HelpCircle size={16} />
+            Yordam / Chat
+          </Link>
           <div className="flex items-center gap-3 px-1 pt-1">
             <Link
               href="/guide-partner/profile"

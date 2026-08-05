@@ -14,7 +14,9 @@ import {
   MapPin,
   Calendar,
   X,
+  MessageCircle,
 } from "lucide-react";
+import Link from "next/link";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useCurrentUser } from "@/components/dashboard/useCurrentUser";
 import {
@@ -282,6 +284,22 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <Link
+        href="/support-chat"
+        className="mb-6 flex items-center gap-4 bg-white rounded-3xl border border-gray-200 shadow-sm p-5 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
+      >
+        <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+          <MessageCircle size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-black text-gray-900 text-sm">Support chat</div>
+          <p className="text-xs text-gray-600 mt-0.5">
+            SafarTrip jamoasiga yozing — mehmonxona, taxi, gid va boshqa savollar
+          </p>
+        </div>
+        <span className="text-sm font-bold text-amber-600 shrink-0">Ochish →</span>
+      </Link>
 
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-6">

@@ -22,6 +22,7 @@ import {
   List,
   Package,
   Shield,
+  LifeBuoy,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -55,6 +56,20 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide", "guide_partner"] },
   { href: "/taxi-partner", label: "Taxi Paneli", icon: Car, roles: ["taxi", "taxi_partner"] },
   { href: "/support/dashboard", label: "Support", icon: List, roles: ["support"] },
+  {
+    href: "/support-chat",
+    label: "Yordam / Chat",
+    icon: LifeBuoy,
+    roles: [
+      "user",
+      "hotel_manager",
+      "home_stay_partner",
+      "taxi",
+      "taxi_partner",
+      "guide",
+      "guide_partner",
+    ],
+  },
   /** href overridden per-role via profileHomeForRole — keep /profile as fallback */
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];

@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarDays,
   CalendarCheck,
+  HelpCircle,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -127,6 +128,13 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
       </nav>
 
       <div className="border-t border-slate-200/80 p-4 bg-slate-50/50">
+        <Link
+          href="/support-chat"
+          className="mb-3 flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-bold text-slate-500 hover:bg-white hover:text-[var(--accent)] border border-transparent hover:border-slate-200 transition-colors"
+        >
+          <HelpCircle size={16} className="shrink-0" />
+          Yordam / Chat
+        </Link>
         <Link
           href="/profile"
           className="flex items-center gap-3 mb-3 hover:opacity-90 transition-opacity"

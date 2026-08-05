@@ -78,6 +78,28 @@ export async function middleware(req: NextRequest) {
       wrongRoleRedirect: "/dashboard",
     },
     {
+      /** Universal support inbox — hotel / homestay / taxi / guide / customer */
+      prefix: "/support-chat",
+      allow: [
+        "user",
+        "taxi",
+        "taxi_partner",
+        "hotel_manager",
+        "home_stay_partner",
+        "hotel_staff",
+        "cleaner",
+        "receptionist",
+        "waiter",
+        "guide",
+        "guide_partner",
+        "restaurant_manager",
+        "support",
+        "admin",
+        "super_admin",
+      ],
+      redirectTo: "/login",
+    },
+    {
       prefix: "/staff",
       allow: [
         "cleaner",
@@ -160,6 +182,8 @@ export const config = {
     "/taxi-partner/:path*",
     "/guide-partner/:path*",
     "/support/:path*",
+    "/support-chat",
+    "/support-chat/:path*",
     "/staff/:path*",
     "/homestay-partner/:path*",
     "/restaurant/:path*",
