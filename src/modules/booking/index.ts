@@ -13,6 +13,17 @@ export type {
   CancelNonHotelResult,
 } from "./service/booking.service";
 export { postCancelAccountingInTx } from "./service/cancel-accounting";
+export {
+  CancelAccountingDriftError,
+  assertCancelAmountsBalance,
+  originalGrossFromRefund,
+  refundSplitTiyin,
+  resolveCancelAmounts,
+} from "./domain/cancel-amounts";
+export type {
+  PostedCharge,
+  ResolvedCancelAmounts,
+} from "./domain/cancel-amounts";
 export { reversePartnerEarningInTx } from "./service/partner-earning";
 export {
   completeSuccessfulPaymentInTx,
