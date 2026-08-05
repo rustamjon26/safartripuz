@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
@@ -82,13 +83,18 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   async function ensureAuth() {
     try {
-      const res = await fetch("/api/user/me");
+      // hotelFetch already refreshes once and retries on 401, so a 401 here
+      // means the refresh token is gone too — not just an expired access token.
+      const res = await hotelFetch("/api/user/me");
       if (res.status === 401) {
-        const r = await fetch("/api/auth/refresh", { method: "POST" });
-        if (r.ok) { const d = await (await fetch("/api/user/me")).json(); if (d.user) setUser(d.user); }
-        else router.push("/login?next=" + encodeURIComponent(pathname));
-      } else if (res.ok) { const d = await res.json(); if (d.user) setUser(d.user); }
-    } catch { /* suppress */ }
+        router.push("/login?next=" + encodeURIComponent(pathname));
+        return;
+      }
+      if (res.ok) {
+        const d = await res.json();
+        if (d.user) setUser(d.user);
+      }
+    } catch { /* offline — keep the shell, the next request will retry */ }
   }
 
   // Auth once on mount — re-fetching on every pathname remounted the sidebar tree.

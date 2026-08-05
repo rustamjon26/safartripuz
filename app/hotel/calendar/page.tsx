@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import BookingCalendar from "@/components/hotel/calendar/BookingCalendar";
 import QuickBookModal from "@/components/hotel/calendar/QuickBookModal";
 import { useLanguage } from "@/context/LanguageContext";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 interface HotelMeResponse {
   hotel?: { id: string; name: string };
@@ -34,7 +35,7 @@ export default function HotelCalendarPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/hotel/me");
+        const res = await hotelFetch("/api/hotel/me");
         const data = (await res.json()) as HotelMeResponse & { message?: string };
         if (!res.ok || !data.hotel?.id) {
           throw new Error(data.message || "Mehmonxona topilmadi");

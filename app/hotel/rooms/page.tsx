@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Plus,
   Loader2, X,
@@ -53,8 +54,8 @@ export default function HotelRooms() {
     setLoading(true);
     try {
       const [roomsRes, meRes] = await Promise.all([
-        fetch("/api/hotel/rooms"),
-        hotelId ? Promise.resolve(null) : fetch("/api/hotel/me"),
+        hotelFetch("/api/hotel/rooms"),
+        hotelId ? Promise.resolve(null) : hotelFetch("/api/hotel/me"),
       ]);
       const data = await roomsRes.json();
       if (roomsRes.ok) setRoomTypes(data.rooms || []);
@@ -101,7 +102,7 @@ export default function HotelRooms() {
     try {
       const url    = editingPhy ? `/api/hotel/physical-rooms/${editingPhy.id}` : "/api/hotel/physical-rooms";
       const method = editingPhy ? "PATCH" : "POST";
-      const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(phyForm) });
+      const res    = await hotelFetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(phyForm) });
       const data   = await res.json();
       if (!res.ok) throw new Error(data.message || t("common.toasts.error"));
       toast.success(t("rooms.toasts.room_save_success"));
@@ -113,7 +114,7 @@ export default function HotelRooms() {
   async function handlePhyDelete(id: string) {
     if (!confirm(t("rooms.toasts.delete_confirm_room"))) return;
     try {
-      const res = await fetch(`/api/hotel/physical-rooms/${id}`, { method: "DELETE" });
+      const res = await hotelFetch(`/api/hotel/physical-rooms/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(t("common.toasts.error"));
       void load();
     } catch { toast.error(t("common.toasts.error")); }

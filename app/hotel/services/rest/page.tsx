@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Utensils, Search, Plus, Loader2, RefreshCw, X, Verified,
   ShoppingCart, CreditCard, ChevronRight, CheckCircle2, User,
@@ -35,8 +36,8 @@ export default function RestaurantPage() {
     setLoading(true);
     try {
       const [uRes, rRes] = await Promise.all([
-        fetch("/api/hotel/me"),
-        fetch("/api/hotel/rest")
+        hotelFetch("/api/hotel/me"),
+        hotelFetch("/api/hotel/rest")
       ]);
       const uData = await uRes.json();
       const rData = await rRes.json();
@@ -63,7 +64,7 @@ export default function RestaurantPage() {
     e.preventDefault();
     if (cart.length === 0) return;
     try {
-      const res = await fetch("/api/hotel/rest", {
+      const res = await hotelFetch("/api/hotel/rest", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingId: bookingId || null,
@@ -86,7 +87,7 @@ export default function RestaurantPage() {
     e.preventDefault();
     try {
       const isEdit = !!managingItem;
-      const res = await fetch("/api/hotel/rest/menu", {
+      const res = await hotelFetch("/api/hotel/rest/menu", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(isEdit ? { ...itemForm, id: managingItem.id } : itemForm)
@@ -103,7 +104,7 @@ export default function RestaurantPage() {
 
   async function toggleItemActive(item: MenuItem) {
     try {
-      const res = await fetch("/api/hotel/rest/menu", {
+      const res = await hotelFetch("/api/hotel/rest/menu", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, isActive: !item.isActive })
