@@ -89,12 +89,20 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json({
-      live: true,
-      lat,
-      lon,
-      advice: toWeatherAdvice(ow.data, destination),
-    });
+    return NextResponse.json(
+      {
+        live: true,
+        lat,
+        lon,
+        advice: toWeatherAdvice(ow.data, destination),
+      },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store, max-age=0",
+        },
+      },
+    );
   } catch (e) {
     console.error("[weather] fetch failed", e);
     return NextResponse.json(

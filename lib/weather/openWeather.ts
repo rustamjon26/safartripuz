@@ -42,6 +42,52 @@ export function formatTempLabel(tempC: number): string {
   return `${rounded >= 0 ? "+" : ""}${rounded}°C`;
 }
 
+/** OpenWeather `lang=uz` sometimes still returns English — normalize for UI. */
+export function localizeWeatherDescription(
+  description: string,
+  main: string,
+): string {
+  const d = description.trim().toLowerCase();
+  const m = main.trim().toLowerCase();
+
+  const byPhrase: Record<string, string> = {
+    "clear sky": "ochiq osmon",
+    "few clouds": "ozgina bulutli",
+    "scattered clouds": "tarqoq bulutlar",
+    "broken clouds": "qisman bulutli",
+    "overcast clouds": "qalin bulutli",
+    "light rain": "yengil yomg‘ir",
+    "moderate rain": "o‘rtacha yomg‘ir",
+    "heavy intensity rain": "kuchli yomg‘ir",
+    "light snow": "yengil qor",
+    snow: "qor",
+    mist: "tuman",
+    fog: "tuman",
+    haze: "chang-to‘zon",
+    thunderstorm: "momaqaldiroq",
+  };
+  if (byPhrase[d]) return byPhrase[d];
+
+  if (m.includes("thunder")) return "momaqaldiroq";
+  if (m.includes("drizzle") || m.includes("rain")) return "yomg‘irli";
+  if (m.includes("snow")) return "qorli";
+  if (m.includes("clear")) return "ochiq osmon";
+  if (m.includes("cloud")) return "bulutli";
+  if (
+    m.includes("mist") ||
+    m.includes("fog") ||
+    m.includes("haze") ||
+    m.includes("dust") ||
+    m.includes("sand") ||
+    m.includes("smoke")
+  ) {
+    return "tumanli / changli";
+  }
+
+  // Already Uzbek / unknown — keep as-is.
+  return description.trim() || "ob-havo";
+}
+
 export function weatherKindFromMain(main: string): WeatherAdviceKind {
   const m = main.toLowerCase();
   if (m.includes("thunder") || m.includes("rain") || m.includes("drizzle")) {
@@ -110,7 +156,7 @@ export function toWeatherAdvice(
   const w0 = payload.weather[0];
   const tempC = payload.main.temp;
   const main = w0.main;
-  const description = w0.description;
+  const description = localizeWeatherDescription(w0.description, main);
   return {
     tempC,
     tempLabel: formatTempLabel(tempC),
