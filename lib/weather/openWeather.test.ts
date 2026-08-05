@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildWeatherTip,
   formatTempLabel,
+  localizeWeatherDescription,
   toWeatherAdvice,
   weatherKindFromMain,
 } from "./openWeather";
@@ -23,6 +24,13 @@ describe("weatherKindFromMain", () => {
   });
 });
 
+describe("localizeWeatherDescription", () => {
+  it("maps common English OW phrases to Uzbek", () => {
+    expect(localizeWeatherDescription("clear sky", "Clear")).toBe("ochiq osmon");
+    expect(localizeWeatherDescription("light rain", "Rain")).toBe("yengil yomg‘ir");
+  });
+});
+
 describe("buildWeatherTip / toWeatherAdvice", () => {
   it("mentions destination and temp", () => {
     const tip = buildWeatherTip({
@@ -38,13 +46,15 @@ describe("buildWeatherTip / toWeatherAdvice", () => {
   it("maps payload", () => {
     const advice = toWeatherAdvice(
       {
-        weather: [{ main: "Clear", description: "ochiq osmon" }],
+        weather: [{ main: "Clear", description: "clear sky" }],
         main: { temp: 27.2 },
       },
       "Samarqand",
     );
     expect(advice.tempLabel).toBe("+27°C");
     expect(advice.kind).toBe("sun");
+    expect(advice.description).toBe("ochiq osmon");
     expect(advice.tip).toContain("Samarqand");
+    expect(advice.tip).toContain("ochiq osmon");
   });
 });

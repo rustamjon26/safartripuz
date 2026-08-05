@@ -1,6 +1,10 @@
 .hero {
   position: relative;
-  min-height: min(90vh, 860px);
+  /* First paint = full viewport; svh avoids mobile URL-bar overflow. */
+  min-height: 100vh;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -30,7 +34,10 @@
   width: 100%;
   max-width: var(--container-width);
   margin: 0 auto;
-  padding: calc(88px + var(--space-6)) var(--space-2) var(--space-10);
+  /* Fixed navbar clearance + keep CTAs above the fold on short phones. */
+  padding: calc(72px + var(--space-4)) var(--space-2) var(--space-8);
+  box-sizing: border-box;
+  max-height: 100%;
 }
 
 @media (min-width: 768px) {
