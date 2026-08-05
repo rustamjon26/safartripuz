@@ -339,6 +339,8 @@ model User {
   staffCourseEnrollments StaffCourseEnrollment[]
   staffOpsTasksCreated StaffOpsTask[]      @relation("StaffOpsTaskCreator")
 
+  hotelBookingsAsGuest HotelBooking[] @relation("HotelBookingGuestUser")
+
   partnerProfile Partner?
   hotelStaff     HotelStaff?
   partnerEarnings PartnerEarning[] @relation("PartnerEarnings")
@@ -635,6 +637,10 @@ model HotelBooking {
   roomType        RoomType?               @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
   guestId         String?
   guest           HotelGuest?             @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  /// Booking owner on the SafarTrip side. Authorization SoT for guest-facing APIs —
+  /// never match a booking to a user by name/phone.
+  userId          String?
+  user            User?                   @relation("HotelBookingGuestUser", fields: [userId], references: [id], onDelete: SetNull)
   guestName       String
   guestPhone      String?
   passportData    String?                 @db.Text
@@ -676,6 +682,7 @@ model HotelBooking {
   @@index([cancellationPolicyId])
   @@index([payoutOwnerType])
   @@index([travelPlanId])
+  @@index([userId, status])
 }
 
 /// Audit trail for HotelBooking status transitions (immutable append-only).

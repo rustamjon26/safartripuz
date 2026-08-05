@@ -113,6 +113,7 @@ export async function POST(req: Request) {
         source: "SAFARTRIP",
         note: body.note?.trim() || null,
         pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
+        guestUserId: actor.id,
         guests: [
           {
             firstName: actor.first_name,

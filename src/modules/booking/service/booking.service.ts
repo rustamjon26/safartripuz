@@ -62,7 +62,10 @@ export type CreateHeldHotelBookingInput = {
   pricingSnapshot?: Prisma.InputJsonValue;
   /** Snapshot at book time; resolved from RoomType when omitted. */
   cancellationPolicyId?: string | null;
-  /** Guest user id for outbox booking.confirmed (optional for walk-in). */
+  /**
+   * Booking owner. Persisted as HotelBooking.userId and used as the
+   * authorization key by guest-facing APIs. Null for walk-in/reception.
+   */
   guestUserId?: string | null;
   guests?: Prisma.BookingGuestCreateWithoutBookingInput[];
 };
@@ -296,6 +299,9 @@ export class BookingService {
           holdExpiresAt,
           source: input.source ?? "SAFARTRIP",
           note: input.note ?? null,
+          ...(input.guestUserId
+            ? { user: { connect: { id: input.guestUserId } } }
+            : {}),
           ...(input.pricingSnapshot !== undefined
             ? { pricingSnapshot: input.pricingSnapshot }
             : {}),
@@ -369,6 +375,9 @@ export class BookingService {
           holdExpiresAt: null,
           source: input.source ?? "RECEPTION",
           note: input.note ?? null,
+          ...(input.guestUserId
+            ? { user: { connect: { id: input.guestUserId } } }
+            : {}),
           ...(input.pricingSnapshot !== undefined
             ? { pricingSnapshot: input.pricingSnapshot }
             : {}),
