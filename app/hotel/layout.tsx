@@ -80,6 +80,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
   const [collapsed,  setCollapsed]  = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user,       setUser]       = useState<HotelUser | null>(null);
+  const [ready,      setReady]      = useState(false);
 
   async function ensureAuth() {
     try {
@@ -92,9 +93,12 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
       }
       if (res.ok) {
         const d = await res.json();
-        if (d.user) setUser(d.user);
+        if (d.user) {
+          setUser(d.user);
+          setReady(true);
+        }
       }
-    } catch { /* offline — keep the shell, the next request will retry */ }
+    } catch { /* offline — keep the shell gated, the next request will retry */ }
   }
 
   // Auth once on mount — re-fetching on every pathname remounted the sidebar tree.
@@ -378,6 +382,15 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+    );
+  }
+
+  // Hotel data must not paint before the session check lands.
+  if (!ready) {
+    return (
+      <div className="hl-root flex h-screen items-center justify-center bg-[#f9f9ff] text-sm font-semibold text-[#64748B]">
+        Yuklanmoqda…
+      </div>
     );
   }
 
