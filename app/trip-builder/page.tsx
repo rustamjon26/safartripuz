@@ -1263,6 +1263,17 @@ export default function TripBuilderPage() {
               <p className="text-sm text-gray-600 leading-relaxed">
                 {weather ? weather.tip : "Ob-havo yuklanmoqda…"}
               </p>
+              {weather && weatherLive ? (
+                <p className="text-[11px] font-semibold text-emerald-700/80 mt-1.5">
+                  OpenWeather · hozirgi holat
+                  {weather.fetchedAt
+                    ? ` · ${new Date(weather.fetchedAt).toLocaleTimeString("uz-UZ", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : ""}
+                </p>
+              ) : null}
             </div>
           </div>
         ) : null}
