@@ -109,6 +109,23 @@ export function paymeRpcSuccess<T extends object>(id: number, result: T) {
   };
 }
 
+/**
+ * A JSON-RPC envelope carrying `error` rather than `result`.
+ *
+ * These must never be memoized in ProcessedEvent: a transient failure (DB
+ * timeout, -32400) would then be replayed to every Payme retry and strand the
+ * payment permanently. Success envelopes are safe to cache — the handlers that
+ * produce them are idempotent.
+ */
+export function isPaymeErrorResponse(response: unknown): boolean {
+  return (
+    typeof response === "object" &&
+    response !== null &&
+    "error" in response &&
+    (response as { error?: unknown }).error != null
+  );
+}
+
 export const CLICK_ERRORS = {
   SUCCESS: 0,
   SIGN_FAILED: -1,
