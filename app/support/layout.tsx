@@ -22,6 +22,7 @@ import "./support.css";
 
 const NAV_ITEMS = [
   { href: "/support/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/support/messages", label: "Chat", icon: Headphones },
   { href: "/support/sentiment", label: "Sentiment", icon: SmilePlus },
   { href: "/support/feed", label: "Feedback Feed", icon: MessageSquareText },
   { href: "/support/categories", label: "Categories", icon: FolderKanban },
