@@ -38,6 +38,8 @@ export {
   canTransition,
   isTerminal,
   holdsInventory,
+  occupiesRoomNights,
+  ROOM_RELEASED_STATUSES,
   isPaidStatus,
 } from "./domain/booking.state";
 export type { BookingStatus } from "./domain/booking.state";
