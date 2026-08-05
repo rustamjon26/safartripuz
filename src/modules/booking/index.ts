@@ -39,6 +39,8 @@ export {
   isTerminal,
   holdsInventory,
   isPaidStatus,
+  requiresPaymentEvidence,
+  UnpaidConfirmationError,
 } from "./domain/booking.state";
 export type { BookingStatus } from "./domain/booking.state";
 export { computeRefund, DEFAULT_FLEXIBLE_RULES } from "./domain/refund";
