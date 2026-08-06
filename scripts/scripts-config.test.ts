@@ -26,10 +26,21 @@ describe("setup-server.sh matches production", () => {
 
   it("uses the same app directory as the deploy script and PM2", () => {
     expect(read("scripts/deploy-safe.sh")).toContain("/var/www/safar\n");
+    // Root deploys must re-exec as safartrip — dual PM2 (~/.pm2) causes EADDRINUSE.
+    expect(read("scripts/deploy-safe.sh")).toMatch(/Re-executing deploy as/);
+    expect(read("scripts/deploy-safe.sh")).toMatch(/DEPLOY_AS_USER/);
     expect(read("ecosystem.config.js")).toContain('cwd: "/var/www/safar"');
     expect(setup).toContain("/var/www/safar");
     // The bootstrap script used to create /var/www/safartrip, which nothing else knew about.
     expect(setup).not.toMatch(/\/var\/www\/safartrip\b/);
+  });
+
+  it("verifies deploy via static chunk URL, not auth-gated /trip-builder HTML", () => {
+    const deploy = read("scripts/deploy-safe.sh");
+    // Anonymous /trip-builder redirects to /login — scraping HTML never finds the chunk.
+    expect(deploy).toContain("/_next/static/chunks/app/trip-builder/");
+    expect(deploy).toContain("/api/health");
+    expect(deploy).not.toMatch(/curl[^|]*\/trip-builder[^|]*grep/);
   });
 
   it("keeps the nginx static alias narrow enough for /_next/image to reach the app", () => {

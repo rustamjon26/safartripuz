@@ -76,11 +76,26 @@ Or in one shot (same ordering, including stop PM2/MySQL around build):
 
 ```bash
 cd /var/www/safar
-# As root: deploy-safe can stop/start MySQL for RAM during build.
-bash scripts/deploy-safe.sh
 
-# As safartrip (no passwordless sudo for systemctl): skip MySQL stop — avoids polkit hang.
+# Preferred: always deploy as safartrip (PM2 lives in ~safartrip/.pm2).
 sudo -u safartrip -H bash -lc 'cd /var/www/safar && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
+
+# As root: script chown's the tree, kills /root/.pm2, then re-execs as safartrip.
+# Do NOT leave a root PM2 running — it steals :3000 from safartrip.
+bash scripts/deploy-safe.sh
+```
+
+If a previous root deploy left the tree / port broken:
+
+```bash
+# 1) Kill every listener on :3000 and both PM2 daemons
+fuser -k 3000/tcp || true
+pm2 kill 2>/dev/null || true
+sudo -u safartrip -H bash -lc 'pm2 kill' 2>/dev/null || true
+
+# 2) Return the tree to safartrip, sync main, redeploy
+chown -R safartrip:safartrip /var/www/safar
+sudo -u safartrip -H bash -lc 'cd /var/www/safar && git fetch origin && git reset --hard origin/main && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
 ```
 
 `STOP_MYSQL_FOR_BUILD=0` keeps MySQL up during build (safer when not root; use on 8 GB only if RAM allows).
@@ -90,6 +105,12 @@ sudo -u safartrip -H bash -lc 'cd /var/www/safar && STOP_MYSQL_FOR_BUILD=0 bash 
 ```bash
 curl -sS http://127.0.0.1:3000/api/health | jq
 # 200 = ok or degraded, 503 = unhealthy
+
+# Post-deploy check (deploy-safe.sh does this): serve this build's static chunk.
+# Do not scrape /trip-builder HTML — anonymous users are redirected to /login.
+CHUNK=$(ls -1 /var/www/safar/.next/static/chunks/app/trip-builder/page-*.js | head -1 | xargs -n1 basename)
+curl -sS -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:3000/_next/static/chunks/app/trip-builder/${CHUNK}"
+# expect: 200
 
 sudo -u safartrip -H bash -lc 'pm2 status'
 sudo -u safartrip -H bash -lc 'pm2 logs safartrip --lines 80'
