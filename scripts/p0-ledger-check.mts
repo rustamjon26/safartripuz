@@ -61,13 +61,17 @@ mustMatch("app/api/homestay/bookings/[id]/route.ts", /postCancelAccountingInTx/)
 mustMatch("app/api/guide/bookings/[id]/route.ts", /postCancelAccountingInTx/);
 mustMatch("app/api/guide/partner/bookings/[id]/route.ts", /postCancelAccountingInTx/);
 mustMatch("app/api/taxi/driver/orders/[id]/route.ts", /calcCommissionTiyin/);
-mustMatch("lib/payments/completeSuccessfulPaymentTx.ts", /payment:\$\{paymentId\}:booking:/);
+mustMatch(
+  "src/modules/booking/service/payment-confirmation.service.ts",
+  /payment:\$\{paymentId\}:booking:/,
+);
 mustMatch("lib/getCommissionRates.ts", /calcCommission \(float\) is removed/);
 mustMatch("eslint.config.mjs", /Float money banned/);
-mustMatch("app/api/hotel/earnings/route.ts", /getPartnerPayableTiyin/);
-mustMatch("app/api/hotel/earnings/route.ts", /source:\s*"ledger"/);
+// Hotel earnings read the ledger through this helper, not in the route.
+mustMatch("lib/earnings/loadPartnerEarningsHybrid.ts", /getPartnerBalanceSummary/);
+mustMatch("lib/earnings/loadPartnerEarningsHybrid.ts", /source:\s*"ledger"/);
 mustMatch("app/api/admin/payments/revenue/route.ts", /sumPlatformRevenueTiyin/);
-mustMatch("app/api/admin/payments/revenue/route.ts", /source:\s*"ledger"/);
+mustMatch("app/api/admin/payments/revenue/route.ts", /source:\s*"ledger\+partner_earning"/);
 mustMatch("app/api/payme/methods/performTransaction.ts", /partnerUserId/);
 
 mustNotMatch(
@@ -81,12 +85,12 @@ mustNotMatch(
   "taxi no toFixed",
 );
 mustNotMatch(
-  "lib/payments/completeSuccessfulPaymentTx.ts",
+  "src/modules/booking/service/payment-confirmation.service.ts",
   /partnerUserId:\s*null/,
   "payment success no null partner",
 );
 mustNotMatch(
-  "lib/payments/completeSuccessfulPaymentTx.ts",
+  "src/modules/booking/service/payment-confirmation.service.ts",
   /calcCommission\(/,
   "payment success no float calcCommission",
 );
