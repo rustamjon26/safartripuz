@@ -20,13 +20,14 @@ import {
 import { toast } from "sonner";
 import "./support.css";
 
+/** Uzbek, like the pages behind them — this panel is not wired to LanguageProvider. */
 const NAV_ITEMS = [
-  { href: "/support/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/support/messages", label: "Chat", icon: Headphones },
-  { href: "/support/sentiment", label: "Sentiment", icon: SmilePlus },
-  { href: "/support/feed", label: "Feedback Feed", icon: MessageSquareText },
-  { href: "/support/categories", label: "Categories", icon: FolderKanban },
-  { href: "/support/reports", label: "Reports", icon: BarChart3 },
+  { href: "/support/dashboard", label: "Umumiy", icon: LayoutDashboard },
+  { href: "/support/messages", label: "Yozishmalar", icon: Headphones },
+  { href: "/support/sentiment", label: "Sharhlar tahlili", icon: SmilePlus },
+  { href: "/support/feed", label: "Fikrlar oqimi", icon: MessageSquareText },
+  { href: "/support/categories", label: "Kategoriyalar", icon: FolderKanban },
+  { href: "/support/reports", label: "Hisobotlar", icon: BarChart3 },
 ];
 
 const ALLOWED_ROLES = new Set(["support", "admin", "super_admin"]);
@@ -106,7 +107,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
               SafarTrip Partner
             </div>
             <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
-              Feedback & Support
+              Fikrlar va Qo&apos;llab-quvvatlash
             </div>
           </div>
           {mobile ? (
@@ -158,7 +159,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
                   {user ? `${user.first_name} ${user.last_name}` : "Support"}
                 </div>
                 <div className="text-[10px] text-white/45 truncate uppercase tracking-wide">
-                  {user?.role === "support" ? "Support Agent" : user?.role || "Preview"}
+                  {user?.role === "support" ? "Qo\u2019llab-quvvatlash operatori" : user?.role || "Ko\u2019rib chiqish"}
                 </div>
               </div>
             </Link>
@@ -206,7 +207,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
             </button>
             <div className="min-w-0">
               <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#94A3B8] leading-none mb-1">
-                Feedback Portal
+                Fikrlar portali
               </div>
               <div className="text-[15px] font-display font-bold text-[#0d2137] leading-none truncate">
                 {currentTitle}
@@ -260,7 +261,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
                   {user?.first_name || "Support"}
                 </div>
                 <div className="text-[10px] font-medium text-[#94A3B8] uppercase tracking-wide">
-                  Agent
+                  Operator
                 </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white font-bold flex items-center justify-center text-sm">

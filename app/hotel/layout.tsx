@@ -38,7 +38,7 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/guests",        label: t("nav.guests"), icon: Users, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/finance",       label: t("nav.finance"),       icon: Receipt, roles: ["hotel_manager", "admin", "receptionist"] },
-      { href: "/hotel/invoices/new",  label: "Invoys",               icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
+      { href: "/hotel/invoices/new",  label: t("nav.invoices"),      icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/revenue",       label: t("nav.revenue"),       icon: TrendingUp, roles: ["hotel_manager", "admin"] },
     ]
   },
@@ -156,10 +156,10 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           {showText && (
             <div className="flex-1 min-w-0">
               <div className="font-display font-bold text-white text-[17px] leading-tight truncate">
-                SafarTrip Partner
+                {t("shell.brand")}
               </div>
               <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
-                Property Management
+                {t("shell.tagline")}
               </div>
             </div>
           )}
@@ -225,7 +225,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
             }${!showText ? " justify-center" : ""}`}
           >
             <Settings size={18} className="shrink-0" />
-            {showText && <span>Settings</span>}
+            {showText && <span>{t("shell.settings")}</span>}
           </Link>
           <Link
             href="/hotel/help"
@@ -254,7 +254,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-white truncate">
-                      {user ? `${user.first_name} ${user.last_name}` : "Manager"}
+                      {user ? `${user.first_name} ${user.last_name}` : t("shell.manager_fallback")}
                     </div>
                     <div className="text-[10px] text-white/45 truncate">
                       {user?.email || "hotel@safartrip.uz"}
@@ -456,7 +456,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
                 className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#006781] hover:bg-[#005a71] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold transition-colors"
               >
                 <Plus size={14} strokeWidth={2.5} />
-                Check-in
+                {t("shell.check_in")}
               </Link>
             )}
 
