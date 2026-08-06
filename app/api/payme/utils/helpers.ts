@@ -1,5 +1,13 @@
 import type { Booking, Hotel, PaymeTransaction } from "@prisma/client";
 import { paymeBookingRepository } from "@/src/modules/payment";
+import {
+  buildPaymeReceiptDetail,
+  getPaymeMxikCode as sharedGetPaymeMxikCode,
+  getPaymePackageCode as sharedGetPaymePackageCode,
+  getPaymeVatPercent as sharedGetPaymeVatPercent,
+  type PaymeReceiptDetail,
+  type PaymeReceiptItem,
+} from "@/src/modules/payment/domain/payme-receipt";
 
 export const PAYME_TRANSACTION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
@@ -38,19 +46,7 @@ export type PaymeRpcRequest = {
   id: number;
 };
 
-export type PaymeReceiptItem = {
-  title: string;
-  price: number;
-  count: number;
-  code: string;
-  package_code: string;
-  vat_percent: number;
-};
-
-export type PaymeReceiptDetail = {
-  receipt_type: number;
-  items: PaymeReceiptItem[];
-};
+export type { PaymeReceiptItem, PaymeReceiptDetail };
 
 export type BookingWithHotel = Booking & {
   hotel: Pick<Hotel, "id" | "name">;
@@ -139,16 +135,15 @@ export function getPaymeSecretKey(): string {
 }
 
 export function getPaymeMxikCode(): string {
-  return readEnv("PAYME_MXIK_CODE") ?? "00702001001000001";
+  return sharedGetPaymeMxikCode();
 }
 
 export function getPaymePackageCode(): string {
-  return readEnv("PAYME_PACKAGE_CODE") ?? "123456";
+  return sharedGetPaymePackageCode();
 }
 
 export function getPaymeVatPercent(): number {
-  const parsed = Number(readEnv("PAYME_VAT_PERCENT") ?? "12");
-  return Number.isFinite(parsed) ? parsed : 12;
+  return sharedGetPaymeVatPercent();
 }
 
 export function isValidTiyinAmount(amount: unknown): amount is number {
@@ -190,20 +185,19 @@ export async function findPaymeTransactionByPaymeId(
   return paymeBookingRepository.findTransactionByPaymeId(normalizedPaymeId);
 }
 
+/** One PaymeTransaction per booking (unique bookingId). */
+export async function findPaymeTransactionByBookingId(
+  bookingId: string | undefined,
+): Promise<PaymeTransactionWithBooking | null> {
+  if (!bookingId) return null;
+  return paymeBookingRepository.findTransactionByBookingId(bookingId);
+}
+
 export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetail {
-  return {
-    receipt_type: 0,
-    items: [
-      {
-        title: `Hotel booking - ${booking.hotel.name}`,
-        price: booking.amount,
-        count: 1,
-        code: getPaymeMxikCode(),
-        package_code: getPaymePackageCode(),
-        vat_percent: getPaymeVatPercent(),
-      },
-    ],
-  };
+  return buildPaymeReceiptDetail({
+    title: `Hotel booking - ${booking.hotel.name}`,
+    priceTiyin: booking.amount,
+  });
 }
 
 export function serializePaymeTransaction(

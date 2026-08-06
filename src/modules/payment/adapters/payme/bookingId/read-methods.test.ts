@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const repo = {
   findBookingById: vi.fn(),
   findTransactionByPaymeId: vi.fn(),
+  findTransactionByBookingId: vi.fn(),
   findTransactionsInWindow: vi.fn(),
   markTransactionCancelled: vi.fn(),
 };
@@ -42,6 +43,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   repo.findBookingById.mockResolvedValue(null);
   repo.findTransactionByPaymeId.mockResolvedValue(null);
+  repo.findTransactionByBookingId.mockResolvedValue(null);
   repo.findTransactionsInWindow.mockResolvedValue([]);
 });
 
@@ -62,7 +64,7 @@ describe("CheckPerformTransaction", () => {
     const res = await checkPerformTransaction(RPC_ID, { account: {}, amount: 1 });
     expect(repo.findBookingById).not.toHaveBeenCalled();
     expect(res).toMatchObject({
-      error: { code: PAYME_ERRORS.TRANSACTION_NOT_FOUND.code, data: "booking_id" },
+      error: { code: PAYME_ERRORS.INVALID_ACCOUNT.code, data: "booking_id" },
     });
   });
 
@@ -108,7 +110,7 @@ describe("CheckPerformTransaction", () => {
       amount: 500_000,
     });
     expect(res).toMatchObject({
-      error: { code: PAYME_ERRORS.TRANSACTION_NOT_FOUND.code },
+      error: { code: PAYME_ERRORS.INVALID_ACCOUNT.code },
     });
   });
 });

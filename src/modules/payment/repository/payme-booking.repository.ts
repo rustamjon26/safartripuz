@@ -44,6 +44,17 @@ export class PaymeBookingRepository {
     });
   }
 
+  /** One PaymeTransaction per booking (@@unique bookingId). */
+  async findTransactionByBookingId(
+    bookingId: string,
+    client: DbClient = db,
+  ): Promise<PaymeTransactionWithBooking | null> {
+    return client.paymeTransaction.findUnique({
+      where: { bookingId },
+      include: paymeTransactionInclude,
+    });
+  }
+
   /** GetStatement window, ordered as Payme expects. */
   async findTransactionsInWindow(
     fromMs: bigint,

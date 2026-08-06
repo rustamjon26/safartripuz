@@ -1,4 +1,5 @@
 import {
+  autoCancelExpiredTransaction,
   buildReceiptDetail,
   getBookingIdFromAccount,
   isValidTiyinAmount,
@@ -13,8 +14,9 @@ export async function checkPerformTransaction(id: number, params: PaymeRpcParams
     ? await paymeBookingRepository.findBookingById(bookingId)
     : null;
 
+  // Sandbox "Не существует" / invalid account → -31050..-31099
   if (!booking) {
-    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
   }
 
   // Amount must be a whole tiyin value AND match the booking exactly; Payme
@@ -31,14 +33,25 @@ export async function checkPerformTransaction(id: number, params: PaymeRpcParams
     return paymeRpcError(id, PAYME_ERRORS.WRONG_AMOUNT, "amount");
   }
 
+  // Sandbox "Заблокирован" — already paid / cancelled → -31050..-31099
   if (booking.status === "PAID") {
     return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
   }
 
-  // Payme has no distinct "order cancelled" code; a cancelled booking is
-  // reported the same way as a missing one (what the legacy alias did too).
   if (booking.status === "CANCELLED") {
-    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
+  }
+
+  // Sandbox "Обрабатывается" — another transaction already holds this account.
+  // CreateTransaction leaves state=1; Perform leaves state=2. Either blocks a
+  // new CheckPerform. Expired state=1 is auto-cancelled first (same as Create).
+  const existing = await paymeBookingRepository.findTransactionByBookingId(booking.id);
+  if (existing) {
+    const current = await autoCancelExpiredTransaction(existing);
+    if (current.state === 1 || current.state === 2) {
+      return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
+    }
+    // state -1/-2: cancelled — account is free again for a new payment.
   }
 
   return paymeRpcSuccess(id, {
