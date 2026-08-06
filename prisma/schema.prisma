@@ -1012,6 +1012,23 @@ model PartnerEarning {
   @@index([createdAt])
 }
 
+/// Fixed-window rate limit counters, shared by every app process.
+/// Incremented with a conditional UPDATE (same pattern as hold expiry), so the
+/// limit holds under concurrency without a transaction.
+model RateLimit {
+  id          String   @id @default(cuid())
+  /// Caller bucket, e.g. "signin:1.2.3.4".
+  bucketKey   String
+  /// Floor of now to the window size — identical across processes.
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([bucketKey, windowStart])
+  @@index([expiresAt])
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   tokenHash String    @unique

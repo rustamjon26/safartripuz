@@ -16,6 +16,33 @@ export class BookingRepository {
     return client.hotelBooking.findFirst({ where: { id, hotelId } });
   }
 
+  /**
+   * Is there money on record for this booking? Used to gate the
+   * PENDING/HELD → CONFIRMED edges, so the answer must come from persisted
+   * rows rather than anything the caller passes in.
+   */
+  async hasRecordedPayment(
+    booking: { id: string; paidAmount: Prisma.Decimal; travelPlanId: string | null },
+    client: Tx,
+  ): Promise<boolean> {
+    if (Number(booking.paidAmount) > 0) return true;
+
+    // Front desk cash / card taken through the PMS.
+    const hotelPayment = await client.hotelPayment.findFirst({
+      where: { bookingId: booking.id, status: "COMPLETED" },
+      select: { id: true },
+    });
+    if (hotelPayment) return true;
+
+    // Online payment against the travel plan this booking belongs to.
+    if (!booking.travelPlanId) return false;
+    const planPayment = await client.payment.findFirst({
+      where: { travelPlanId: booking.travelPlanId, status: "SUCCESS" },
+      select: { id: true },
+    });
+    return Boolean(planPayment);
+  }
+
   async createAuditLog(
     input: {
       actorId: string;

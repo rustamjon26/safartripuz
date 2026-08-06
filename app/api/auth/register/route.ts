@@ -32,7 +32,7 @@ function splitName(name: string): { first_name: string; last_name: string } {
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!checkRateLimit(`register:${ip}`, 10, 60_000)) {
+  if (!(await checkRateLimit(`register:${ip}`, 10, 60_000))) {
     return NextResponse.json(
       { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
       { status: 429 },

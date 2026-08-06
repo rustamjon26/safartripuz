@@ -17,6 +17,7 @@ import {
   holdsInventory,
   IllegalTransitionError,
   isPaidStatus,
+  requiresPaymentEvidence,
   type BookingStatus,
 } from "../domain/booking.state";
 import {
@@ -203,7 +204,14 @@ export class BookingService {
       }
 
       const fromStatus = asStatus(booking.status);
-      assertTransition(fromStatus, asStatus(toStatus));
+      const nextStatus = asStatus(toStatus);
+
+      // Guarded edges are settled here, against the locked row, so no call site
+      // can confirm an unpaid booking by convention or by passing a flag.
+      const paymentConfirmed = requiresPaymentEvidence(fromStatus, nextStatus)
+        ? await bookingRepository.hasRecordedPayment(booking, tx)
+        : false;
+      assertTransition(fromStatus, nextStatus, { paymentConfirmed });
 
       const shouldRestore =
         ctx.restoreInventory === true ||
