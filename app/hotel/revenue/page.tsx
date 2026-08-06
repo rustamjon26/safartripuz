@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   TrendingUp, TrendingDown, DollarSign, Users, CalendarCheck, 
   Loader2, RefreshCw, BarChart4, ArrowUpRight, ArrowDownRight, Target
@@ -42,8 +43,8 @@ export default function RevenuePage() {
     setLoading(true);
     try {
       const [revRes, earnRes] = await Promise.all([
-        fetch("/api/hotel/revenue"),
-        fetch("/api/hotel/earnings"),
+        hotelFetch("/api/hotel/revenue"),
+        hotelFetch("/api/hotel/earnings"),
       ]);
       const result = await revRes.json();
       if (revRes.ok) setData(result);

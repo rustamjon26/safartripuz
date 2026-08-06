@@ -60,7 +60,8 @@ export async function middleware(req: NextRequest) {
 
   const protectedAreas: Array<{
     prefix: string;
-    allow: AppRole[];
+    /** Omit to allow any signed-in role — used by the customer-facing areas. */
+    allow?: AppRole[];
     redirectTo: string;
     wrongRoleRedirect?: string;
   }> = [
@@ -145,6 +146,14 @@ export async function middleware(req: NextRequest) {
       allow: ["user", "admin", "super_admin"],
       redirectTo: "/login",
     },
+    /**
+     * Customer areas: any signed-in role, but never an anonymous visitor.
+     * Redirecting here rather than inside the page is what stops protected
+     * content from flashing before the client-side auth check resolves.
+     */
+    { prefix: "/bookings", redirectTo: "/login" },
+    { prefix: "/profile", redirectTo: "/login" },
+    { prefix: "/trip-builder", redirectTo: "/login" },
   ];
 
   const area = protectedAreas.find((a) => isPathMatch(pathname, a.prefix));
@@ -173,7 +182,7 @@ export async function middleware(req: NextRequest) {
     return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
-  if (!area.allow.includes(role)) {
+  if (area.allow && !area.allow.includes(role)) {
     if (area.wrongRoleRedirect) {
       return attachRequestId(
         NextResponse.redirect(new URL(area.wrongRoleRedirect, req.url)),
@@ -205,6 +214,12 @@ export const config = {
     "/restaurant/:path*",
     "/user",
     "/user/:path*",
+    "/bookings",
+    "/bookings/:path*",
+    "/profile",
+    "/profile/:path*",
+    "/trip-builder",
+    "/trip-builder/:path*",
     "/api/payments/:path*",
     "/api/payme",
     "/api/payme/:path*",

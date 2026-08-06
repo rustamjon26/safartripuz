@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   ArrowLeft,
   Ban,
@@ -180,7 +181,7 @@ export default function HotelGuestDetailPage() {
   }, [guest]);
 
   const loadGuest = useCallback(async (hid: string) => {
-    const res = await fetch(`/api/hotels/${hid}/guests/${guestId}`);
+    const res = await hotelFetch(`/api/hotels/${hid}/guests/${guestId}`);
     const data = (await res.json()) as GuestDetail & { error?: string };
     if (!res.ok) throw new Error(data.error || "Mehmon topilmadi");
     setGuest(data);
@@ -195,8 +196,8 @@ export default function HotelGuestDetailPage() {
       setError(null);
       try {
         const [meRes, userRes] = await Promise.all([
-          fetch("/api/hotel/me"),
-          fetch("/api/user/me"),
+          hotelFetch("/api/hotel/me"),
+          hotelFetch("/api/user/me"),
         ]);
         const meData = (await meRes.json()) as { hotel?: { id: string } };
         const userData = (await userRes.json()) as { user?: { role: string } };
@@ -224,7 +225,7 @@ export default function HotelGuestDetailPage() {
 
   async function patchGuest(body: Record<string, unknown>) {
     if (!hotelId) return null;
-    const res = await fetch(`/api/hotels/${hotelId}/guests/${guestId}`, {
+    const res = await hotelFetch(`/api/hotels/${hotelId}/guests/${guestId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -292,7 +293,7 @@ export default function HotelGuestDetailPage() {
     setActionLoading(true);
     try {
       if (confirmAction.type === "delete") {
-        const res = await fetch(`/api/hotels/${hotelId}/guests/${guestId}`, { method: "DELETE" });
+        const res = await hotelFetch(`/api/hotels/${hotelId}/guests/${guestId}`, { method: "DELETE" });
         const data = (await res.json()) as { error?: string };
         if (!res.ok) throw new Error(data.error || "O'chirib bo'lmadi");
         toast.success("Mehmon o'chirildi");

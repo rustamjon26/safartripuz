@@ -664,9 +664,39 @@ model Hotel {
   channelRoomMappings ChannelRoomMapping[]
   channelSyncJobs     ChannelSyncJob[]
   channelReservations ChannelReservationInbox[]
+  promos              HotelPromo[]
 
   @@index([status])
   @@index([latitude, longitude])
+}
+
+enum HotelPromoType {
+  SEASONAL
+  EVENT
+  LOYALTY
+}
+
+/// Hotel-owned marketing campaign shown on the partner marketing panel.
+/// Distinct from `Promotion`, which the rates pricing pipeline consumes —
+/// this one is not applied to quotes.
+model HotelPromo {
+  id          String         @id @default(cuid())
+  hotelId     String
+  hotel       Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  title       String
+  /// Uppercased campaign code, unique per hotel when set.
+  code        String?
+  /// Basis points (1500 = 15%), matching `Promotion.PERCENT_BPS`. Never a float.
+  discountBps Int
+  type        HotelPromoType @default(SEASONAL)
+  isActive    Boolean        @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([hotelId, code])
+  @@index([hotelId, isActive])
 }
 
 model HotelBooking {

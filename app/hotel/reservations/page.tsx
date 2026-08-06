@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type BookingStatus =
   | "PENDING"
@@ -81,7 +82,7 @@ export default function HotelReservationsPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/hotel/bookings?${query}`);
+      const res = await hotelFetch(`/api/hotel/bookings?${query}`);
       const data = (await res.json()) as { items?: Booking[]; total?: number; message?: string };
       if (!res.ok) throw new Error(data.message || "Load error");
       setItems(data.items ?? []);
@@ -105,13 +106,13 @@ export default function HotelReservationsPage() {
   useEffect(() => {
     async function loadRoomTypes() {
       try {
-        const meRes = await fetch("/api/hotel/me");
+        const meRes = await hotelFetch("/api/hotel/me");
         const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
         if (!meRes.ok || !meData.hotel?.id) {
           throw new Error(meData.message || "Mehmonxona topilmadi");
         }
 
-        const res = await fetch(`/api/hotels/${meData.hotel.id}/room-types`);
+        const res = await hotelFetch(`/api/hotels/${meData.hotel.id}/room-types`);
         const data = (await res.json()) as { items?: RoomType[]; error?: string; message?: string };
         if (!res.ok) throw new Error(data.error || data.message || "Room types load error");
         setRoomTypes(data.items ?? []);
@@ -141,7 +142,7 @@ export default function HotelReservationsPage() {
       setAvailabilityLoading(true);
       setAvailabilityError(null);
       try {
-        const res = await fetch(
+        const res = await hotelFetch(
           `/api/hotel/bookings/availability?checkInDate=${encodeURIComponent(checkInIso)}&checkOutDate=${encodeURIComponent(checkOutIso)}&roomTypeId=${encodeURIComponent(roomTypeId)}`,
           { signal: controller.signal },
         );
@@ -176,7 +177,7 @@ export default function HotelReservationsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/bookings", {
+      const res = await hotelFetch("/api/hotel/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function HotelReservationsPage() {
   async function setStatus(id: string, status: BookingStatus) {
     setActingId(id);
     try {
-      const res = await fetch(`/api/hotel/bookings/${id}/status`, {
+      const res = await hotelFetch(`/api/hotel/bookings/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),

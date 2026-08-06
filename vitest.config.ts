@@ -20,6 +20,10 @@ export default defineConfig({
       "src/**/*.{test,spec}.ts",
       "lib/**/*.{test,spec}.ts",
       "app/**/*.{test,spec}.ts",
+      "components/**/*.{test,spec}.ts",
+      "public/**/*.{test,spec}.ts",
+      // Root-level modules (middleware.ts, server.ts) live here, not in a folder.
+      "*.{test,spec}.ts",
     ],
     exclude: ["node_modules/**", ".next/**"],
     testTimeout: 60_000,

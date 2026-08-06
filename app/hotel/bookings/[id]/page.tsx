@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   ArrowLeft,
   BedDouble,
@@ -206,7 +207,7 @@ export default function HotelBookingDetailPage() {
   const [guestSaving, setGuestSaving] = useState(false);
 
   const loadBooking = useCallback(async (hid: string) => {
-    const res = await fetch(`/api/hotels/${hid}/bookings/${bookingId}`);
+    const res = await hotelFetch(`/api/hotels/${hid}/bookings/${bookingId}`);
     const data = (await res.json()) as BookingDetail & { error?: string };
     if (!res.ok) {
       throw new Error(data.error || "Bron topilmadi");
@@ -226,7 +227,7 @@ export default function HotelBookingDetailPage() {
       setLoading(true);
       setError(null);
       try {
-        const meRes = await fetch("/api/hotel/me");
+        const meRes = await hotelFetch("/api/hotel/me");
         const meData = (await meRes.json()) as { hotel?: { id: string } };
         if (!meRes.ok || !meData.hotel?.id) {
           throw new Error("Mehmonxona topilmadi");
@@ -260,7 +261,7 @@ export default function HotelBookingDetailPage() {
     if (!hotelId) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/hotels/${hotelId}/bookings/${bookingId}/status`, {
+      const res = await hotelFetch(`/api/hotels/${hotelId}/bookings/${bookingId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: action.status }),
@@ -282,7 +283,7 @@ export default function HotelBookingDetailPage() {
     if (!hotelId || !booking) return;
     setGuestSaving(true);
     try {
-      const res = await fetch(`/api/hotels/${hotelId}/bookings/${bookingId}`, {
+      const res = await hotelFetch(`/api/hotels/${hotelId}/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
