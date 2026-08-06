@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import {
   fail,
@@ -9,29 +10,26 @@ import {
   writeAuditLog,
 } from "../_utils";
 
-type ListingInput = {
-  title?: string;
-  description?: string;
-  address?: string;
-  city?: string;
-  region?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-  pricePerNight?: number;
-  maxGuests?: number;
-  rooms?: number;
-  beds?: number;
-  bathrooms?: number;
-  amenities?: string[];
-  images?: string[];
-};
+/** Location is mandatory — taxi and discovery match listings by proximity. */
+const LOCATION_REQUIRED =
+  "Lokatsiya majburiy. Iltimos, xaritadan joyni tanlang (latitude va longitude).";
 
-function isValidLat(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= -90 && v <= 90;
-}
-function isValidLng(v: unknown): v is number {
-  return typeof v === "number" && Number.isFinite(v) && v >= -180 && v <= 180;
-}
+const listingCreateSchema = z.object({
+  title: z.string().trim().min(1).max(191),
+  description: z.string().trim().min(1).max(5000),
+  address: z.string().trim().min(1).max(500),
+  city: z.string().trim().min(1).max(191),
+  region: z.string().trim().min(1).max(191),
+  latitude: z.number({ error: LOCATION_REQUIRED }).min(-90).max(90),
+  longitude: z.number({ error: LOCATION_REQUIRED }).min(-180).max(180),
+  pricePerNight: z.number().positive().finite(),
+  maxGuests: z.number().int().positive().max(100),
+  rooms: z.number().int().nonnegative().max(100),
+  beds: z.number().int().nonnegative().max(100),
+  bathrooms: z.number().int().nonnegative().max(100),
+  amenities: z.array(z.string().trim().min(1).max(191)).max(100),
+  images: z.array(z.string().trim().min(1).max(2000)).max(50),
+});
 
 export async function GET() {
   try {
@@ -84,34 +82,14 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const actor = await requireHomeStayHost();
-    const body = (await req.json()) as ListingInput;
 
-    if (
-      !body.title ||
-      !body.description ||
-      !body.address ||
-      !body.city ||
-      !body.region ||
-      body.pricePerNight === undefined ||
-      body.maxGuests === undefined ||
-      body.rooms === undefined ||
-      body.beds === undefined ||
-      body.bathrooms === undefined
-    ) {
-      return fail("Missing required fields", 400);
+    const parsed = listingCreateSchema.safeParse(
+      await req.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      return fail(parsed.error.issues[0]?.message ?? "Validatsiya xatosi", 400);
     }
-
-    if (!Array.isArray(body.amenities) || !Array.isArray(body.images)) {
-      return fail("amenities and images must be arrays", 400);
-    }
-
-    // Location is mandatory — used for taxi/discovery matching by proximity.
-    if (!isValidLat(body.latitude) || !isValidLng(body.longitude)) {
-      return fail(
-        "Lokatsiya majburiy. Iltimos, xaritadan joyni tanlang (latitude va longitude).",
-        400,
-      );
-    }
+    const body = parsed.data;
 
     // Listings are auto-approved on creation — no admin moderation step.
     // Admins can still suspend or block listings later via /admin/homestay/listings.

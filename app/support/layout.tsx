@@ -44,6 +44,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
           return;
         }
         setUser(data.user);
+        setReady(true);
       } catch {
         router.push("/login?next=/support/dashboard");
       }
@@ -172,6 +174,16 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Nothing renders until the session check resolves — otherwise the shell and
+  // its data are briefly visible to a signed-out visitor on a client navigation.
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
       </div>
     );
   }

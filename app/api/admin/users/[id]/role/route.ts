@@ -8,24 +8,10 @@ import {
   ensureApprovedTaxiPartner,
 } from "@/lib/partner";
 import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
+import { isGuidePanelRole, isTaxiPanelRole, ROLES } from "@/src/shared/roles";
 
 const schema = z.object({
-  role: z.enum([
-    "super_admin",
-    "admin",
-    "user",
-    "taxi",
-    "taxi_partner",
-    "hotel_manager",
-    "guide",
-    "restaurant_manager",
-    "home_stay_partner",
-    "support",
-    "cleaner",
-    "receptionist",
-    "waiter",
-    "hotel_staff",
-  ]),
+  role: z.enum(ROLES),
 });
 
 export async function PATCH(
@@ -107,7 +93,7 @@ export async function PATCH(
         );
       }
 
-      if (newRole === "guide") {
+      if (isGuidePanelRole(newRole)) {
         await ensureApprovedGuidePartner(tx, {
           userId: user.id,
           displayName,
@@ -116,7 +102,7 @@ export async function PATCH(
         });
       }
 
-      if (newRole === "taxi" || newRole === "taxi_partner") {
+      if (isTaxiPanelRole(newRole)) {
         await ensureApprovedTaxiPartner(tx, {
           userId: user.id,
           displayName,

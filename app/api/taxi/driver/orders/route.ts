@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { expirePendingTaxiOrders } from "@/lib/taxi/expireOrders";
 import { handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../_utils";
 import type { TaxiOrderStatus } from "@prisma/client";
 
@@ -43,7 +42,8 @@ export async function GET(req: Request) {
     if (!(await hasDriverProfile(actor.id)) || !(await hasVehicle(actor.id))) {
       return onboardingResponse();
     }
-    await expirePendingTaxiOrders();
+    // Expiry runs on the cron (scripts/expire-booking-holds.ts) — a driver
+    // opening this list must not be what cancels timed-out orders.
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const from = parseDate(searchParams.get("from"));

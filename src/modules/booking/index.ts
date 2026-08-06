@@ -52,7 +52,11 @@ export {
   canTransition,
   isTerminal,
   holdsInventory,
+  occupiesRoomNights,
+  ROOM_RELEASED_STATUSES,
   isPaidStatus,
+  requiresPaymentEvidence,
+  UnpaidConfirmationError,
 } from "./domain/booking.state";
 export type { BookingStatus } from "./domain/booking.state";
 export { computeRefund, DEFAULT_FLEXIBLE_RULES } from "./domain/refund";

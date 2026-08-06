@@ -44,7 +44,7 @@ export async function requireUser(): Promise<{
     select: { id: true, role: true, isBlocked: true },
   });
   if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
-  return { id: u.id, role: u.role as AppRole };
+  return { id: u.id, role: u.role };
 }
 
 /** Like `requireUser` but loads profile fields needed for guest matching / display. */
@@ -79,7 +79,7 @@ export async function requireUserWithProfile(): Promise<{
   if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
   return {
     id: u.id,
-    role: u.role as AppRole,
+    role: u.role,
     first_name: u.first_name,
     last_name: u.last_name,
     phone: u.phone,

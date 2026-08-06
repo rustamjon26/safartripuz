@@ -6,4 +6,9 @@ export {
   InventoryLockError,
   InventoryNegativeError,
 } from "./domain/errors";
-export { enumerateNights, utcDateOnly, formatDateOnly } from "./domain/nights";
+export {
+  enumerateNights,
+  utcDateOnly,
+  formatDateOnly,
+  parseDateOnlyUtc,
+} from "./domain/nights";

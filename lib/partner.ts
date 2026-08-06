@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Partner, PartnerType, Prisma } from "@prisma/client";
+import { isGuidePanelRole, isTaxiPanelRole } from "@/src/shared/roles";
 
 export async function getApprovedPartnerContextByUserId(
   userId: string,
@@ -77,11 +78,9 @@ export async function ensureApprovedTaxiPartner(
 /** Roles that should keep an approved Partner row. */
 export function roleNeedsApprovedPartner(role: string): boolean {
   return (
-    role === "taxi" ||
-    role === "taxi_partner" ||
+    isTaxiPanelRole(role) ||
+    isGuidePanelRole(role) ||
     role === "hotel_manager" ||
-    role === "guide" ||
-    role === "guide_partner" ||
     role === "home_stay_partner" ||
     role === "restaurant_manager"
   );

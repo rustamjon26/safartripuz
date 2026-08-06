@@ -3,6 +3,7 @@ import { BookingDetailError } from "@/lib/hotel/getBookingDetail";
 import {
   bookingService,
   IllegalTransitionError,
+  UnpaidConfirmationError,
   type BookingStatus,
 } from "@/src/modules/booking";
 
@@ -95,6 +96,12 @@ export async function updateBookingStatus(input: UpdateBookingStatusInput) {
       );
     }
   } catch (err) {
+    if (err instanceof UnpaidConfirmationError) {
+      throw new BookingDetailError(
+        "To'lov qayd etilmagan bronni tasdiqlab bo'lmaydi. Avval to'lovni kiriting.",
+        400,
+      );
+    }
     if (err instanceof IllegalTransitionError) {
       throw new BookingDetailError(
         `Status o'zgartirish mumkin emas: ${err.from} → ${err.to}`,

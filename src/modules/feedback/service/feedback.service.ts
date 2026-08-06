@@ -4,9 +4,13 @@ import { ingestFeedbackSchema } from "../domain/validate";
 import {
   buildImprovements,
   buildMarketCompare,
+  buildSentimentTrend,
   sentimentBodiesSplit,
   topKeywords,
 } from "../domain/reports";
+
+/** Daily bars beyond two weeks stop being readable in the support chart. */
+const MAX_TREND_DAYS = 14;
 import type {
   FeedbackDashboardView,
   FeedbackOverview,
@@ -144,10 +148,19 @@ export class FeedbackService {
   }
 
   async dashboard(days: number): Promise<FeedbackDashboardView> {
-    const [overview, reports, recent] = await Promise.all([
+    // Longer windows stay useful as totals, but 90 daily bars is unreadable.
+    const trendDays = Math.min(days, MAX_TREND_DAYS);
+    const now = new Date();
+    const trendSince = new Date(
+      now.getTime() - (trendDays - 1) * 24 * 60 * 60 * 1000,
+    );
+    trendSince.setUTCHours(0, 0, 0, 0);
+
+    const [overview, reports, recent, trendRows] = await Promise.all([
       this.overview(),
       this.reports(days),
       this.list({ page: 1, pageSize: 5 }),
+      feedbackRepository.sentimentTrendWindow(trendSince),
     ]);
 
     return {
@@ -157,6 +170,8 @@ export class FeedbackService {
       improvements: reports.improvements,
       positiveKeywords: reports.positiveKeywords.slice(0, 8),
       negativeKeywords: reports.negativeKeywords.slice(0, 8),
+      trendDays,
+      trend: buildSentimentTrend(trendRows, { days: trendDays, now }),
       recent: recent.items.map((t) => ({
         id: t.id,
         authorName: t.authorName,

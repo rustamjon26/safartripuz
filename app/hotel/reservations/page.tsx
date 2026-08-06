@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type BookingStatus =
   | "PENDING"
@@ -81,7 +82,7 @@ export default function HotelReservationsPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch(`/api/hotel/bookings?${query}`);
+      const res = await hotelFetch(`/api/hotel/bookings?${query}`);
       const data = (await res.json()) as { items?: Booking[]; total?: number; message?: string };
       if (!res.ok) throw new Error(data.message || "Load error");
       setItems(data.items ?? []);
@@ -105,13 +106,13 @@ export default function HotelReservationsPage() {
   useEffect(() => {
     async function loadRoomTypes() {
       try {
-        const meRes = await fetch("/api/hotel/me");
+        const meRes = await hotelFetch("/api/hotel/me");
         const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
         if (!meRes.ok || !meData.hotel?.id) {
           throw new Error(meData.message || "Mehmonxona topilmadi");
         }
 
-        const res = await fetch(`/api/hotels/${meData.hotel.id}/room-types`);
+        const res = await hotelFetch(`/api/hotels/${meData.hotel.id}/room-types`);
         const data = (await res.json()) as { items?: RoomType[]; error?: string; message?: string };
         if (!res.ok) throw new Error(data.error || data.message || "Room types load error");
         setRoomTypes(data.items ?? []);
@@ -141,7 +142,7 @@ export default function HotelReservationsPage() {
       setAvailabilityLoading(true);
       setAvailabilityError(null);
       try {
-        const res = await fetch(
+        const res = await hotelFetch(
           `/api/hotel/bookings/availability?checkInDate=${encodeURIComponent(checkInIso)}&checkOutDate=${encodeURIComponent(checkOutIso)}&roomTypeId=${encodeURIComponent(roomTypeId)}`,
           { signal: controller.signal },
         );
@@ -176,7 +177,7 @@ export default function HotelReservationsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/bookings", {
+      const res = await hotelFetch("/api/hotel/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,7 +187,7 @@ export default function HotelReservationsPage() {
           checkInDate: new Date(checkInDate).toISOString(),
           checkOutDate: new Date(checkOutDate).toISOString(),
           roomCount: Number(roomCount),
-          totalAmount: Number(totalAmount),
+          ...(totalAmount.trim() ? { totalAmount: Number(totalAmount) } : {}),
           paidAmount: Number(paidAmount),
           source: "ADMIN",
         }),
@@ -213,7 +214,7 @@ export default function HotelReservationsPage() {
   async function setStatus(id: string, status: BookingStatus) {
     setActingId(id);
     try {
-      const res = await fetch(`/api/hotel/bookings/${id}/status`, {
+      const res = await hotelFetch(`/api/hotel/bookings/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -269,7 +270,8 @@ export default function HotelReservationsPage() {
           <input type="number" min={1} value={roomCount} onChange={(e) => setRoomCount(Number(e.target.value))} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="datetime-local" required value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="datetime-local" required value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-          <input type="number" min={0} step="0.01" required value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} placeholder="Total" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+          {/* Left empty, the server prices the stay. A typed value is only checked against it. */}
+          <input type="number" min={0} step="0.01" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} placeholder="Total (avtomatik)" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="number" min={0} step="0.01" required value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} placeholder="Paid" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">

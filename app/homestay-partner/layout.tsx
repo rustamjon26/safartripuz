@@ -39,6 +39,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function loadMe() {
@@ -54,6 +55,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
           return;
         }
         setUser(data.user);
+        setReady(true);
       } catch {
         router.push("/login?next=/homestay-partner/dashboard");
       }
@@ -166,6 +168,16 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
   const currentTitle =
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.label ||
     "Uy mehmonxonasi";
+
+  // Nothing renders until the session check resolves — otherwise the shell and
+  // its data are briefly visible to a signed-out visitor on a client navigation.
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
+      </div>
+    );
+  }
 
   return (
     <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">

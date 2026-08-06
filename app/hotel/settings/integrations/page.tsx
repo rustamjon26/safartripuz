@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft, Cable, Info, RefreshCw } from "lucide-react";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type IntegrationStatus =
   | "DISCONNECTED"
@@ -65,8 +66,8 @@ export default function HotelIntegrationsPage() {
     setLoading(true);
     try {
       const [intRes, syncRes] = await Promise.all([
-        fetch("/api/hotel/integrations"),
-        fetch("/api/hotel/channel/sync"),
+        hotelFetch("/api/hotel/integrations"),
+        hotelFetch("/api/hotel/channel/sync"),
       ]);
       const intData = (await intRes.json()) as {
         groups?: IntegrationGroup[];
@@ -107,7 +108,7 @@ export default function HotelIntegrationsPage() {
           return;
         }
       }
-      const res = await fetch("/api/hotel/integrations", {
+      const res = await hotelFetch("/api/hotel/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -142,7 +143,7 @@ export default function HotelIntegrationsPage() {
   async function disconnect(item: IntegrationItem) {
     setBusyKey(item.providerKey);
     try {
-      const res = await fetch("/api/hotel/integrations", {
+      const res = await hotelFetch("/api/hotel/integrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,7 +165,7 @@ export default function HotelIntegrationsPage() {
   async function syncNow(providerKey: string) {
     setBusyKey(`sync-${providerKey}`);
     try {
-      const res = await fetch("/api/hotel/channel/sync", {
+      const res = await hotelFetch("/api/hotel/channel/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

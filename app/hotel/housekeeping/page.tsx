@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   AlertTriangle,
   Brush,
@@ -154,9 +155,9 @@ export default function HousekeepingPage() {
     setLoading(true);
     try {
       const [hRes, uRes, invRes] = await Promise.all([
-        fetch("/api/hotel/housekeeping"),
-        fetch("/api/user/me"),
-        fetch("/api/hotel/inventory"),
+        hotelFetch("/api/hotel/housekeeping"),
+        hotelFetch("/api/user/me"),
+        hotelFetch("/api/hotel/inventory"),
       ]);
 
       const hData = await hRes.json();
@@ -240,7 +241,7 @@ export default function HousekeepingPage() {
     selectedConsumptions: { itemId: string; quantity: number }[] = [],
   ) {
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${id}`, {
+      const res = await hotelFetch(`/api/hotel/housekeeping/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, consumptions: selectedConsumptions }),
@@ -261,7 +262,7 @@ export default function HousekeepingPage() {
   async function assignStaffToTask(taskId: string, staffId: string) {
     if (!isManager) return toast.error(t("housekeeping.toasts.no_permission"));
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${taskId}`, {
+      const res = await hotelFetch(`/api/hotel/housekeeping/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staffId }),
@@ -283,7 +284,7 @@ export default function HousekeepingPage() {
     if (!isManager) return toast.error(t("housekeeping.toasts.no_permission"));
     if (!confirm(t("housekeeping.toasts.delete_confirm"))) return;
     try {
-      const res = await fetch(`/api/hotel/housekeeping/${id}`, { method: "DELETE" });
+      const res = await hotelFetch(`/api/hotel/housekeeping/${id}`, { method: "DELETE" });
       if (res.ok) {
         toast.success(t("housekeeping.toasts.delete_success"));
         void load();
@@ -297,7 +298,7 @@ export default function HousekeepingPage() {
     e.preventDefault();
     if (!isManager) return toast.error(t("housekeeping.toasts.no_permission"));
     try {
-      const res = await fetch("/api/hotel/housekeeping", {
+      const res = await hotelFetch("/api/hotel/housekeeping", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
