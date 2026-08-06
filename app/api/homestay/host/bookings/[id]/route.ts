@@ -9,6 +9,7 @@ import {
 } from "../../_utils";
 import { logBookingStatus } from "@/lib/homestay/logBookingStatus";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
+import { bookingService, UnpaidConfirmationError } from "@/src/modules/booking";
 
 type BookingPatchInput = {
   action?: "confirm" | "checkin" | "checkout";
@@ -99,6 +100,23 @@ export async function PATCH(
         `Invalid status transition: ${booking.status} -> ${transition.to}`,
         400,
       );
+    }
+
+    // A PENDING homestay booking is an unpaid hold waiting on the guest to pay,
+    // so confirming it here would mark a stay sold with no ledger entry behind
+    // it. check-in / check-out start from CONFIRMED, which already implies paid.
+    if (body.action === "confirm") {
+      try {
+        await bookingService.assertHomestayPaymentRecorded(booking.id);
+      } catch (err) {
+        if (err instanceof UnpaidConfirmationError) {
+          return fail(
+            "To'lov qayd etilmagan bronni tasdiqlab bo'lmaydi. Mehmon to'lovni yakunlagach bron avtomatik tasdiqlanadi.",
+            400,
+          );
+        }
+        throw err;
+      }
     }
 
     const updated = await prisma.homeStayBooking.update({
