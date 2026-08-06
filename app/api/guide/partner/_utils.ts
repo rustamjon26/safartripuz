@@ -5,6 +5,7 @@ import {
   ensureApprovedGuidePartner,
   getApprovedPartnerContextByUserId,
 } from "@/lib/partner";
+import { isGuidePanelRole } from "@/src/shared/roles";
 
 export type GuidePartnerActor = {
   id: string;
@@ -13,14 +14,12 @@ export type GuidePartnerActor = {
 };
 
 /**
- * Admin assigns DB role `guide` (Prisma has no guide_partner).
- * Middleware/UI also mention guide_partner historically — accept both strings
- * from JWT/DB cast, then ensure Partner.type=guide.
+ * Both `guide` (the older assignment) and `guide_partner` reach this panel,
+ * then get normalised onto Partner.type=guide.
  */
 export async function requireGuidePartner(): Promise<GuidePartnerActor> {
   const actor = await requireUser();
-  const role = actor.role as string;
-  if (role !== "guide" && role !== "guide_partner") {
+  if (!isGuidePanelRole(actor.role)) {
     throw new Error("FORBIDDEN");
   }
 

@@ -52,7 +52,7 @@ export default function PaymentSettingsPage() {
             manual: { ...settings.manual, ...data.manual },
           });
         }
-      } catch (err: any) {
+      } catch {
         toast.error("Sozlamalarni yuklashda xatolik yuz berdi");
       } finally {
         setLoading(false);

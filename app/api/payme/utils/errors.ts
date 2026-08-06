@@ -16,7 +16,10 @@ export const PAYME_ERRORS = {
   ...CORE,
   /** @deprecated use NOT_POST / PARSE_ERROR */
   INVALID_AUTHORIZATION: CORE.PARSE_ERROR,
-  /** Missing order/booking — plan -31003 */
+  /**
+   * Missing PaymeTransaction by payme id — -31003.
+   * Missing/unknown booking_id or order_id account → use INVALID_ACCOUNT (-31050).
+   */
   ORDER_NOT_FOUND: CORE.TRANSACTION_NOT_FOUND,
   TRANSACTION_CANCELLED: CORE.TRANSACTION_NOT_FOUND,
   UNABLE_TO_PERFORM: CORE.BAD_STATE,

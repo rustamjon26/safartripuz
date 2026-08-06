@@ -9,8 +9,8 @@ type AuditRow = {
   action: string;
   entity: string;
   entityId: string | null;
-  oldData: any;
-  newData: any;
+  oldData: unknown;
+  newData: unknown;
   createdAt: string;
   actor: null | {
     id: string;

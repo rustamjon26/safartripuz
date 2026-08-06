@@ -9,7 +9,7 @@ import {
   getClickConfig,
   getPaymeConfig,
   getPaymentProvidersConfig,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 
 const schema = z.object({
   planId: z.string(),
@@ -95,10 +95,22 @@ export async function POST(req: Request) {
       const paymeConfig = getPaymeConfig(providers);
       // Payme expects tiyin (integer) — straight from the tiyin SoT.
       const amountTiyin = planTiyin;
-      const b64 = Buffer.from(
-        `m=${paymeConfig.merchantId};ac.order_id=${payment.id};a=${amountTiyin}`,
-      ).toString("base64");
-      paymentUrl = `https://checkout.paycom.uz/${b64}`;
+      // Account field MUST match the Merchant API webhook account key (order_id).
+      const parts = [
+        `m=${paymeConfig.merchantId}`,
+        `ac.order_id=${payment.id}`,
+        `a=${amountTiyin}`,
+      ];
+      if (returnUrl.startsWith("http")) {
+        parts.push(`c=${returnUrl}`);
+      }
+      const b64 = Buffer.from(parts.join(";")).toString("base64");
+      const checkoutHost =
+        process.env.PAYME_IS_TEST === "true" ||
+        process.env.NEXT_PUBLIC_PAYME_IS_TEST === "true"
+          ? "https://test.paycom.uz"
+          : "https://checkout.paycom.uz";
+      paymentUrl = `${checkoutHost}/${b64}`;
     } else if (provider === "UZUM") {
        paymentUrl = `https://uzumbank.uz/pay?merchant=${genericConfig.merchantId}&amount=${plan.totalAmount}&order=${payment.id}`;
     } else if (provider === "MANUAL") {

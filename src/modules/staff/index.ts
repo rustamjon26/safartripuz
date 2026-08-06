@@ -34,3 +34,9 @@ export {
   adminPatchHotelStaffSchema,
   adminLinkUserToHotelSchema,
 } from "./domain/validate";
+export {
+  isHotelStaffPlatformRole,
+  platformRoleToJobRole,
+  jobRoleToPlatformRole,
+  isProtectedPlatformRole,
+} from "./domain/platform-role";

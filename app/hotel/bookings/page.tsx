@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   CalendarDays,
   ChevronLeft,
@@ -120,7 +121,7 @@ async function fetchBookings(
     if (opts.endDate) params.set("end_date", opts.endDate);
   }
 
-  const res = await fetch(`/api/hotels/${hotelId}/bookings?${params.toString()}`);
+  const res = await hotelFetch(`/api/hotels/${hotelId}/bookings?${params.toString()}`);
   const data = (await res.json()) as ListBookingsResult & { error?: string };
   if (!res.ok) throw new Error(data.error || "Bronlar yuklanmadi");
   return data;
@@ -269,7 +270,7 @@ export default function HotelBookingsPage() {
     let cancelled = false;
     async function init() {
       try {
-        const res = await fetch("/api/hotel/me");
+        const res = await hotelFetch("/api/hotel/me");
         const data = (await res.json()) as { hotel?: { id: string } };
         if (!res.ok || !data.hotel?.id) throw new Error("Mehmonxona topilmadi");
         if (!cancelled) setHotelId(data.hotel.id);

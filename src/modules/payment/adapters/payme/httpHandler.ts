@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { cancelTransaction } from "@/app/api/payme/methods/cancelTransaction";
-import { checkPerformTransaction } from "@/app/api/payme/methods/checkPerformTransaction";
-import { checkTransaction } from "@/app/api/payme/methods/checkTransaction";
+import { checkPerformTransaction } from "./bookingId/checkPerformTransaction";
+import { checkTransaction } from "./bookingId/checkTransaction";
 import { createTransaction } from "@/app/api/payme/methods/createTransaction";
-import { getStatement } from "@/app/api/payme/methods/getStatement";
+import { getStatement } from "./bookingId/getStatement";
 import { performTransaction } from "@/app/api/payme/methods/performTransaction";
 import {
   getPaymentProvidersConfig,
   getPaymeConfig,
   paymeMerchantKey,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 import { getPaymeSecretKey } from "@/app/api/payme/utils/helpers";
 import {
   isPaymeErrorResponse,
@@ -82,6 +82,25 @@ export async function paymeHttpHandler(
 
     rawBody = await req.text();
 
+    // Echo the request id on EVERY error envelope — including auth failures.
+    // Sandbox checks that "no Authorization" returns -32504 with the same id
+    // the request carried; parsing id only after auth left id:0 and failed the test.
+    let body: {
+      method?: string;
+      params?: Record<string, unknown>;
+      id?: number;
+    } | null = null;
+    try {
+      body = JSON.parse(rawBody) as {
+        method?: string;
+        params?: Record<string, unknown>;
+        id?: number;
+      };
+      if (typeof body.id === "number") rpcId = body.id;
+    } catch {
+      body = null;
+    }
+
     await paymentService.logInbound({
       provider: "PAYME",
       path: opts.path,
@@ -90,17 +109,27 @@ export async function paymeHttpHandler(
       verified: null,
     });
 
-    // Auth — one check for both stacks; only the key source differs.
-    let secretKey: string;
-    if (opts.accountMode === "booking_id") {
-      secretKey = getPaymeSecretKey();
-    } else {
-      const providers = await getPaymentProvidersConfig();
-      const config = getPaymeConfig(providers);
-      if (!config.enabled) {
-        return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
-      }
-      secretKey = paymeMerchantKey(config);
+    // Auth — one check for both stacks. Must return AUTH_FAILED (-32504),
+    // never NOT_POST (-32300).
+    //
+    // booking_id used to read ONLY .env (PAYME_SECRET_KEY / PAYME_TEST_SECRET_KEY).
+    // Sandbox TEST_KEY is usually pasted into Admin → Payments (DB
+    // `payment_providers`), so /api/payme kept answering -32504 even with a
+    // correct cashbox. Fall back to the DB merchant key when env is empty.
+    const providers = await getPaymentProvidersConfig();
+    const config = getPaymeConfig(providers);
+    if (opts.accountMode === "order_id" && !config.enabled) {
+      return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
+    }
+
+    const envKey = getPaymeSecretKey();
+    const dbKey = paymeMerchantKey(config);
+    const secretKey = envKey || dbKey;
+    if (!secretKey) {
+      console.error(
+        "[Payme] No merchant key configured (env PAYME_*_SECRET_KEY empty and payment_providers.payme has no key)",
+      );
+      return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
     }
 
     const authResult = validatePaymeAuth(
@@ -111,18 +140,10 @@ export async function paymeHttpHandler(
       return paymeJson(paymeRpcError(rpcId, authResult.error));
     }
 
-    let body: {
-      method?: string;
-      params?: Record<string, unknown>;
-      id?: number;
-    };
-    try {
-      body = JSON.parse(rawBody) as typeof body;
-    } catch {
+    if (!body) {
       return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.PARSE_ERROR));
     }
 
-    rpcId = typeof body.id === "number" ? body.id : 0;
     const method = body.method;
     const params = body.params ?? {};
 

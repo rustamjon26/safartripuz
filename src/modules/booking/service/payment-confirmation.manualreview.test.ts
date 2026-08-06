@@ -24,16 +24,18 @@ vi.mock("@/src/modules/outbox", () => ({
   },
 }));
 
-vi.mock("@/lib/getCommissionRates", () => ({
-  getCommissionRates: vi.fn(async () => ({
-    HOTEL: 10,
-    HOMESTAY: 10,
-    GUIDE: 15,
-    TAXI: 10,
-  })),
-  calcCommissionTiyin: vi.fn((gross: bigint) => ({
-    commissionFee: gross / 10n,
-    netAmount: gross - gross / 10n,
+vi.mock("@/src/modules/commission", () => ({
+  commissionService: {
+    getRates: vi.fn(async () => ({
+      HOTEL: 10,
+      HOMESTAY: 10,
+      GUIDE: 15,
+      TAXI: 10,
+    })),
+  },
+  calcPlatformCommissionTiyin: vi.fn((gross: bigint) => ({
+    platformTotal: gross / 10n,
+    partnerNet: gross - gross / 10n,
   })),
 }));
 

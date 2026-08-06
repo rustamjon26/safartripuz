@@ -17,6 +17,14 @@ export {
   isPaymentCaptured,
   isPaymentSettled,
 } from "./domain/payment-status";
+export {
+  buildPaymeReceiptDetail,
+  getPaymeMxikCode,
+  getPaymePackageCode,
+  getPaymeVatPercent,
+  type PaymeReceiptDetail,
+  type PaymeReceiptItem,
+} from "./domain/payme-receipt";
 export { paymeHttpHandler, type PaymeAccountMode } from "./adapters/payme/httpHandler";
 export { clickHttpHandler } from "./adapters/click/handler";
 export {
@@ -24,3 +32,20 @@ export {
   buildClickSignString,
   timingSafeEqualHex,
 } from "./adapters/click/sign";
+export {
+  appBaseUrl,
+  getClickConfig,
+  getPaymeConfig,
+  getPaymentProvidersConfig,
+  paymeMerchantKey,
+} from "./domain/provider-config";
+export type { ClickProviderConfig, PaymeProviderConfig } from "./domain/provider-config";
+export {
+  paymeBookingRepository,
+  PaymeBookingRepository,
+  paymeTransactionInclude,
+} from "./repository/payme-booking.repository";
+export type {
+  BookingWithHotel,
+  PaymeTransactionWithBooking,
+} from "./repository/payme-booking.repository";

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Money } from "@/src/shared/money";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
-import { getClickConfig, getPaymentProvidersConfig } from "@/lib/payments/providerConfig";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
+import { getClickConfig, getPaymentProvidersConfig } from "@/src/modules/payment";
 import { CLICK_ERRORS } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
 import { isPaymentCaptured } from "../../domain/payment-status";

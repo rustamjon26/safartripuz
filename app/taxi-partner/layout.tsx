@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
 import "./taxi-partner.css";
 
 const NAV_ITEMS = [
@@ -39,7 +40,11 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function loadMe() {
@@ -58,6 +63,7 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           return;
         }
         setUser(data.user);
+        setReady(true);
       } catch {
         router.push("/login?next=/taxi-partner/dashboard");
       }
@@ -190,6 +196,16 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
     );
   }
 
+  // Nothing renders until the session check resolves — otherwise the shell and
+  // its data are briefly visible to a signed-out visitor on a client navigation.
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
+      </div>
+    );
+  }
+
   return (
     <div className="tp-root">
       <aside className="tp-sidebar-desktop" aria-label="Taxi partner navigation">
@@ -199,11 +215,20 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
             className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10">
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10"
+          >
             {renderSidebar(true)}
           </aside>
         </div>

@@ -15,6 +15,9 @@ enum Role {
   taxi_partner
   hotel_manager
   guide
+  /// Guide panel operator. `guide` is the older value for the same panel;
+  /// both are accepted (see src/shared/roles.ts GUIDE_PANEL_ROLES).
+  guide_partner
   restaurant_manager
   home_stay_partner
   /// Feedback & Support inbox agent
@@ -563,6 +566,10 @@ model GuideBooking {
   priceSnapshot      Json
   meetingPoint       String?
   status             GuideBookingStatus       @default(PENDING)
+  /// Soft hold deadline for PENDING bookings (15 minutes), mirroring hotel and
+  /// homestay. Without it an abandoned checkout blocked the slot until the tour
+  /// date passed. Cleared once payment confirms the booking.
+  holdExpiresAt      DateTime?
   cancelledBy        GuideBookingCancelledBy?
   cancellationReason String?
   guestNote          String?
@@ -580,6 +587,7 @@ model GuideBooking {
   @@index([guestId, status])
   @@index([travelPlanId, status])
   @@index([date, status])
+  @@index([status, holdExpiresAt])
 }
 
 model GuideBookingLog {
@@ -656,9 +664,39 @@ model Hotel {
   channelRoomMappings ChannelRoomMapping[]
   channelSyncJobs     ChannelSyncJob[]
   channelReservations ChannelReservationInbox[]
+  promos              HotelPromo[]
 
   @@index([status])
   @@index([latitude, longitude])
+}
+
+enum HotelPromoType {
+  SEASONAL
+  EVENT
+  LOYALTY
+}
+
+/// Hotel-owned marketing campaign shown on the partner marketing panel.
+/// Distinct from `Promotion`, which the rates pricing pipeline consumes —
+/// this one is not applied to quotes.
+model HotelPromo {
+  id          String         @id @default(cuid())
+  hotelId     String
+  hotel       Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  title       String
+  /// Uppercased campaign code, unique per hotel when set.
+  code        String?
+  /// Basis points (1500 = 15%), matching `Promotion.PERCENT_BPS`. Never a float.
+  discountBps Int
+  type        HotelPromoType @default(SEASONAL)
+  isActive    Boolean        @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([hotelId, code])
+  @@index([hotelId, isActive])
 }
 
 model HotelBooking {
@@ -1032,6 +1070,8 @@ model RefreshToken {
   revokedAt DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {
@@ -1046,6 +1086,9 @@ model AuditLog {
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  /// AuditLog's "user" column is actorId — admin screens filter by actor.
+  @@index([actorId, createdAt])
 }
 
 model Notification {

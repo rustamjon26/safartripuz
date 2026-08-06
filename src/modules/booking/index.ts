@@ -52,6 +52,8 @@ export {
   canTransition,
   isTerminal,
   holdsInventory,
+  occupiesRoomNights,
+  ROOM_RELEASED_STATUSES,
   isPaidStatus,
   requiresPaymentEvidence,
   UnpaidConfirmationError,

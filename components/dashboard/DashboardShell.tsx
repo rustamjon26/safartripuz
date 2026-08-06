@@ -16,6 +16,7 @@ import {
   Bell,
   Compass,
   Loader2,
+  WifiOff,
   Building2,
   Tent,
   X,
@@ -105,7 +106,7 @@ interface DashboardShellProps {
 export default function DashboardShell({ children, title, subtitle }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useCurrentUser();
+  const { user, loading, networkError, retry } = useCurrentUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
@@ -204,6 +205,29 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
           <p className="text-gray-500 font-medium text-sm">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Unreachable server, not an expired session — offer a retry instead of
+  // dropping the user at /login and losing where they were.
+  if (networkError && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dashboard-root px-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <WifiOff className="w-8 h-8 text-gray-400" />
+          <p className="text-gray-900 font-bold text-[15px]">Ulanishda muammo</p>
+          <p className="text-gray-500 font-medium text-sm">
+            Internetga ulanishni tekshirib, qayta urinib ko&apos;ring.
+          </p>
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="mt-1 rounded-xl bg-gray-900 px-5 py-2.5 text-[13px] font-bold text-white"
+          >
+            Qayta urinish
+          </button>
         </div>
       </div>
     );

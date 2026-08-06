@@ -167,6 +167,37 @@ export class PaymentRepository {
     return client.payment.update({ where: { id }, data });
   }
 
+  /**
+   * Admin payment detail: the payment plus every booking the travel plan
+   * touches. Hotel bookings are matched separately because they link back
+   * through `note`, not a foreign key.
+   */
+  async findPaymentAdminDetail(id: string, client: DbClient = db) {
+    return client.payment.findUnique({
+      where: { id },
+      include: {
+        travelPlan: {
+          include: {
+            user: { select: { first_name: true, last_name: true, email: true } },
+            items: { orderBy: { createdAt: "asc" } },
+            homeStayBookings: { select: { id: true, totalPrice: true, status: true } },
+            taxiOrders: {
+              select: { id: true, status: true, estimatedPrice: true, finalPrice: true },
+            },
+            guideBookings: { select: { id: true, totalPrice: true, status: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async findPlanHotelBookings(planId: string, client: DbClient = db) {
+    return client.hotelBooking.findMany({
+      where: { note: { contains: planId }, source: "SAFARTRIP" },
+      select: { id: true, totalAmount: true, status: true },
+    });
+  }
+
   async runTransaction<T>(fn: (tx: DbClient) => Promise<T>): Promise<T> {
     return db.$transaction(async (tx: DbClient) => fn(tx));
   }

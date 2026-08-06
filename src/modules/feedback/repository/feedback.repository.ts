@@ -229,6 +229,19 @@ export class FeedbackRepository {
     };
   }
 
+  /** Raw (createdAt, sentiment) pairs for the daily trend chart. */
+  async sentimentTrendWindow(
+    since: Date,
+    limit = 5000,
+  ): Promise<Array<{ createdAt: Date; sentiment: FeedbackTicketView["sentiment"] }>> {
+    return prisma.feedbackTicket.findMany({
+      where: { createdAt: { gte: since } },
+      select: { createdAt: true, sentiment: true },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  }
+
   async reportsWindow(since: Date): Promise<{
     total: number;
     avgRating: number;

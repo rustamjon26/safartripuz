@@ -158,6 +158,17 @@ export class BookingRepository {
     });
   }
 
+  /**
+   * Legacy `Booking` row (the Payme booking_id stack), with just the hotel
+   * fields the public payment page renders.
+   */
+  async findPaymeBookingWithHotel(id: string, client: Tx | typeof prisma = prisma) {
+    return client.booking.findUnique({
+      where: { id },
+      include: { hotel: { select: { name: true, city: true } } },
+    });
+  }
+
   async findExpiredHolds(limit: number, client: Tx | typeof prisma = prisma) {
     return client.hotelBooking.findMany({
       where: {
@@ -190,6 +201,26 @@ export class BookingRepository {
         listingId: true,
         checkIn: true,
         checkOut: true,
+        status: true,
+      },
+    });
+  }
+
+  async findExpiredGuideHolds(limit: number, client: Tx | typeof prisma = prisma) {
+    return client.guideBooking.findMany({
+      where: {
+        status: "PENDING",
+        holdExpiresAt: { lt: new Date() },
+      },
+      take: limit,
+      orderBy: { holdExpiresAt: "asc" },
+      select: {
+        id: true,
+        listingId: true,
+        guideId: true,
+        date: true,
+        startTime: true,
+        endTime: true,
         status: true,
       },
     });

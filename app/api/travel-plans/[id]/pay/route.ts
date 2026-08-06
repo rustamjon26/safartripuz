@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 

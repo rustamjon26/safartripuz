@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { feedbackService } from "@/src/modules/feedback";
+import { marketingService } from "@/src/modules/marketing";
 
 /** `rating` is coerced because the form sends it as a string. */
 const guestFeedbackSchema = z.object({
@@ -47,6 +48,8 @@ export async function GET(req: Request) {
       else loyalty.silver++;
     });
 
+    const { promos, activeCount } = await marketingService.listPromos(ctx.hotel.id);
+
     const metrics = {
       avgRating:
         feedbacks.length > 0
@@ -58,9 +61,10 @@ export async function GET(req: Request) {
           ? (feedbacks.filter((f) => f.rating >= 4).length / feedbacks.length) * 100
           : 0,
       loyalty,
+      activePromos: activeCount,
     };
 
-    return NextResponse.json({ feedbacks, metrics }, { status: 200 });
+    return NextResponse.json({ feedbacks, metrics, promos }, { status: 200 });
   } catch {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }

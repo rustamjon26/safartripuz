@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { expireGuideBookings } from "@/lib/guide/expireBookings";
 import { handleApiError, hasActiveListing, ok, onboardingResponse, requireGuidePartner } from "../_utils";
 import type { GuideBookingStatus } from "@prisma/client";
 
@@ -23,7 +22,8 @@ export async function GET(req: Request) {
     const actor = await requireGuidePartner();
     const active = await hasActiveListing(actor.id);
     if (!active) return onboardingResponse();
-    await expireGuideBookings();
+    // Expiry runs on the cron (scripts/expire-booking-holds.ts) — a read path
+    // must not be the only thing that advances stale bookings.
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const from = parseDate(url.searchParams.get("from"));

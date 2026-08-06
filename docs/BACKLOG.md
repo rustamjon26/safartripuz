@@ -61,6 +61,34 @@ Still open (optional follow-ups):
 - Post-deploy smoke (human, Contabo):  
   `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`
 
+## Channel / OTA sync — NOT IMPLEMENTED
+
+`ChannelSyncJob` is a real table with real indexes, a `channel` module and a
+`/api/hotel/channel/sync` route, which together look like working
+infrastructure. They are not.
+
+**What exists:** enqueue a job, list jobs, and process one inline when the caller
+passes `runNow: true`. `channelService.syncNow` / `onOtaConnected` run in the API
+request.
+
+**What does not:** anything that drains the queue. A job created with
+`status: QUEUED` and a future `scheduledAt` is never picked up — there is no PM2
+worker, no cron, no relay consumer. `scheduledAt`, `attempts`, `startedAt` and
+`finishedAt` are written but nothing acts on them.
+
+**Deliberately not stubbed.** `.cursor/rules/architecture-modular-monolith.mdc`
+lists channel as *"planned: leave room; do not implement yet"*, and a stub worker
+that claims and fails jobs would be worse than none — retry counts would climb
+against an adapter that does not exist.
+
+**Before this is switched on:**
+- a PM2 cron entry alongside `safartrip-expire-holds`, claiming with a conditional
+  `UPDATE … WHERE status = 'QUEUED'` like the other workers
+- real OTA adapters (`ChannelReservationInbox` ingest already stops short of
+  creating bookings — see `channel.service.ts`)
+- backoff on `attempts`, and a dead-letter state
+- `/api/health` coverage, the way outbox and expire-holds have
+
 ## Next pick
 
 1. **Ship:** Admin Knowledge UI merged (#32 @ `11c611c`) — Contabo `deploy-safe` + smoke `/admin/knowledge` if not deployed yet.

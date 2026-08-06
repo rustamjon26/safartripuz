@@ -1,5 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
+export type GuideExpiryResult = {
+  /** PENDING bookings whose tour date passed without the guide confirming. */
+  cancelled: number;
+  /** CONFIRMED/IN_PROGRESS bookings advanced by wall-clock time. */
+  advanced: number;
+};
+
+const STALE_PENDING_REASON = "Vaqt o'tib ketdi — guide tomonidan tasdiqlanmadi";
+
 function parseTimeToDate(baseDate: Date, time: string) {
   const [h, m] = time.split(":").map((v) => Number(v));
   const dt = new Date(baseDate);
@@ -7,7 +16,15 @@ function parseTimeToDate(baseDate: Date, time: string) {
   return dt;
 }
 
-export async function expireGuideBookings() {
+/**
+ * Advance guide bookings that wall-clock time has left behind.
+ *
+ * Called from the expiry cron (scripts/expire-booking-holds.ts). Every write is
+ * a conditional UPDATE guarded on the status it expects to move away from, so a
+ * second tick — or a guide confirming/cancelling at the same moment — changes 0
+ * rows and skips the log write instead of duplicating it.
+ */
+export async function expireGuideBookings(limit = 100): Promise<GuideExpiryResult> {
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
@@ -24,23 +41,26 @@ export async function expireGuideBookings() {
       date: true,
       startTime: true,
       endTime: true,
-      status: true,
     },
+    take: limit,
   });
 
-  if (stalePending.length > 0) {
-    await prisma.$transaction(async (tx) => {
-      for (const booking of stalePending) {
-        await tx.guideBooking.update({
-          where: { id: booking.id },
-          data: {
-            status: "CANCELLED",
-            cancelledBy: "SYSTEM",
-            cancellationReason: "Vaqt o'tib ketdi — guide tomonidan tasdiqlanmadi",
-          },
-        });
+  let cancelled = 0;
+  for (const booking of stalePending) {
+    try {
+      const done = await prisma.$transaction(async (tx) => {
+        const changed = await tx.$executeRaw`
+          UPDATE GuideBooking
+          SET status = 'CANCELLED',
+              cancelledBy = 'SYSTEM',
+              cancellationReason = ${STALE_PENDING_REASON},
+              updatedAt = NOW(3)
+          WHERE id = ${booking.id}
+            AND status = 'PENDING'
+        `;
+        if (Number(changed) === 0) return false;
 
-        const linkedSlot = await tx.guideBlockedSlot.findFirst({
+        await tx.guideBlockedSlot.deleteMany({
           where: {
             listingId: booking.listingId,
             guideId: booking.guideId,
@@ -49,26 +69,26 @@ export async function expireGuideBookings() {
             endTime: booking.endTime,
             note: `BOOKED:${booking.id}`,
           },
-          select: { id: true },
         });
-        if (linkedSlot) {
-          await tx.guideBlockedSlot.delete({ where: { id: linkedSlot.id } });
-        }
 
         await tx.guideBookingLog.create({
           data: {
             bookingId: booking.id,
             actorRole: "system",
-            fromStatus: booking.status,
+            fromStatus: "PENDING",
             toStatus: "CANCELLED",
-            note: "Vaqt o'tib ketdi — guide tomonidan tasdiqlanmadi",
+            note: STALE_PENDING_REASON,
           },
         });
-      }
-    });
+        return true;
+      });
+      if (done) cancelled += 1;
+    } catch (err) {
+      console.error("[expireGuideBookings] cancel failed", booking.id, err);
+    }
   }
 
-  const confirmedOrInProgress = await prisma.guideBooking.findMany({
+  const inFlight = await prisma.guideBooking.findMany({
     where: {
       status: { in: ["CONFIRMED", "IN_PROGRESS"] },
       date: { lte: now },
@@ -80,25 +100,30 @@ export async function expireGuideBookings() {
       endTime: true,
       status: true,
     },
+    take: limit,
   });
 
-  if (confirmedOrInProgress.length > 0) {
-    await prisma.$transaction(async (tx) => {
-      for (const booking of confirmedOrInProgress) {
-        const startAt = parseTimeToDate(booking.date, booking.startTime);
-        const endAt = parseTimeToDate(booking.date, booking.endTime);
+  let advanced = 0;
+  for (const booking of inFlight) {
+    const startAt = parseTimeToDate(booking.date, booking.startTime);
+    const endAt = parseTimeToDate(booking.date, booking.endTime);
 
-        let nextStatus: "IN_PROGRESS" | "COMPLETED" | null = null;
-        if (booking.status === "CONFIRMED" && now >= endAt) nextStatus = "COMPLETED";
-        else if (booking.status === "CONFIRMED" && now >= startAt) nextStatus = "IN_PROGRESS";
-        else if (booking.status === "IN_PROGRESS" && now >= endAt) nextStatus = "COMPLETED";
+    let nextStatus: "IN_PROGRESS" | "COMPLETED" | null = null;
+    if (booking.status === "CONFIRMED" && now >= endAt) nextStatus = "COMPLETED";
+    else if (booking.status === "CONFIRMED" && now >= startAt) nextStatus = "IN_PROGRESS";
+    else if (booking.status === "IN_PROGRESS" && now >= endAt) nextStatus = "COMPLETED";
 
-        if (!nextStatus || nextStatus === booking.status) continue;
+    if (!nextStatus || nextStatus === booking.status) continue;
 
-        await tx.guideBooking.update({
-          where: { id: booking.id },
-          data: { status: nextStatus },
-        });
+    try {
+      const done = await prisma.$transaction(async (tx) => {
+        const changed = await tx.$executeRaw`
+          UPDATE GuideBooking
+          SET status = ${nextStatus}, updatedAt = NOW(3)
+          WHERE id = ${booking.id}
+            AND status = ${booking.status}
+        `;
+        if (Number(changed) === 0) return false;
 
         await tx.guideBookingLog.create({
           data: {
@@ -109,7 +134,13 @@ export async function expireGuideBookings() {
             note: "Automatic status transition by system time",
           },
         });
-      }
-    });
+        return true;
+      });
+      if (done) advanced += 1;
+    } catch (err) {
+      console.error("[expireGuideBookings] advance failed", booking.id, err);
+    }
   }
+
+  return { cancelled, advanced };
 }
