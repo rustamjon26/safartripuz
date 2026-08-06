@@ -1,6 +1,26 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
+/**
+ * Bottom safe-area padding for fixed bottom navigation.
+ *
+ * Seven fixed bottom bars used `pb-safe` without it ever being defined, so on a
+ * notched iPhone the last row of nav icons sat under the home indicator. The
+ * rest of the codebase writes this longhand as
+ * `calc(<n> + env(safe-area-inset-bottom))`.
+ *
+ * `max()` rather than a sum: a utility cannot read the `py-*` already on the
+ * element, and every call site pairs this with `py-2` or `py-3`. The floor keeps
+ * the padding those classes intended on a device with no inset, and the inset
+ * (~34px) already exceeds it where there is one — so this never renders less
+ * padding than before.
+ *
+ * Tailwind v4 has no config file; custom utilities are declared here.
+ */
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
 :root {
   /* Silk Road Modernity — public landing + brand */
   --primary: #0D2137;       /* Navy / primary-container */
