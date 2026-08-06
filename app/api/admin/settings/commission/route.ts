@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
-import { DEFAULT_COMMISSION_RATES } from "@/lib/getCommissionRates";
+import { DEFAULT_COMMISSION_RATES } from "@/src/modules/commission";
 
 const ratesSchema = z.object({
   HOTEL: z.number().min(0).max(50),

@@ -3,7 +3,7 @@ import { assertBalanced } from "./balance";
 import {
   calcPlatformCommissionTiyin,
   splitBookingCommission,
-} from "./commission";
+} from "@/src/modules/commission";
 import { LedgerTxType } from "./types";
 import { MissingPartnerError, LedgerService } from "../service/ledger.service";
 

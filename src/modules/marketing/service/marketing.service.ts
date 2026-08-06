@@ -1,4 +1,3 @@
-import { isUniqueConstraintViolation } from "@/lib/prismaErrors";
 import {
   countLivePromos,
   type HotelPromoView,
@@ -9,6 +8,16 @@ import {
 } from "../domain/promo";
 import type { CreateHotelPromoInput, PatchHotelPromoInput } from "../domain/validate";
 import { marketingRepository } from "../repository/marketing.repository";
+
+/** P2002 — duck-typed so the service stays free of lib/ and @prisma/client. */
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "P2002"
+  );
+}
 
 export class MarketingService {
   async listPromos(hotelId: string): Promise<{

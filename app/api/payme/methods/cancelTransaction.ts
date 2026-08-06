@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { postCancelAccountingInTx } from "@/src/modules/booking";
 import { MissingPartnerError } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
@@ -94,7 +94,7 @@ export async function cancelTransaction(id: number, params: PaymeRpcParams) {
           data: { status: "CANCELLED" },
         });
 
-        const rates = await getCommissionRates(tx);
+        const rates = await commissionService.getRates(tx);
         await postCancelAccountingInTx(tx, {
           bookingType: "HOTEL",
           bookingId: transaction.bookingId,

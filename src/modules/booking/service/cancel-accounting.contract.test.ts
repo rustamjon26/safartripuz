@@ -60,7 +60,9 @@ describe("homestay/guide cancel funnel through shared policy accounting", () => 
 describe("no float taxi commission", () => {
   it("taxi complete path does not use * 0.15 or toFixed", () => {
     const src = read("app/api/taxi/driver/orders/[id]/route.ts");
-    expect(src).toContain("calcCommissionTiyin");
+    // Was `calcCommissionTiyin`, the delegating alias in lib/getCommissionRates;
+    // the commission module keeps only the one function it delegated to.
+    expect(src).toContain("calcPlatformCommissionTiyin");
     expect(src).not.toMatch(/\*\s*0\.15/);
     expect(src).not.toContain(".toFixed(");
   });

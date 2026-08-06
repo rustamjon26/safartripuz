@@ -134,7 +134,7 @@ Click and Payme credentials are **not** primary `.env` secrets for checkout.
 They live in the database:
 
 - Table/key: `SystemSetting` value for **`payment_providers`**
-- Loaded by `lib/payments/providerConfig.ts` (`getClickConfig` / `getPaymeConfig`)
+- Loaded by `src/modules/payment/domain/provider-config.ts` (`getClickConfig` / `getPaymeConfig`)
 - Admin UI: **Admin → Settings → Payments** (`/admin/settings/payments`)
 
 After cutover on a fresh Contabo DB:

@@ -1,8 +1,8 @@
 import type { PartnerEarningType, Prisma } from "@prisma/client";
 import {
-  calcCommissionTiyin,
-  getCommissionRates,
-} from "@/lib/getCommissionRates";
+  calcPlatformCommissionTiyin,
+  commissionService,
+} from "@/src/modules/commission";
 import { bookingService } from "./booking.service";
 import { ledgerService, MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
@@ -72,7 +72,7 @@ export async function completeSuccessfulPaymentInTx(
   // the plan stays un-confirmed and ops must resolve (refund or re-book).
   let manualReviewCount = 0;
 
-  const rates = await getCommissionRates(tx);
+  const rates = await commissionService.getRates(tx);
 
   const pendingHotelBookings = await tx.hotelBooking.findMany({
     where: {
@@ -615,10 +615,8 @@ export async function createPartnerEarningIfMissing(
   });
   if (existing) return;
 
-  const { commissionFee, netAmount } = calcCommissionTiyin(
-    opts.grossTiyin,
-    opts.rate,
-  );
+  const { platformTotal: commissionFee, partnerNet: netAmount } =
+    calcPlatformCommissionTiyin(opts.grossTiyin, opts.rate);
 
   await tx.partnerEarning.create({
     data: {

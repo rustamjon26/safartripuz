@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { normalizeUzPhone } from "@/lib/phone";
+import { normalizeUzPhone } from "@/src/shared/phone";
 
 const bodySchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),

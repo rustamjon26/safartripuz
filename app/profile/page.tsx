@@ -22,7 +22,7 @@ import { useCurrentUser } from "@/components/dashboard/useCurrentUser";
 import {
   isGooglePhonePlaceholder,
   normalizeUzPhone,
-} from "@/lib/phone";
+} from "@/src/shared/phone";
 
 type ProfileData = {
   first_name: string;

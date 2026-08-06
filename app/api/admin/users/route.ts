@@ -11,7 +11,7 @@ import {
 import {
   isHotelStaffPlatformRole,
   platformRoleToJobRole,
-} from "@/lib/hotel/staffPlatformRole";
+} from "@/src/modules/staff";
 import { StaffNotFoundError, staffService } from "@/src/modules/staff";
 import { isGuidePanelRole, isTaxiPanelRole, ROLES } from "@/src/shared/roles";
 

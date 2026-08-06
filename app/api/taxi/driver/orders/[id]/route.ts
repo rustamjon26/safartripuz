@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
 import {
-  calcCommissionTiyin,
+  calcPlatformCommissionTiyin,
+  commissionService,
   DEFAULT_COMMISSION_RATES,
-  getCommissionRates,
-} from "@/lib/getCommissionRates";
+} from "@/src/modules/commission";
 import { ledgerService } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { Money } from "@/src/shared/money";
@@ -161,13 +161,11 @@ export async function PATCH(
       });
 
       if (targetStatus === "COMPLETED") {
-        const rates = await getCommissionRates(tx);
+        const rates = await commissionService.getRates(tx);
         const taxiRate = rates.TAXI ?? DEFAULT_COMMISSION_RATES.TAXI;
         const grossTiyin = Money.fromSomNumber(body.finalPrice ?? 0).toTiyin();
-        const { commissionFee, netAmount } = calcCommissionTiyin(
-          grossTiyin,
-          taxiRate,
-        );
+        const { platformTotal: commissionFee, partnerNet: netAmount } =
+          calcPlatformCommissionTiyin(grossTiyin, taxiRate);
 
         await tx.driverEarning.create({
           data: {

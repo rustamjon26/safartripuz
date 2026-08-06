@@ -35,7 +35,7 @@ export default function PartySupportChatDetailPage() {
     if (!id) return;
     if (!opts?.silent) setLoading(true);
     try {
-      const res = await fetch(`/api/support-chat/threads/${id}/messages`, {
+      const res = await fetch(`/api/support/chat/my/threads/${id}/messages`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -81,7 +81,7 @@ export default function PartySupportChatDetailPage() {
     if (!body) return;
     setSending(true);
     try {
-      const res = await fetch(`/api/support-chat/threads/${id}/messages`, {
+      const res = await fetch(`/api/support/chat/my/threads/${id}/messages`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
