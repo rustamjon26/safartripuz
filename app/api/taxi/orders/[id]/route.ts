@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
@@ -5,9 +6,9 @@ import { TAXI_ERRORS } from "@/lib/taxi/errors";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { fail, handleApiError, ok } from "../../_utils";
 
-type CancelInput = {
-  cancellationReason?: string;
-};
+const cancelOrderSchema = z.object({
+  cancellationReason: z.string().trim().min(1).max(500).optional(),
+});
 
 export async function GET(
   _req: Request,
@@ -65,7 +66,16 @@ export async function PATCH(
   try {
     const actor = await requireUser();
     const { id } = await params;
-    const body = (await req.json()) as CancelInput;
+
+    // `.catch(() => null)` covers a malformed JSON body: it fails the schema
+    // and answers 400 instead of throwing into the 500 handler.
+    const parsed = cancelOrderSchema.safeParse(
+      await req.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      return fail(parsed.error.issues[0]?.message ?? "Validatsiya xatosi", 400);
+    }
+    const body = parsed.data;
 
     const existing = await prisma.taxiOrder.findFirst({
       where: { id, customerId: actor.id },

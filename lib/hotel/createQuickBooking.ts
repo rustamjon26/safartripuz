@@ -4,7 +4,10 @@ import {
   bookingService,
   RoomAlreadyAssignedError,
 } from "@/src/modules/booking";
-import { InsufficientInventoryError } from "@/src/modules/inventory";
+import {
+  InsufficientInventoryError,
+  parseDateOnlyUtc,
+} from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
 import { Money } from "@/src/shared/money";
 
@@ -32,17 +35,14 @@ export type QuickBookingInput = {
   status: BookingStatus;
 };
 
+/**
+ * Calendar dates are read as UTC midnight, the convention inventory keys its
+ * nights on. Reading them in the server's zone shifted every stay by a day on
+ * the Asia/Tashkent host.
+ */
 function parseDateOnly(raw: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    throw new QuickBookingError("Sana YYYY-MM-DD formatida bo'lishi kerak", 400);
-  }
-  const [year, month, day] = raw.split("-").map(Number);
-  const parsed = new Date(year, month - 1, day);
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
+  const parsed = parseDateOnlyUtc(raw);
+  if (!parsed) {
     throw new QuickBookingError("Sana YYYY-MM-DD formatida bo'lishi kerak", 400);
   }
   return parsed;
