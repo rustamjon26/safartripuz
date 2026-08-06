@@ -9,7 +9,7 @@ import {
 import {
   calcPlatformCommissionTiyin,
   splitBookingCommission,
-} from "@/src/modules/ledger/domain/commission";
+} from "@/src/modules/ledger";
 
 describe("calcCommission float removed", () => {
   it("throws directing callers to tiyin API", () => {

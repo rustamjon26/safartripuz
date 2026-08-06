@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CreditCard } from "lucide-react";
-import { prisma } from "@/lib/prisma";
+import { paymentRepository } from "@/src/modules/payment";
 import { PaymentManualConfirmButton } from "@/components/admin/payments/PaymentManualConfirmButton";
 
 const BADGE: Record<string, string> = {
@@ -23,33 +23,12 @@ type LinkedRow = {
 
 export default async function AdminPaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const payment = await prisma.payment.findUnique({
-    where: { id },
-    include: {
-      travelPlan: {
-        include: {
-          user: { select: { first_name: true, last_name: true, email: true } },
-          items: { orderBy: { createdAt: "asc" } },
-          homeStayBookings: { select: { id: true, totalPrice: true, status: true } },
-          taxiOrders: {
-            select: { id: true, status: true, estimatedPrice: true, finalPrice: true },
-          },
-          guideBookings: { select: { id: true, totalPrice: true, status: true } },
-        },
-      },
-    },
-  });
+  const payment = await paymentRepository.findPaymentAdminDetail(id);
   if (!payment) notFound();
 
   const plan = payment.travelPlan;
   const hotelRows = plan
-    ? await prisma.hotelBooking.findMany({
-        where: {
-          note: { contains: plan.id },
-          source: "SAFARTRIP",
-        },
-        select: { id: true, totalAmount: true, status: true },
-      })
+    ? await paymentRepository.findPlanHotelBookings(plan.id)
     : [];
 
   const linked: LinkedRow[] = [];

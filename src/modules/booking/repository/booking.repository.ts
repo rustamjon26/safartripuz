@@ -104,6 +104,17 @@ export class BookingRepository {
     });
   }
 
+  /**
+   * Legacy `Booking` row (the Payme booking_id stack), with just the hotel
+   * fields the public payment page renders.
+   */
+  async findPaymeBookingWithHotel(id: string, client: Tx | typeof prisma = prisma) {
+    return client.booking.findUnique({
+      where: { id },
+      include: { hotel: { select: { name: true, city: true } } },
+    });
+  }
+
   async findExpiredHolds(limit: number, client: Tx | typeof prisma = prisma) {
     return client.hotelBooking.findMany({
       where: {

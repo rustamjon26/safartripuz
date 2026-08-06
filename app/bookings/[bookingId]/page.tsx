@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, CheckCircle2, Hotel, Wallet } from "lucide-react";
 import { PaymeButton } from "@/components/PaymeButton";
-import { prisma } from "@/lib/prisma";
+import { bookingRepository } from "@/src/modules/booking";
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   PENDING: {
@@ -44,12 +44,7 @@ export default async function PaymeBookingPage({
   const { bookingId } = await params;
   const { status } = await searchParams;
 
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: {
-      hotel: { select: { name: true, city: true } },
-    },
-  });
+  const booking = await bookingRepository.findPaymeBookingWithHotel(bookingId);
 
   if (!booking) notFound();
 

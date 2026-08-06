@@ -1,5 +1,5 @@
 import { Money } from "@/src/shared/money";
-import { formatDateOnly } from "@/src/modules/inventory/domain/nights";
+import { formatDateOnly } from "@/src/modules/inventory";
 import { db, type DbClient } from "@/src/shared/db/client";
 import type {
   LosRuleInput,
