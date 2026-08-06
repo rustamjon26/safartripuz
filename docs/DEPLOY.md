@@ -95,6 +95,31 @@ sudo -u safartrip -H bash -lc 'pm2 status'
 sudo -u safartrip -H bash -lc 'pm2 logs safartrip --lines 80'
 ```
 
+### Image optimization
+
+`images.unoptimized` was hardcoded `true` after `/_next/image` served broken
+hero/favicon images on the VPS. It is now on by default and controlled by an env
+var, because only half of that cause is verifiable in CI:
+
+- **sharp** — settled. It is a direct dependency and reaches the runtime through
+  both `copy:standalone` and the PM2 entry (`tsx server.ts`, run from the repo
+  root). Verified locally against a production build: `/hero-bg.png` is 982 KB,
+  `/_next/image?url=%2Fhero-bg.png&w=640&q=75` returns 73 KB of WebP.
+- **nginx** — must proxy `/_next/image` to the app like any other route. If it
+  rewrites or short-circuits it, images 404 or 502.
+
+Check it after the first deploy that includes this:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code} %{content_type} %{size_download}\n" \
+  -H 'Accept: image/avif,image/webp,*/*' \
+  'https://safartrip.uz/_next/image?url=%2Fhero-bg.png&w=640&q=75'
+# expect: 200 image/webp <much smaller than the original>
+```
+
+If it fails, roll back without a redeploy — add `NEXT_IMAGE_UNOPTIMIZED=true` to
+`.env` and `pm2 restart safartrip --update-env` — then fix the nginx location.
+
 Check `.next` ownership is `safartrip`, not `root`:
 
 ```bash

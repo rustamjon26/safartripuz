@@ -38,18 +38,26 @@ export default function TaxiOrderTrackingPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewThanks, setReviewThanks] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  /**
+   * `background` keeps the last known order on screen while the 10s poll runs.
+   * Without it every poll flipped `loading` back on and the whole page fell
+   * back to the skeleton, so a passenger watching their driver approach saw the
+   * screen blank out every ten seconds.
+   */
+  async function load(opts: { background?: boolean } = {}) {
+    if (!opts.background) setLoading(true);
     try {
       const res = await fetch(`/api/taxi/orders/${params.id}`);
-      const json = await res.json();
       if (res.status === 401) {
         router.push(`/login?next=/taxi/orders/${params.id}`);
         return;
       }
+      const json = await res.json();
       if (res.ok && json.success) setOrder(json.data);
+    } catch {
+      // A dropped poll leaves the previous order visible; the next tick retries.
     } finally {
-      setLoading(false);
+      if (!opts.background) setLoading(false);
     }
   }
 
@@ -57,7 +65,7 @@ export default function TaxiOrderTrackingPage() {
     if (!params.id) return;
     void load();
     const timer = setInterval(() => {
-      void load();
+      void load({ background: true });
     }, 10000);
     return () => clearInterval(timer);
   }, [params.id]);
