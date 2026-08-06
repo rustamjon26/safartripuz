@@ -4,6 +4,7 @@ import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessful
 import { getClickConfig, getPaymentProvidersConfig } from "@/lib/payments/providerConfig";
 import { CLICK_ERRORS } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
+import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import { verifyClickSignature, type ClickSignFields } from "./sign";
@@ -149,7 +150,7 @@ export async function clickHttpHandler(req: Request) {
     }
 
     if (action === 0) {
-      if (payment.status === "SUCCESS") {
+      if (isPaymentCaptured(payment.status)) {
         const resp = {
           error: CLICK_ERRORS.ALREADY_PAID,
           error_note: "Allaqachon to'langan",
@@ -234,7 +235,7 @@ export async function clickHttpHandler(req: Request) {
       return clickJson(resp);
     }
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       const resp = {
         error: CLICK_ERRORS.ALREADY_PAID,
         error_note: "Allaqachon to'langan",

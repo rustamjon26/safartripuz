@@ -1,6 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { PAYME_ERRORS } from "./errors";
-import { getPaymeSecretKey } from "./helpers";
 
 export type PaymeAuthResult =
   | { ok: true }
@@ -13,7 +12,19 @@ export function timingSafeStringEqual(a: string, b: string): boolean {
   return timingSafeEqual(da, db);
 }
 
-export function validatePaymeAuth(authHeader: string | null): PaymeAuthResult {
+/**
+ * The single Payme Basic-auth check, shared by the booking_id and order_id
+ * stacks — they differ only in where the secret key comes from.
+ *
+ * Payme sends `Authorization: Basic base64("Paycom:<key>")`. Per RFC 7235 the
+ * auth-scheme token is case-insensitive and its separator is any amount of
+ * whitespace, while the base64 credential itself is case-sensitive data — so
+ * the scheme is matched loosely and the credential is compared byte for byte.
+ */
+export function validatePaymeAuth(
+  authHeader: string | null | undefined,
+  secretKey: string,
+): PaymeAuthResult {
   if (!authHeader) {
     return { ok: false, error: PAYME_ERRORS.AUTH_FAILED };
   }
@@ -23,7 +34,6 @@ export function validatePaymeAuth(authHeader: string | null): PaymeAuthResult {
     return { ok: false, error: PAYME_ERRORS.AUTH_FAILED };
   }
 
-  const secretKey = getPaymeSecretKey();
   if (!secretKey) {
     console.error("[Payme] Auth failed: secret key is empty at runtime");
     return { ok: false, error: PAYME_ERRORS.AUTH_FAILED };
