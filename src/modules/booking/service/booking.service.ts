@@ -18,6 +18,7 @@ import {
   IllegalTransitionError,
   isPaidStatus,
   requiresPaymentEvidence,
+  UnpaidConfirmationError,
   type BookingStatus,
 } from "../domain/booking.state";
 import {
@@ -652,6 +653,33 @@ export class BookingService {
   ): Promise<HotelBooking> {
     const { booking } = await this.cancelWithPolicy(bookingId, ctx);
     return booking;
+  }
+
+  /**
+   * Gate for confirming a homestay booking outside the payment flow.
+   *
+   * Homestay has no shared state machine, so unlike hotel this cannot live in
+   * `transition`. The answer still comes from the database rather than the
+   * caller: a PENDING homestay booking is an unpaid hold, and confirming it
+   * would leave a stay marked CONFIRMED with no ledger entry behind it.
+   */
+  async assertHomestayPaymentRecorded(
+    bookingId: string,
+    outerTx?: Tx,
+  ): Promise<void> {
+    const booking = await bookingRepository.findHomestayStatusAndPlan(
+      bookingId,
+      outerTx,
+    );
+    if (!booking) throw new Error(`Homestay booking not found: ${bookingId}`);
+
+    const paid = await bookingRepository.hasHomestayRecordedPayment(
+      booking,
+      outerTx,
+    );
+    if (!paid) {
+      throw new UnpaidConfirmationError(asStatus(booking.status), "CONFIRMED");
+    }
   }
 
   /**

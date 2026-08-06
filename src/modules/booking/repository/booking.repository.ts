@@ -43,6 +43,33 @@ export class BookingRepository {
     return Boolean(planPayment);
   }
 
+  async findHomestayStatusAndPlan(
+    bookingId: string,
+    client: Tx | typeof prisma = prisma,
+  ): Promise<{ status: string; travelPlanId: string | null } | null> {
+    return client.homeStayBooking.findUnique({
+      where: { id: bookingId },
+      select: { status: true, travelPlanId: true },
+    });
+  }
+
+  /**
+   * Homestay bookings carry no paidAmount column, so the only evidence is a
+   * settled payment against the travel plan they belong to. A PENDING homestay
+   * booking is an unpaid 15-minute hold, not something awaiting host approval.
+   */
+  async hasHomestayRecordedPayment(
+    booking: { travelPlanId: string | null },
+    client: Tx | typeof prisma = prisma,
+  ): Promise<boolean> {
+    if (!booking.travelPlanId) return false;
+    const paid = await client.payment.findFirst({
+      where: { travelPlanId: booking.travelPlanId, status: "SUCCESS" },
+      select: { id: true },
+    });
+    return Boolean(paid);
+  }
+
   async createAuditLog(
     input: {
       actorId: string;
