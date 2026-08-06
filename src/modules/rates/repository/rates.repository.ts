@@ -51,6 +51,9 @@ export class RatesRepository {
           startDate: { lt: checkOut },
           endDate: { gte: checkIn },
         },
+        // Overlap precedence is decided in the domain (pickSeasonalOverride);
+        // ordering here only keeps the input stable across replicas.
+        orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
       });
       return rows.map(
         (r: {
