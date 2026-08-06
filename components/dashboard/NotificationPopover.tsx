@@ -135,13 +135,20 @@ export default function NotificationPopover({
             </div>
           ) : (
             notifications.map((n) => (
-              <div
+              <button
                 key={n.id}
+                type="button"
                 onClick={() => !n.readAt && onMarkRead(n.id)}
-                className={`p-5 flex gap-4 transition-colors cursor-pointer group ${
+                disabled={Boolean(n.readAt)}
+                aria-label={
+                  n.readAt
+                    ? `${n.title} — o'qilgan`
+                    : `${n.title} — o'qildi deb belgilash`
+                }
+                className={`w-full text-left p-5 flex gap-4 transition-colors group ${
                   !n.readAt
-                    ? "bg-blue-50/50 hover:bg-blue-50"
-                    : "hover:bg-gray-50"
+                    ? "bg-blue-50/50 hover:bg-blue-50 cursor-pointer"
+                    : "hover:bg-gray-50 cursor-default"
                 }`}
               >
                 <div
@@ -189,7 +196,7 @@ export default function NotificationPopover({
                     })}
                   </div>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>

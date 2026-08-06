@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@prisma/client": "^6.19.2",
+    "@prisma/client": "^6.19.3",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^10.68.0",
     "autoprefixer": "^10.4.27",
@@ -82,7 +82,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
-    "prisma": "^6.19.2",
+    "prisma": "^6.19.3",
     "shx": "^0.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5",

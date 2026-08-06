@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Nunito, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -101,8 +101,26 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
+  },
+  /**
+   * public/manifest.json shipped with icons, screenshots and display:standalone
+   * but nothing ever linked it, so the PWA install prompt never appeared.
+   */
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "default",
   },
   category: "travel",
+};
+
+/** theme_color in the manifest; browsers read it from here for the chrome. */
+export const viewport: Viewport = {
+  themeColor: "#0D2137",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

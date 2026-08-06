@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { QUICK_REPLIES } from "../mock-data";
 
+/** Wait for a typing pause before searching. */
+const SEARCH_DEBOUNCE_MS = 300;
+
 function Stars({ n }: { n: number }) {
   return (
     <span className="text-[#F59E0B] text-[13px] tracking-tight" aria-label={`${n} yulduz`}>
@@ -94,35 +97,51 @@ export default function SupportFeedPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [sendingId, setSendingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("status", toApiStatus(status));
-      params.set("channel", channel);
-      params.set("rating", rating);
-      const q = (query || qFromUrl).trim();
-      if (q) params.set("q", q);
-      params.set("pageSize", "50");
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set("status", toApiStatus(status));
+        params.set("channel", channel);
+        params.set("rating", rating);
+        const q = (query || qFromUrl).trim();
+        if (q) params.set("q", q);
+        params.set("pageSize", "50");
 
-      const res = await fetch(`/api/support/feedback?${params.toString()}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Yuklash xatosi");
-      setItems(data.items ?? []);
-      setTotal(data.total ?? 0);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Yuklash xatosi");
-      setItems([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [status, channel, rating, query, qFromUrl]);
+        const res = await fetch(`/api/support/feedback?${params.toString()}`, {
+          credentials: "include",
+          signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Yuklash xatosi");
+        setItems(data.items ?? []);
+        setTotal(data.total ?? 0);
+      } catch (e) {
+        // An aborted request is a superseded keystroke, not a failure.
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        toast.error(e instanceof Error ? e.message : "Yuklash xatosi");
+        setItems([]);
+        setTotal(0);
+      } finally {
+        if (!signal?.aborted) setLoading(false);
+      }
+    },
+    [status, channel, rating, query, qFromUrl],
+  );
 
+  /**
+   * The search box fired a request per character. Wait for a pause, and abort
+   * the in-flight request when a new one starts so results cannot arrive out of
+   * order and overwrite the newer query.
+   */
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    const timer = setTimeout(() => void load(controller.signal), SEARCH_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [load]);
 
   function clearFilters() {
