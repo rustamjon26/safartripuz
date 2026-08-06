@@ -8,6 +8,12 @@ const performCalls = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
+vi.mock("@/lib/payments/providerConfig", () => ({
+  getPaymentProvidersConfig: vi.fn(async () => ({})),
+  getPaymeConfig: vi.fn(() => ({ enabled: true })),
+  paymeMerchantKey: vi.fn(() => ""),
+}));
+
 vi.mock("../../service/payment.service", () => ({
   paymentService: {
     logInbound: vi.fn(async () => {}),
@@ -147,6 +153,25 @@ describe("paymeHttpHandler booking_id response caching", () => {
       new Request("https://safartrip.uz/api/payme", {
         method: "POST",
         headers: { authorization: `basic ${CREDENTIAL}` },
+        body: JSON.stringify(RPC_BODY),
+      }),
+      { accountMode: "booking_id", path: "/api/payme" },
+    );
+    const body = (await res.json()) as { error?: { code?: number } };
+    expect(body.error?.code).not.toBe(-32504);
+    expect(performCalls.count).toBe(1);
+  });
+
+  it("booking_id falls back to Admin payment_providers key when env is empty", async () => {
+    const { paymeMerchantKey } = await import("@/lib/payments/providerConfig");
+    delete process.env.PAYME_SECRET_KEY;
+    delete process.env.PAYME_TEST_SECRET_KEY;
+    vi.mocked(paymeMerchantKey).mockReturnValue(KEY);
+
+    const res = await paymeHttpHandler(
+      new Request("https://safartrip.uz/api/payme", {
+        method: "POST",
+        headers: { authorization: `Basic ${CREDENTIAL}` },
         body: JSON.stringify(RPC_BODY),
       }),
       { accountMode: "booking_id", path: "/api/payme" },

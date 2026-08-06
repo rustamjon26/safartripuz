@@ -51,8 +51,13 @@ Payme → bizga JSON-RPC `POST`, header:
 Authorization: Basic base64("Paycom:<merchantKey>")
 ```
 
-`merchantId` + `merchantKey` Admin → Settings → Payments (`payment_providers.payme`)
-orqali DB’da saqlanadi (`.env` emas).
+Kalit qidiruv tartibi (ikkala endpoint):
+
+1. `.env` — `PAYME_IS_TEST=true` bo‘lsa `PAYME_TEST_SECRET_KEY`, aks holda `PAYME_SECRET_KEY`
+2. Aks holda Admin → Settings → Payments → `payment_providers.payme.merchantKey` (yoki `secretKey`)
+
+**Sandbox:** kassadagi `TEST_KEY` ni shu ikkisidan biriga qo‘ying (Admin UI yetarli).
+`TEST_KEY` ≠ prod `key`. Endpoint kassada: `https://safartrip.uz/api/payme`.
 
 ---
 
@@ -119,6 +124,17 @@ NEXT_PUBLIC_APP_URL=https://safartrip.uz
 | Wrong amount | `-31001` | `WRONG_AMOUNT` |
 
 Do **not** return `-32300` for auth, or `-31001`/`-31003` for a missing account.
+
+### CheckPerform form (test.paycom.uz)
+
+| Field | Value |
+| --- | --- |
+| `booking_id` | `payme-test-001` |
+| Сумма (tiyin) | `15000000` |
+| Тип счета | **Одноразовый** (not Накопительный) |
+| Статус | Ожидает оплаты |
+
+If you still see `-32504`: sandbox `TEST_KEY` is not on the server (env or Admin → Payments).
 
 ## Sandbox (`https://test.paycom.uz`)
 

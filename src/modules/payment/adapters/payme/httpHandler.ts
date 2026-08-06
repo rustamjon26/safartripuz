@@ -109,18 +109,27 @@ export async function paymeHttpHandler(
       verified: null,
     });
 
-    // Auth — one check for both stacks; only the key source differs.
-    // Must return AUTH_FAILED (-32504), never NOT_POST (-32300).
-    let secretKey: string;
-    if (opts.accountMode === "booking_id") {
-      secretKey = getPaymeSecretKey();
-    } else {
-      const providers = await getPaymentProvidersConfig();
-      const config = getPaymeConfig(providers);
-      if (!config.enabled) {
-        return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
-      }
-      secretKey = paymeMerchantKey(config);
+    // Auth — one check for both stacks. Must return AUTH_FAILED (-32504),
+    // never NOT_POST (-32300).
+    //
+    // booking_id used to read ONLY .env (PAYME_SECRET_KEY / PAYME_TEST_SECRET_KEY).
+    // Sandbox TEST_KEY is usually pasted into Admin → Payments (DB
+    // `payment_providers`), so /api/payme kept answering -32504 even with a
+    // correct cashbox. Fall back to the DB merchant key when env is empty.
+    const providers = await getPaymentProvidersConfig();
+    const config = getPaymeConfig(providers);
+    if (opts.accountMode === "order_id" && !config.enabled) {
+      return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
+    }
+
+    const envKey = getPaymeSecretKey();
+    const dbKey = paymeMerchantKey(config);
+    const secretKey = envKey || dbKey;
+    if (!secretKey) {
+      console.error(
+        "[Payme] No merchant key configured (env PAYME_*_SECRET_KEY empty and payment_providers.payme has no key)",
+      );
+      return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
     }
 
     const authResult = validatePaymeAuth(
