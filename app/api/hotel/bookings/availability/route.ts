@@ -1,7 +1,14 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { prisma } from "@/lib/prisma";
+import { ROOM_RELEASED_STATUSES } from "@/src/modules/booking";
+
+/** One occupancy rule for both branches below — see occupiesRoomNights. */
+function occupiedBookingStatus(): Prisma.EnumBookingStatusFilter {
+  return { notIn: [...ROOM_RELEASED_STATUSES] };
+}
 
 export async function GET(req: Request) {
   try {
@@ -51,7 +58,7 @@ export async function GET(req: Request) {
         where: {
           hotelId: ctx.hotel.id,
           roomTypeId: roomType.id,
-          status: { notIn: ["CANCELLED", "NO_SHOW"] },
+          status: occupiedBookingStatus(),
           AND: [
               { checkInDate: { lt: checkOut } },
               { checkOutDate: { gt: checkIn } }
@@ -77,7 +84,7 @@ export async function GET(req: Request) {
     const overlaps = await prisma.hotelBooking.findMany({
       where: {
         hotelId: ctx.hotel.id,
-        status: { in: ["PENDING", "CONFIRMED", "CHECKED_IN"] },
+        status: occupiedBookingStatus(),
         checkInDate: { lt: checkOut },
         checkOutDate: { gt: checkIn },
       },
