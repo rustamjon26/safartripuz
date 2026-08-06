@@ -18,7 +18,35 @@ set -euo pipefail
 
 cd /var/www/safar
 
+APP_USER="${DEPLOY_AS_USER:-safartrip}"
 PM2_APPS=(safartrip safartrip-outbox safartrip-expire-holds)
+
+# Root + safartrip each get their own PM2 daemon (~/.pm2). Deploying as root
+# then checking status as safartrip is how we got EADDRINUSE + two stacks on
+# :3000. Always run the deploy body as APP_USER; root may only pre-stop MySQL.
+if [[ "$(id -un)" != "$APP_USER" ]]; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    echo "==> Fixing tree ownership for ${APP_USER} (root-owned .next/.git breaks the next pull)..."
+    chown -R "${APP_USER}:${APP_USER}" /var/www/safar
+    # Kill a root-owned PM2 that may still hold :3000 from a previous bad deploy.
+    echo "==> Stopping root PM2 daemon (must not share the port with ${APP_USER})..."
+    pm2 kill 2>/dev/null || true
+    fuser -k 3000/tcp 2>/dev/null || true
+    sleep 1
+    # Body always runs as APP_USER so PM2_HOME is ~safartrip/.pm2. MySQL stop
+    # during build needs passwordless sudo from that user, or a separate root
+    # `systemctl stop mysql` before this script — we do not leave MySQL down here.
+    echo "==> Re-executing deploy as ${APP_USER}..."
+    exec sudo -u "${APP_USER}" -H env \
+      "STOP_MYSQL_FOR_BUILD=${STOP_MYSQL_FOR_BUILD:-0}" \
+      "DEPLOY_AS_USER=${APP_USER}" \
+      "NODE_OPTIONS=${NODE_OPTIONS:-}" \
+      bash "$0" "$@"
+  fi
+  echo "==> FATAL: run as ${APP_USER} (or root, which re-execs as ${APP_USER})." >&2
+  echo "    Example: sudo -u ${APP_USER} -H bash -lc 'cd /var/www/safar && bash scripts/deploy-safe.sh'" >&2
+  exit 1
+fi
 
 echo "==> Pulling latest..."
 # Fetch only main to avoid unrelated remote-ref permission noise; keep working tree on main.
@@ -193,10 +221,24 @@ sleep 1
 if command -v fuser >/dev/null 2>&1; then
   echo "==> Freeing TCP :3000 if still held..."
   fuser -k 3000/tcp 2>/dev/null || true
-  sleep 1
-elif command -v ss >/dev/null 2>&1; then
+else
   # Best-effort: show leftover listeners (manual kill if fuser absent).
-  ss -lptn 'sport = :3000' || true
+  ss -lptn 'sport = :3000' 2>/dev/null || true
+fi
+# Wait until nothing listens — otherwise the new process dies with EADDRINUSE
+# while PM2 still reports "online".
+for _wait in 1 2 3 4 5 6 7 8 9 10; do
+  if ! ss -lptn 'sport = :3000' 2>/dev/null | grep -q ':3000'; then
+    break
+  fi
+  echo "==> :3000 still busy (wait ${_wait}/10); killing again..."
+  fuser -k 3000/tcp 2>/dev/null || true
+  sleep 1
+done
+if ss -lptn 'sport = :3000' 2>/dev/null | grep -q ':3000'; then
+  echo "==> FATAL: could not free TCP :3000 before start." >&2
+  ss -lptn 'sport = :3000' >&2 || true
+  exit 1
 fi
 
 echo "==> Starting PM2 apps: ${PM2_APPS[*]} ..."

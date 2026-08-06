@@ -76,11 +76,26 @@ Or in one shot (same ordering, including stop PM2/MySQL around build):
 
 ```bash
 cd /var/www/safar
-# As root: deploy-safe can stop/start MySQL for RAM during build.
-bash scripts/deploy-safe.sh
 
-# As safartrip (no passwordless sudo for systemctl): skip MySQL stop — avoids polkit hang.
+# Preferred: always deploy as safartrip (PM2 lives in ~safartrip/.pm2).
 sudo -u safartrip -H bash -lc 'cd /var/www/safar && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
+
+# As root: script chown's the tree, kills /root/.pm2, then re-execs as safartrip.
+# Do NOT leave a root PM2 running — it steals :3000 from safartrip.
+bash scripts/deploy-safe.sh
+```
+
+If a previous root deploy left the tree / port broken:
+
+```bash
+# 1) Kill every listener on :3000 and both PM2 daemons
+fuser -k 3000/tcp || true
+pm2 kill 2>/dev/null || true
+sudo -u safartrip -H bash -lc 'pm2 kill' 2>/dev/null || true
+
+# 2) Return the tree to safartrip, sync main, redeploy
+chown -R safartrip:safartrip /var/www/safar
+sudo -u safartrip -H bash -lc 'cd /var/www/safar && git fetch origin && git reset --hard origin/main && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
 ```
 
 `STOP_MYSQL_FOR_BUILD=0` keeps MySQL up during build (safer when not root; use on 8 GB only if RAM allows).

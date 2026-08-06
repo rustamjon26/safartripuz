@@ -26,6 +26,9 @@ describe("setup-server.sh matches production", () => {
 
   it("uses the same app directory as the deploy script and PM2", () => {
     expect(read("scripts/deploy-safe.sh")).toContain("/var/www/safar\n");
+    // Root deploys must re-exec as safartrip — dual PM2 (~/.pm2) causes EADDRINUSE.
+    expect(read("scripts/deploy-safe.sh")).toMatch(/Re-executing deploy as/);
+    expect(read("scripts/deploy-safe.sh")).toMatch(/DEPLOY_AS_USER/);
     expect(read("ecosystem.config.js")).toContain('cwd: "/var/www/safar"');
     expect(setup).toContain("/var/www/safar");
     // The bootstrap script used to create /var/www/safartrip, which nothing else knew about.
