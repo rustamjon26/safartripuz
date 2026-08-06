@@ -19,7 +19,10 @@ vi.mock("@/app/api/payme/utils/helpers", async () => {
   >("@/app/api/payme/utils/helpers");
   return {
     ...actual,
-    autoCancelExpiredTransaction: vi.fn(async (tx: { state: number }) => tx),
+    autoCancelExpiredTransaction: vi.fn(
+      async (tx: import("@/app/api/payme/utils/helpers").PaymeTransactionWithBooking) =>
+        tx,
+    ),
   };
 });
 
@@ -40,7 +43,7 @@ describe("CheckPerformTransaction sandbox account errors", () => {
     repo.findBookingById.mockResolvedValue(null);
     repo.findTransactionByBookingId.mockResolvedValue(null);
     vi.mocked(helpers.autoCancelExpiredTransaction).mockImplementation(
-      async (tx: { state: number }) => tx,
+      async (tx) => tx,
     );
   });
 
