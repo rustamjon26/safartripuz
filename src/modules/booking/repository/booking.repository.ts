@@ -167,6 +167,26 @@ export class BookingRepository {
       },
     });
   }
+
+  async findExpiredGuideHolds(limit: number, client: Tx | typeof prisma = prisma) {
+    return client.guideBooking.findMany({
+      where: {
+        status: "PENDING",
+        holdExpiresAt: { lt: new Date() },
+      },
+      take: limit,
+      orderBy: { holdExpiresAt: "asc" },
+      select: {
+        id: true,
+        listingId: true,
+        guideId: true,
+        date: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+      },
+    });
+  }
 }
 
 export const bookingRepository = new BookingRepository();

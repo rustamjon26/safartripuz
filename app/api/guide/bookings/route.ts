@@ -8,7 +8,7 @@ import {
   GuideSlotTakenError,
 } from "@/lib/guide/checkAvailability";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
-import { inventoryService } from "@/src/modules/inventory";
+import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { fail, handleApiError, ok } from "../_utils";
 
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
@@ -183,6 +183,7 @@ export async function POST(req: Request) {
           totalPrice: availability.totalPrice,
           priceSnapshot,
           status: "PENDING",
+          holdExpiresAt: new Date(Date.now() + HOLD_TTL_MS),
           guestNote: body.customerNote ?? null,
         },
       });

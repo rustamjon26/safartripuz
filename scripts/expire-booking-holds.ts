@@ -7,7 +7,7 @@ import { bookingService } from "../src/modules/booking";
 async function main() {
   const result = await bookingService.expireHolds(100);
   console.log(
-    `[expire-booking-holds] hotel=${result.hotel} homestay=${result.homestay}`,
+    `[expire-booking-holds] hotel=${result.hotel} homestay=${result.homestay} guide=${result.guide}`,
   );
 }
 

@@ -563,6 +563,10 @@ model GuideBooking {
   priceSnapshot      Json
   meetingPoint       String?
   status             GuideBookingStatus       @default(PENDING)
+  /// Soft hold deadline for PENDING bookings (15 minutes), mirroring hotel and
+  /// homestay. Without it an abandoned checkout blocked the slot until the tour
+  /// date passed. Cleared once payment confirms the booking.
+  holdExpiresAt      DateTime?
   cancelledBy        GuideBookingCancelledBy?
   cancellationReason String?
   guestNote          String?
@@ -580,6 +584,7 @@ model GuideBooking {
   @@index([guestId, status])
   @@index([travelPlanId, status])
   @@index([date, status])
+  @@index([status, holdExpiresAt])
 }
 
 model GuideBookingLog {
