@@ -25,8 +25,8 @@ export default function MockPaymentPage({ params }: { params: Promise<{ paymentI
       if (!res.ok) throw new Error("Mock payment error");
       toast.success("To'lov muvaffaqiyatli amalga oshirildi! 🎉");
       router.push(`/payments/success?paymentId=${paymentId}`);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
       setLoading(false);
     }
   }

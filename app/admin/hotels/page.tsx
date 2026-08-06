@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { 
-  Building2, Filter, Loader2, BedDouble, Users, MapPin, 
+import {   Building2, Filter, Loader2, BedDouble, Users, MapPin, 
   MoreVertical, TrendingUp, CheckCircle, AlertCircle, 
   Calendar, Plus, Search, X, ChevronLeft, ChevronRight,
   Mail, Phone, Globe, Shield, Trash2, Edit2
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Hotel = {
   id: string;
@@ -50,7 +50,7 @@ const EMPTY_FORM: FormData = {
   contactEmail: "", contactPhone: "", totalRooms: "10", status: "draft"
 };
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
   active: { label: "Aktiv", cls: "bg-emerald-50 text-emerald-600 ring-emerald-100", icon: CheckCircle },
   draft: { label: "Qoralama", cls: "bg-amber-50 text-amber-600 ring-amber-100", icon: Calendar },
   suspended: { label: "To'xtatilgan", cls: "bg-rose-50 text-rose-600 ring-rose-100", icon: AlertCircle },

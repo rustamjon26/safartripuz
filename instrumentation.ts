@@ -1,9 +1,13 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Boot gate: refuse to start on an unsafe env combination rather than
-    // discovering it when a payment route is hit.
-    const { assertSafeRuntimeEnv } = await import("./src/shared/env");
+    // Main: refuse unsafe combinations (e.g. mock payments in production).
+    // Ops: full boot checklist — missing DATABASE_URL / JWT must stop here,
+    // not surface as a 500 on someone's checkout.
+    const { assertSafeRuntimeEnv, assertBootEnvOrExit } = await import(
+      "./src/shared/env"
+    );
     assertSafeRuntimeEnv();
+    assertBootEnvOrExit();
 
     await import("./sentry.server.config");
   }

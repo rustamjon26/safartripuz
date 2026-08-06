@@ -3,10 +3,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { translations, Language } from "@/lib/i18n/translations";
 
+export type TranslateParams = Record<string, string | number>;
+export type Translate = (path: string, params?: TranslateParams) => string;
+
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (path: string, params?: Record<string, any>) => string;
+  t: Translate;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -28,18 +31,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("safar_lang", lang);
   };
 
-  const t = (path: string, params?: Record<string, any>): string => {
+  const t: Translate = (path, params) => {
     const keys = path.split(".");
-    let current: any = translations[language];
+    let current: unknown = translations[language];
 
     for (const key of keys) {
-      if (current === undefined || current[key] === undefined) {
-        return path;
-      }
-      current = current[key];
+      if (typeof current !== "object" || current === null) return path;
+      const next = (current as Record<string, unknown>)[key];
+      if (next === undefined) return path;
+      current = next;
     }
 
-    let val = current as string;
+    if (typeof current !== "string") return path;
+    let val = current;
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
         val = val.replace(`{${k}}`, String(v));

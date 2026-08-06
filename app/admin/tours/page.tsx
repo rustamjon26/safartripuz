@@ -9,6 +9,7 @@ import {
   MoreVertical, Calendar, Info, Layers, ChevronLeft, ChevronRight,
   CheckCircle, Globe, ListChecks, Image as ImageIcon
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type TourPackage = {
   id: string;
@@ -46,7 +47,7 @@ const EMPTY_FORM: FormData = {
 
 const CATEGORIES = ["Togʻ safarlar", "Tarixiy", "Madaniy", "Ekologik", "Oilaviy", "Aktiv dam olish", "Ziyorat"];
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
   active: { label: "Aktiv", cls: "bg-emerald-50 text-emerald-600 ring-emerald-100", icon: Eye },
   inactive: { label: "Nofaol", cls: "bg-slate-100 text-slate-400 ring-slate-200", icon: EyeOff },
   draft: { label: "Qoralama", cls: "bg-amber-50 text-amber-600 ring-amber-100", icon: Info },

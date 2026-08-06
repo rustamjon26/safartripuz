@@ -15,6 +15,9 @@ enum Role {
   taxi_partner
   hotel_manager
   guide
+  /// Guide panel operator. `guide` is the older value for the same panel;
+  /// both are accepted (see src/shared/roles.ts GUIDE_PANEL_ROLES).
+  guide_partner
   restaurant_manager
   home_stay_partner
   /// Feedback & Support inbox agent
@@ -1037,6 +1040,8 @@ model RefreshToken {
   revokedAt DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {
@@ -1051,6 +1056,9 @@ model AuditLog {
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  /// AuditLog's "user" column is actorId — admin screens filter by actor.
+  @@index([actorId, createdAt])
 }
 
 model Notification {
