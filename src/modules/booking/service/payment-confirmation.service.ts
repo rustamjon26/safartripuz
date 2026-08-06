@@ -10,11 +10,19 @@ import { Money } from "@/src/shared/money";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 
 /**
- * Marks payment SUCCESS and confirms linked hotel / homestay / guide bookings.
- * The travel plan becomes CONFIRMED only when EVERY linked booking confirmed;
- * if any booking hit a terminal state (hold expired before payment), the plan
- * keeps its current status and a PAYMENT_SUCCESS_MANUAL_REVIEW audit row +
- * ALERT log is written for ops (refund or re-book manually).
+ * Confirms linked hotel / homestay / guide bookings, posts their ledger
+ * entries, and only then settles the payment.
+ *
+ * The payment reaches SUCCESS only when every linked booking confirmed and
+ * its ledger entry was posted in this same transaction. If any booking hit a
+ * terminal state (hold expired before payment landed), the money is still ours
+ * but the ledger holds less than we captured — the payment lands in
+ * PENDING_REVIEW, the plan keeps its status, and a PAYMENT_SUCCESS_MANUAL_REVIEW
+ * audit row + ALERT log is written for ops (refund or re-book manually).
+ *
+ * Marking such a payment SUCCESS is what used to break reconciliation: PSP
+ * clearing totals counted the full amount while the ledger only counted the
+ * confirmed subset.
  *
  * Payme auto-cancels an unconfirmed transaction after 12 hours (state -1, reason 4).
  * Our 15-minute hold is intentionally shorter — never blind-confirm after expiry.
@@ -53,10 +61,10 @@ export async function completeSuccessfulPaymentInTx(
     return { payment, plan };
   }
 
-  // Money really arrived — payment is SUCCESS regardless of booking outcome.
-  const updatedPayment = await tx.payment.update({
+  // Status is written at the end, once we know whether every booking confirmed
+  // and every ledger entry posted. Read the row now for the amount we need below.
+  const payment = await tx.payment.findUniqueOrThrow({
     where: { id: paymentId },
-    data: { status: "SUCCESS", paidAt: new Date() },
   });
 
   // Plan is confirmed ONLY after every linked booking actually confirms.
@@ -300,7 +308,7 @@ export async function completeSuccessfulPaymentInTx(
       // Conditional confirm — never resurrect expired/cancelled guide bookings.
       const confirmed = await tx.guideBooking.updateMany({
         where: { id: booking.id, status: "PENDING" },
-        data: { status: "CONFIRMED" },
+        data: { status: "CONFIRMED", holdExpiresAt: null },
       });
       if (confirmed.count === 0) {
         manualReviewCount += 1;
@@ -389,18 +397,29 @@ export async function completeSuccessfulPaymentInTx(
     }
   }
 
+  // Everything above ran in `tx`, so the booking confirmations, their ledger
+  // entries and this status write commit together — a payment is never SUCCESS
+  // without the matching ledger postings.
+  const settled = manualReviewCount === 0;
+  const updatedPayment = await tx.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: settled ? "SUCCESS" : "PENDING_REVIEW",
+      paidAt: new Date(),
+    },
+  });
+
   // Plan status: CONFIRMED only when nothing needs manual review.
-  const updatedPlan =
-    manualReviewCount === 0
-      ? await tx.travelPlan.update({
-          where: { id: travelPlanId },
-          data: { status: "CONFIRMED" },
-          select: { id: true, status: true },
-        })
-      : await tx.travelPlan.findUniqueOrThrow({
-          where: { id: travelPlanId },
-          select: { id: true, status: true },
-        });
+  const updatedPlan = settled
+    ? await tx.travelPlan.update({
+        where: { id: travelPlanId },
+        data: { status: "CONFIRMED" },
+        select: { id: true, status: true },
+      })
+    : await tx.travelPlan.findUniqueOrThrow({
+        where: { id: travelPlanId },
+        select: { id: true, status: true },
+      });
 
   if (manualReviewCount > 0) {
     console.error("ALERT payment_success_manual_review", {
@@ -434,31 +453,35 @@ export async function completeSuccessfulPaymentInTx(
     },
   });
 
-  const paymentSom = Money.fromSomNumber(updatedPayment.amount.toString());
+  const paymentSom = Money.fromSomNumber(payment.amount.toString());
 
-  await outboxService.enqueueInTx(tx, {
-    aggregateType: "Payment",
-    aggregateId: paymentId,
-    eventType: OutboxEventType.DIDOX_INVOICE,
-    payload: {
-      paymentId,
-      dedupeKey: `didox:${paymentId}`,
-    },
-  });
+  // A fiscal invoice and a "payment accepted" receipt both assert the booking
+  // stands. Under review it does not, so they wait for ops to settle it.
+  if (settled) {
+    await outboxService.enqueueInTx(tx, {
+      aggregateType: "Payment",
+      aggregateId: paymentId,
+      eventType: OutboxEventType.DIDOX_INVOICE,
+      payload: {
+        paymentId,
+        dedupeKey: `didox:${paymentId}`,
+      },
+    });
 
-  await outboxService.enqueueInTx(tx, {
-    aggregateType: "Payment",
-    aggregateId: paymentId,
-    eventType: OutboxEventType.PAYMENT_RECEIPT,
-    payload: {
-      paymentId,
-      userId: actorId,
-      amount: paymentSom.toSomNumber(),
-      dedupeKey: `payment.receipt:${paymentId}`,
-      title: "To'lov qabul qilindi",
-      body: `To'lov ${paymentSom.toSomNumber().toLocaleString("uz-UZ")} so'm muvaffaqiyatli`,
-    },
-  });
+    await outboxService.enqueueInTx(tx, {
+      aggregateType: "Payment",
+      aggregateId: paymentId,
+      eventType: OutboxEventType.PAYMENT_RECEIPT,
+      payload: {
+        paymentId,
+        userId: actorId,
+        amount: paymentSom.toSomNumber(),
+        dedupeKey: `payment.receipt:${paymentId}`,
+        title: "To'lov qabul qilindi",
+        body: `To'lov ${paymentSom.toSomNumber().toLocaleString("uz-UZ")} so'm muvaffaqiyatli`,
+      },
+    });
+  }
 
   for (const booking of confirmedHotelBookings) {
     await outboxService.enqueueInTx(tx, {

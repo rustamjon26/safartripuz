@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { validatePaymeAuth } from "@/app/api/payme/utils/auth";
 import { cancelTransaction } from "@/app/api/payme/methods/cancelTransaction";
 import { checkPerformTransaction } from "@/app/api/payme/methods/checkPerformTransaction";
 import { checkTransaction } from "@/app/api/payme/methods/checkTransaction";
@@ -11,8 +10,13 @@ import {
   getPaymeConfig,
   paymeMerchantKey,
 } from "@/lib/payments/providerConfig";
-import { verifyPaymeAuth } from "@/lib/payments/payme";
-import { PAYME_ERRORS, paymeRpcError } from "../../domain/errors";
+import { getPaymeSecretKey } from "@/app/api/payme/utils/helpers";
+import {
+  isPaymeErrorResponse,
+  PAYME_ERRORS,
+  paymeRpcError,
+} from "../../domain/errors";
+import { validatePaymeAuth } from "../../domain/payme-auth";
 import { paymentService } from "../../service/payment.service";
 import { handleOrderIdMethod } from "./orderIdHandlers";
 
@@ -86,26 +90,25 @@ export async function paymeHttpHandler(
       verified: null,
     });
 
-    // Auth
+    // Auth — one check for both stacks; only the key source differs.
+    let secretKey: string;
     if (opts.accountMode === "booking_id") {
-      const authResult = validatePaymeAuth(req.headers.get("authorization"));
-      if (!authResult.ok) {
-        return paymeJson(paymeRpcError(rpcId, {
-          code: authResult.error.code,
-          message: authResult.error.message,
-        }));
-      }
+      secretKey = getPaymeSecretKey();
     } else {
       const providers = await getPaymentProvidersConfig();
       const config = getPaymeConfig(providers);
-      const merchantKey = paymeMerchantKey(config);
       if (!config.enabled) {
-        return paymeJson(paymeRpcError(0, PAYME_ERRORS.AUTH_FAILED));
+        return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.AUTH_FAILED));
       }
-      const authHeader = req.headers.get("authorization") ?? "";
-      if (!verifyPaymeAuth(authHeader, merchantKey)) {
-        return paymeJson(paymeRpcError(0, PAYME_ERRORS.AUTH_FAILED));
-      }
+      secretKey = paymeMerchantKey(config);
+    }
+
+    const authResult = validatePaymeAuth(
+      req.headers.get("authorization"),
+      secretKey,
+    );
+    if (!authResult.ok) {
+      return paymeJson(paymeRpcError(rpcId, authResult.error));
     }
 
     let body: {
@@ -152,7 +155,12 @@ export async function paymeHttpHandler(
     const handler = BOOKING_METHODS[method];
     const response = await handler(rpcId, params as never);
 
-    if (method === "PerformTransaction" || method === "CancelTransaction") {
+    if (
+      (method === "PerformTransaction" || method === "CancelTransaction") &&
+      !isPaymeErrorResponse(response)
+    ) {
+      // Errors stay uncached so Payme's retry re-runs the handler; the handlers
+      // are idempotent, so a replayed success is answered from state anyway.
       await paymentService.storeProcessedResponse({
         provider: "PAYME",
         providerEventId,
