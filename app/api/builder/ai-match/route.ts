@@ -81,7 +81,7 @@ Faqat shu JSON ni qaytar, boshqa hech narsa yozma:
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!checkRateLimit(`ai-match:${ip}`, 10, 60_000)) {
+  if (!(await checkRateLimit(`ai-match:${ip}`, 10, 60_000))) {
     return NextResponse.json(
       { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
       { status: 429 },

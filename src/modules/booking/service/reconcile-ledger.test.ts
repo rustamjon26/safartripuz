@@ -135,6 +135,7 @@ function baseInput(over: Partial<ReconcileInput> = {}): ReconcileInput {
     bookings,
     partnerEarnings,
     ledgerTxs,
+    payments: [],
     ...over,
     knownBookingIds: over.knownBookingIds ?? known,
   };
@@ -422,6 +423,7 @@ describe("reconcileLedgerPartnerEarnings", () => {
         }),
         paymentTx("orphan_ltx"),
       ],
+      payments: [],
       knownBookingIds: new Set(["ok", "missing", "dup"]),
     });
 
