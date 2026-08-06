@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
 import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
@@ -78,6 +79,9 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const [collapsed,  setCollapsed]  = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user,       setUser]       = useState<HotelUser | null>(null);
 
   async function ensureAuth() {
@@ -391,8 +395,20 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
       {/* ━━━ MOBILE DRAWER ━━━ */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12">
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
+            className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12"
+          >
             <button
               type="button"
               className="absolute top-4 right-4 p-2 bg-white/10 text-white/80 rounded-lg z-50"

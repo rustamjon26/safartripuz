@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
 import "./support.css";
 
 /** Uzbek, like the pages behind them — this panel is not wired to LanguageProvider. */
@@ -44,6 +45,9 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [search, setSearch] = useState("");
 
@@ -185,11 +189,20 @@ export default function SupportLayout({ children }: { children: ReactNode }) {
 
       {drawerOpen ? (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
             className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10">
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10"
+          >
             {renderSidebar(true)}
           </aside>
         </div>
