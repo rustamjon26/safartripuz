@@ -1,5 +1,6 @@
 import type { AccountType, PartnerEarningType } from "@prisma/client";
 import { db, type DbClient } from "@/src/shared/db/client";
+import { LedgerTxType } from "../domain/types";
 
 export type Tx = DbClient;
 export type LedgerBookingType = PartnerEarningType;
@@ -73,6 +74,49 @@ export class LedgerRepository {
    * LIABILITY / REVENUE style: CREDIT − DEBIT (tiyin).
    * ASSET style callers should negate if needed.
    */
+  /**
+   * What the original BOOKING_PAYMENT posted for a booking, in tiyin:
+   * gross from the platform clearing DEBIT, commission from the platform
+   * revenue CREDIT. Null when the booking has no payment posting yet.
+   *
+   * Cancellations read this back instead of recomputing, so a commission-rate
+   * change between booking and cancellation cannot skew the reversal.
+   */
+  async findBookingPaymentCharge(
+    bookingId: string,
+    client: DbClient = db,
+  ): Promise<{ grossTiyin: bigint; commissionTiyin: bigint } | null> {
+    const txs = await client.ledgerTransaction.findMany({
+      where: { bookingId, type: LedgerTxType.BOOKING_PAYMENT },
+      select: {
+        entries: {
+          select: {
+            amount: true,
+            direction: true,
+            account: { select: { type: true, ownerType: true } },
+          },
+        },
+      },
+    });
+    if (txs.length === 0) return null;
+
+    let grossTiyin = 0n;
+    let commissionTiyin = 0n;
+    for (const tx of txs) {
+      for (const entry of tx.entries) {
+        const platform = entry.account.ownerType === "PLATFORM";
+        if (!platform) continue;
+        if (entry.direction === "DEBIT" && entry.account.type === "ASSET") {
+          grossTiyin += entry.amount;
+        }
+        if (entry.direction === "CREDIT" && entry.account.type === "REVENUE") {
+          commissionTiyin += entry.amount;
+        }
+      }
+    }
+    return { grossTiyin, commissionTiyin };
+  }
+
   async getAccountSignedBalanceTiyin(
     accountId: string,
     client: DbClient = db,

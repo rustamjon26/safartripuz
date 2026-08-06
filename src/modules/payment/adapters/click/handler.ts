@@ -4,6 +4,7 @@ import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessful
 import { getClickConfig, getPaymentProvidersConfig } from "@/lib/payments/providerConfig";
 import { CLICK_ERRORS } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
+import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import { verifyClickSignature, type ClickSignFields } from "./sign";
@@ -149,7 +150,7 @@ export async function clickHttpHandler(req: Request) {
     }
 
     if (action === 0) {
-      if (payment.status === "SUCCESS") {
+      if (isPaymentCaptured(payment.status)) {
         const resp = {
           error: CLICK_ERRORS.ALREADY_PAID,
           error_note: "Allaqachon to'langan",
@@ -198,7 +199,9 @@ export async function clickHttpHandler(req: Request) {
       return clickJson(resp);
     }
 
-    // Complete (action=1)
+    // Complete (action=1).
+    // The cancel leg is deliberately not gated on the prepare record: refusing
+    // it would strand the payment in PENDING with no way for Click to cancel.
     if (body.error < 0) {
       await paymentRepository.updatePaymentFields(paymentId, {
         status: "FAILED",
@@ -232,7 +235,7 @@ export async function clickHttpHandler(req: Request) {
       return clickJson(resp);
     }
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       const resp = {
         error: CLICK_ERRORS.ALREADY_PAID,
         error_note: "Allaqachon to'langan",
@@ -248,16 +251,52 @@ export async function clickHttpHandler(req: Request) {
       return clickJson(resp);
     }
 
-    // Validate merchant_prepare_id matches our PaymentTransaction
-    const prepareId = body.merchant_prepare_id != null ? String(body.merchant_prepare_id) : "";
-    if (prepareId) {
-      const ptx = await paymentRepository.findPaymentTransactionById(prepareId);
-      if (!ptx || ptx.legacyPaymentId !== paymentId) {
-        return clickJson({
-          error: CLICK_ERRORS.INCORRECT_PARAMS,
-          error_note: "merchant_prepare_id noto'g'ri",
-        });
-      }
+    // Complete must carry the merchant_prepare_id that Prepare handed back;
+    // without a matching record there is no prepared transaction to complete.
+    // Click calls that -6 "Transaction does not exist".
+    const prepareId =
+      body.merchant_prepare_id != null
+        ? String(body.merchant_prepare_id).trim()
+        : "";
+    if (!prepareId) {
+      return clickJson({
+        error: CLICK_ERRORS.TRANSACTION_NOT_EXIST,
+        error_note: "merchant_prepare_id yo'q",
+      });
+    }
+
+    const ptx = await paymentRepository.findPaymentTransactionById(prepareId);
+    if (!ptx || ptx.provider !== "CLICK" || ptx.legacyPaymentId !== paymentId) {
+      return clickJson({
+        error: CLICK_ERRORS.TRANSACTION_NOT_EXIST,
+        error_note: "merchant_prepare_id topilmadi",
+      });
+    }
+
+    // Prepare stamps the click_trans_id it was created for. A different one
+    // presenting the same id is replaying someone else's prepare record.
+    if (ptx.externalRef && ptx.externalRef !== String(body.click_trans_id)) {
+      return clickJson({
+        error: CLICK_ERRORS.TRANSACTION_NOT_EXIST,
+        error_note: "merchant_prepare_id boshqa tranzaksiyaga tegishli",
+      });
+    }
+
+    if (ptx.status === "SUCCESS") {
+      // Click's rule: after a successful Complete only -4 or -9 may come back.
+      const resp = {
+        error: CLICK_ERRORS.ALREADY_PAID,
+        error_note: "Allaqachon to'langan",
+        click_trans_id: body.click_trans_id,
+        merchant_trans_id: paymentId,
+      };
+      await paymentService.storeProcessedResponse({
+        provider: "CLICK",
+        providerEventId,
+        rawBody,
+        response: resp,
+      });
+      return clickJson(resp);
     }
 
     const successResponse = {
@@ -278,13 +317,13 @@ export async function clickHttpHandler(req: Request) {
 
       // Ledger posted inside completeSuccessfulPaymentInTx (per-booking keys payment:{id}:booking:{bookingId}:success)
 
-      if (prepareId) {
-        await paymentRepository.updatePaymentTransaction(
-          prepareId,
-          { status: "SUCCESS", externalRef: String(body.click_trans_id) },
-          tx,
-        );
-      }
+      // Consumes the prepare record in the same transaction, so a replay that
+      // slips past the ProcessedEvent cache still lands on ALREADY_PAID.
+      await paymentRepository.updatePaymentTransaction(
+        prepareId,
+        { status: "SUCCESS", externalRef: String(body.click_trans_id) },
+        tx,
+      );
 
       await paymentService.storeProcessedResponse(
         {

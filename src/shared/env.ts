@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MOCK_PAYMENTS_IN_PRODUCTION_MESSAGE } from "@/lib/payments/mockGate";
 
 /**
  * Central env schema. Optional integrations stay optional at parse time;
@@ -38,8 +39,28 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Combinations that are individually valid but unsafe together. Called at boot
+ * from `instrumentation.ts` and again below, so importing this module anywhere
+ * fails loudly rather than letting the process run misconfigured.
+ */
+export function assertSafeRuntimeEnv(
+  source: NodeJS.ProcessEnv = process.env,
+): void {
+  if (
+    source.NODE_ENV === "production" &&
+    source.PAYMENTS_MOCK_ENABLED === "true"
+  ) {
+    throw new Error(
+      `Refusing to start: ${MOCK_PAYMENTS_IN_PRODUCTION_MESSAGE}`,
+    );
+  }
+}
+
 /** Parsed once per process; throws early on malformed values. */
 export const env: Env = envSchema.parse(process.env);
+
+assertSafeRuntimeEnv();
 
 /** Loud accessor for env vars that are required by the current code path. */
 export function requireEnv<K extends keyof Env>(key: K): NonNullable<Env[K]> {

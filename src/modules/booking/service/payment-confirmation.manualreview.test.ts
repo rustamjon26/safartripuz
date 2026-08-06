@@ -177,13 +177,19 @@ describe("completeSuccessfulPaymentInTx — manual review safety", () => {
 
     const result = await completeSuccessfulPaymentInTx(tx, baseOpts);
 
-    // Payment stays SUCCESS (money arrived) …
+    // Money arrived but no ledger entry backs it, so the payment must not claim
+    // SUCCESS — that is exactly what used to break PSP ↔ ledger reconciliation.
     expect(tx.payment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING_REVIEW" }),
+      }),
+    );
+    expect(tx.payment.update).not.toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "SUCCESS" }),
       }),
     );
-    // … but the plan is NOT blind-confirmed.
+    // The plan is NOT blind-confirmed either.
     expect(tx.travelPlan.update).not.toHaveBeenCalled();
     expect(result.plan.status).toBe("PENDING_PAYMENT");
     // No ledger post, no confirmation push for the failed booking.
@@ -192,6 +198,13 @@ describe("completeSuccessfulPaymentInTx — manual review safety", () => {
       ([, e]) => (e as { eventType: string }).eventType === "BOOKING_CONFIRMED",
     );
     expect(confirmedEvents).toHaveLength(0);
+    // Nothing that asserts a settled sale goes out while under review.
+    const settledEvents = enqueueInTx.mock.calls.filter(([, e]) =>
+      ["DIDOX_INVOICE", "PAYMENT_RECEIPT"].includes(
+        (e as { eventType: string }).eventType,
+      ),
+    );
+    expect(settledEvents).toHaveLength(0);
     // Ops audit trail exists.
     const auditActions = (
       tx.auditLog.create as ReturnType<typeof vi.fn>
@@ -199,6 +212,41 @@ describe("completeSuccessfulPaymentInTx — manual review safety", () => {
       ([arg]) => (arg as { data: { action: string } }).data.action,
     );
     expect(auditActions).toContain("PAYMENT_SUCCESS_MANUAL_REVIEW");
+  });
+
+  it("settles to SUCCESS once every booking confirmed and posted", async () => {
+    const tx = makeTx({
+      hotelBooking: {
+        findMany: vi.fn(async () => [
+          {
+            id: "hb1",
+            hotelId: "h1",
+            totalAmount: som("100000.00"),
+            status: "HELD",
+          },
+        ]),
+        update: vi.fn(async () => ({})),
+      },
+    });
+    confirmPaymentForHotelBooking.mockResolvedValue({
+      ok: true,
+      booking: { id: "hb1" },
+    });
+
+    await completeSuccessfulPaymentInTx(tx, baseOpts);
+
+    expect(ledgerRecord).toHaveBeenCalledTimes(1);
+    expect(tx.payment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SUCCESS" }),
+      }),
+    );
+    const settledEvents = enqueueInTx.mock.calls.filter(([, e]) =>
+      ["DIDOX_INVOICE", "PAYMENT_RECEIPT"].includes(
+        (e as { eventType: string }).eventType,
+      ),
+    );
+    expect(settledEvents).toHaveLength(2);
   });
 
   it("never resurrects an expired homestay booking (conditional confirm)", async () => {

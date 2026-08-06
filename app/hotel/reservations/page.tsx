@@ -186,7 +186,7 @@ export default function HotelReservationsPage() {
           checkInDate: new Date(checkInDate).toISOString(),
           checkOutDate: new Date(checkOutDate).toISOString(),
           roomCount: Number(roomCount),
-          totalAmount: Number(totalAmount),
+          ...(totalAmount.trim() ? { totalAmount: Number(totalAmount) } : {}),
           paidAmount: Number(paidAmount),
           source: "ADMIN",
         }),
@@ -269,7 +269,8 @@ export default function HotelReservationsPage() {
           <input type="number" min={1} value={roomCount} onChange={(e) => setRoomCount(Number(e.target.value))} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="datetime-local" required value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="datetime-local" required value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-          <input type="number" min={0} step="0.01" required value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} placeholder="Total" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+          {/* Left empty, the server prices the stay. A typed value is only checked against it. */}
+          <input type="number" min={0} step="0.01" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} placeholder="Total (avtomatik)" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
           <input type="number" min={0} step="0.01" required value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} placeholder="Paid" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
