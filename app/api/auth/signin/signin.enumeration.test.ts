@@ -60,6 +60,11 @@ function existingUser(over: Record<string, unknown> = {}) {
 }
 
 beforeAll(async () => {
+  // Success path signs JWTs; CI sets these, local `vitest` may not load .env.
+  process.env.JWT_ACCESS_SECRET ??=
+    "test_access_secret_for_signin_enumeration";
+  process.env.JWT_REFRESH_SECRET ??=
+    "test_refresh_secret_for_signin_enumeration";
   // Same cost factor registration uses.
   realHash = await bcrypt.hash(REAL_PASSWORD, 12);
 }, 60_000);
@@ -98,7 +103,13 @@ describe("signin failures are indistinguishable", () => {
   it("still lets the real credentials through", async () => {
     findUnique.mockResolvedValueOnce(existingUser());
     const ok = await attempt(KNOWN_EMAIL, REAL_PASSWORD);
+    expect(ok.body, `unexpected ${ok.status}`).not.toEqual({
+      message: "Server xatosi",
+    });
     expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({
+      user: { id: "u1", email: KNOWN_EMAIL, role: "user" },
+    });
   });
 
   it("only reveals a block to someone who has the password", async () => {
