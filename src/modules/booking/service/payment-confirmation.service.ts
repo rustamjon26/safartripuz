@@ -308,7 +308,7 @@ export async function completeSuccessfulPaymentInTx(
       // Conditional confirm — never resurrect expired/cancelled guide bookings.
       const confirmed = await tx.guideBooking.updateMany({
         where: { id: booking.id, status: "PENDING" },
-        data: { status: "CONFIRMED" },
+        data: { status: "CONFIRMED", holdExpiresAt: null },
       });
       if (confirmed.count === 0) {
         manualReviewCount += 1;

@@ -52,7 +52,7 @@ export default function SettingsPage() {
       });
       if (res.ok) toast.success(t("settings.toasts.save_success"));
       else throw new Error(await (await res.json()).message);
-    } catch (e: any) { toast.error(e.message || t("common.error")); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("common.error")); }
     setSaving(false);
   }
 

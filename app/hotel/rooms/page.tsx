@@ -24,7 +24,7 @@ interface RoomType {
   capacityChildren: number;
   basePrice: number;
   isActive: boolean;
-  images: any; // URL strings array
+  images: string[];
   rooms?: PhysicalRoom[];
 }
 

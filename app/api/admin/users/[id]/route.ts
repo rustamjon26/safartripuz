@@ -10,23 +10,9 @@ import {
 } from "@/lib/partner";
 import { ensureApprovedHotelManagerSetup } from "@/lib/hotel";
 import { isForeignKeyViolation } from "@/lib/prismaErrors";
+import { isGuidePanelRole, isTaxiPanelRole, ROLES } from "@/src/shared/roles";
 
-const roleSchema = z.enum([
-  "super_admin",
-  "admin",
-  "user",
-  "taxi",
-  "taxi_partner",
-  "hotel_manager",
-  "guide",
-  "restaurant_manager",
-  "home_stay_partner",
-  "support",
-  "cleaner",
-  "receptionist",
-  "waiter",
-  "hotel_staff",
-]);
+const roleSchema = z.enum(ROLES);
 
 const patchUserSchema = z.object({
   first_name: z.string().trim().min(1).max(100).optional(),
@@ -128,7 +114,7 @@ export async function PATCH(
           );
         }
 
-        if (newRole === "guide") {
+        if (isGuidePanelRole(newRole)) {
           await ensureApprovedGuidePartner(tx, {
             userId: updated.id,
             displayName,
@@ -137,7 +123,7 @@ export async function PATCH(
           });
         }
 
-        if (newRole === "taxi" || newRole === "taxi_partner") {
+        if (isTaxiPanelRole(newRole)) {
           await ensureApprovedTaxiPartner(tx, {
             userId: updated.id,
             displayName,

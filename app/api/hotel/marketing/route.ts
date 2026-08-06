@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { feedbackService } from "@/src/modules/feedback";
 import { marketingService } from "@/src/modules/marketing";
+
+/** `rating` is coerced because the form sends it as a string. */
+const guestFeedbackSchema = z.object({
+  guestName: z.string().trim().max(191).optional(),
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional(),
+  source: z.string().trim().min(1).max(64).optional(),
+});
 
 export async function GET(req: Request) {
   try {
@@ -67,24 +76,24 @@ export async function POST(req: Request) {
     const ctx = await getApprovedHotelContextByUserId(actor.id);
     if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
-    const json = (await req.json()) as {
-      guestName?: string;
-      rating?: number;
-      comment?: string;
-      source?: string;
-    };
-    const rating = Number(json.rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return NextResponse.json({ message: "rating 1–5 bo‘lishi kerak" }, { status: 400 });
+    const parsed = guestFeedbackSchema.safeParse(
+      await req.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: parsed.error.issues[0]?.message ?? "Validatsiya xatosi" },
+        { status: 400 },
+      );
     }
+    const body = parsed.data;
 
     const fb = await prisma.guestFeedback.create({
       data: {
         hotelId: ctx.hotel.id,
-        guestName: String(json.guestName ?? ""),
-        rating,
-        comment: json.comment ?? null,
-        source: json.source || "DIRECT",
+        guestName: body.guestName ?? "",
+        rating: body.rating,
+        comment: body.comment ?? null,
+        source: body.source ?? "DIRECT",
       },
     });
 

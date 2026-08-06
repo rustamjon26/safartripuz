@@ -15,6 +15,9 @@ enum Role {
   taxi_partner
   hotel_manager
   guide
+  /// Guide panel operator. `guide` is the older value for the same panel;
+  /// both are accepted (see src/shared/roles.ts GUIDE_PANEL_ROLES).
+  guide_partner
   restaurant_manager
   home_stay_partner
   /// Feedback & Support inbox agent
@@ -563,6 +566,10 @@ model GuideBooking {
   priceSnapshot      Json
   meetingPoint       String?
   status             GuideBookingStatus       @default(PENDING)
+  /// Soft hold deadline for PENDING bookings (15 minutes), mirroring hotel and
+  /// homestay. Without it an abandoned checkout blocked the slot until the tour
+  /// date passed. Cleared once payment confirms the booking.
+  holdExpiresAt      DateTime?
   cancelledBy        GuideBookingCancelledBy?
   cancellationReason String?
   guestNote          String?
@@ -580,6 +587,7 @@ model GuideBooking {
   @@index([guestId, status])
   @@index([travelPlanId, status])
   @@index([date, status])
+  @@index([status, holdExpiresAt])
 }
 
 model GuideBookingLog {
@@ -1037,6 +1045,23 @@ model PartnerEarning {
   @@index([createdAt])
 }
 
+/// Fixed-window rate limit counters, shared by every app process.
+/// Incremented with a conditional UPDATE (same pattern as hold expiry), so the
+/// limit holds under concurrency without a transaction.
+model RateLimit {
+  id          String   @id @default(cuid())
+  /// Caller bucket, e.g. "signin:1.2.3.4".
+  bucketKey   String
+  /// Floor of now to the window size — identical across processes.
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([bucketKey, windowStart])
+  @@index([expiresAt])
+}
+
 model RefreshToken {
   id        String    @id @default(cuid())
   tokenHash String    @unique
@@ -1045,6 +1070,8 @@ model RefreshToken {
   revokedAt DateTime?
   expiresAt DateTime
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model AuditLog {
@@ -1059,6 +1086,9 @@ model AuditLog {
   ip        String?
   userAgent String?
   createdAt DateTime @default(now())
+
+  /// AuditLog's "user" column is actorId — admin screens filter by actor.
+  @@index([actorId, createdAt])
 }
 
 model Notification {

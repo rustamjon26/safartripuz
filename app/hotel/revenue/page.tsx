@@ -7,10 +7,25 @@ import {
   TrendingUp, TrendingDown, DollarSign, Users, CalendarCheck, 
   Loader2, RefreshCw, BarChart4, ArrowUpRight, ArrowDownRight, Target
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
-interface Metric { label: string; value: number; unit?: string; icon: any; color: string; bg: string; }
+interface Metric { label: string; value: number; unit?: string; icon: LucideIcon; color: string; bg: string; }
 interface Trend { date: string; amount: number; }
+interface RevenueMetrics {
+  totalRevenue: number;
+  totalPaid: number;
+  occupancyRate: number;
+  adr: number;
+  revpar: number;
+  totalBookings: number;
+}
+interface RevenueSource { label: string; val: number; color: string; }
+interface RevenueData {
+  metrics: RevenueMetrics;
+  dailyTrend: Trend[];
+  sources?: RevenueSource[];
+}
 interface EarningsSummary {
   totalGross: number;
   totalCommission: number;
@@ -20,7 +35,7 @@ interface EarningsSummary {
 
 export default function RevenuePage() {
   const { t, language } = useLanguage();
-  const [data, setData] = useState<{ metrics: any; dailyTrend: Trend[]; sources?: any[] } | null>(null);
+  const [data, setData] = useState<RevenueData | null>(null);
   const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -142,7 +157,7 @@ export default function RevenuePage() {
                <h3 className="font-extrabold text-[var(--primary)] text-[15px] mb-6">{t("revenue.charts.source_occupancy")}</h3>
                
                <div className="space-y-5">
-                  {(data as any)?.sources ? (data as any).sources.map((s: any, idx: number) => (
+                  {data?.sources ? data.sources.map((s, idx) => (
                      <div key={idx}>
                         <div className="flex justify-between items-center text-[12px] font-bold mb-1.5">
                            <span className="text-slate-600">{s.label}</span>

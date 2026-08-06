@@ -75,8 +75,8 @@ export default function ToursPage() {
       
       toast.success("Sayohat paketi muvaffaqiyatli band qilindi! 🎉");
       router.push(`/payments/checkout/${data.planId}`);
-    } catch (err: any) {
-      toast.error(err.message || "Xatolik yuz berdi");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
       setIsBuying(false);
     }
   }

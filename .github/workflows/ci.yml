@@ -34,6 +34,11 @@ jobs:
     env:
       TEST_DATABASE_URL: mysql://safar:safar@127.0.0.1:3307/safartrip_test
       DATABASE_URL: mysql://safar:safar@127.0.0.1:3307/safartrip_test
+      # `prisma migrate diff --from-migrations` replays the migration history
+      # into this database, so it must NOT be the one holding test data. Root,
+      # because the `safar` service-container user cannot CREATE DATABASE.
+      SHADOW_DATABASE_URL: mysql://root:test@127.0.0.1:3307/safartrip_shadow
+      SHADOW_ADMIN_URL: mysql://root:test@127.0.0.1:3307/safartrip_test
       JWT_ACCESS_SECRET: ci_access_secret_for_tests_only
       JWT_REFRESH_SECRET: ci_refresh_secret_for_tests_only
       RESET_TEST_DB_MODE: migrate
@@ -57,6 +62,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # Blocking again as of this workflow's last edit. It was dropped
+      # 2026-07-29 in 5f5de3a for standalone/ noise; standalone/** is ignored
+      # now and the remaining error classes were either fixed or deliberately
+      # retuned in eslint.config.mjs. Warnings stay non-blocking on purpose —
+      # they are the migration-debt gauge, not failures.
+      - name: Lint
+        run: npm run lint
+
       # Production gate: green CI means this SHA is deployable.
       # Failure must fail the job (no continue-on-error). Restored 2026-07-30
       # after 5f5de3a stripped it for runner memory; keep BUILD_ID assert.
@@ -66,15 +79,16 @@ jobs:
           npm run build
           test -f .next/BUILD_ID
 
-      # Lint still intentionally OUT of the blocking sequence (removed 2026-07-29
-      # in 5f5de3a for standalone/ noise). eslint.config.mjs now ignores
-      # standalone/** — re-adding Lint as a required step needs Rustam's OK
-      # after a green `npm run lint` on main (do not silently re-enable).
-
       # Empty CI MySQL must apply history from 0_init (never db push here —
       # that reintroduces migrate/schema drift).
       - name: Apply migrations to test DB
         run: npx prisma migrate deploy
+
+      # Catches the failure mode where schema.prisma gains an index/column that
+      # no migration creates: `db push` locally makes it work for the author and
+      # silently breaks every `migrate deploy`-only environment.
+      - name: Migration drift check
+        run: bash scripts/check-migration-drift.sh
 
       - name: Vitest
         run: npx vitest run
