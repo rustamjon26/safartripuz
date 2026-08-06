@@ -110,6 +110,26 @@ NEXT_PUBLIC_APP_URL=https://safartrip.uz
 
 ---
 
+## Sandbox (`https://test.paycom.uz`)
+
+Docs: [Песочница](https://developer.help.paycom.uz/pesochnitsa).
+
+1. Kabinetda web-kassa ochiladi → `key` (prod) + `TEST_KEY` (sandbox).
+2. Kassa sozlamasida Endpoint URL = yuqoridagi webhook.
+3. Песочница UI da Merchant ID + `TEST_KEY` kiritiladi.
+4. Avval **scenario 1** (create → cancel unconfirmed), keyin **scenario 2**
+   (create → perform → cancel confirmed).
+5. Checkout init URL sandboxda: `https://test.paycom.uz` (prod: `checkout.paycom.uz`).
+
+Local auth probe (TEST_KEY siz faqat -32504 tekshiradi):
+
+```bash
+npx tsx scripts/payme-sandbox-probe.mts
+# With keys:
+# PAYME_TEST_SECRET_KEY=... PAYME_PROBE_ORDER_ID=... PAYME_PROBE_AMOUNT_TIYIN=... \
+#   npx tsx scripts/payme-sandbox-probe.mts
+```
+
 ## Ops checklist (kassa ochilgach)
 
 1. Admin → Settings → Payments: Payme `enabled`, `merchantId`, `merchantKey`.

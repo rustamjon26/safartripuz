@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findPaymentWithTravelPlanUser = vi.fn();
-const getCachedResponse = vi.fn(async () => null);
-const storeProcessedResponse = vi.fn(async () => undefined);
+const {
+  findPaymentWithTravelPlanUser,
+  getCachedResponse,
+  storeProcessedResponse,
+} = vi.hoisted(() => ({
+  findPaymentWithTravelPlanUser: vi.fn<(id: string) => Promise<unknown>>(),
+  getCachedResponse: vi.fn<(provider: string, eventId: string) => Promise<unknown>>(
+    async () => null,
+  ),
+  storeProcessedResponse: vi.fn<(input: unknown) => Promise<void>>(async () => undefined),
+}));
 
 vi.mock("../../repository/payment.repository", () => ({
   paymentRepository: {
-    findPaymentWithTravelPlanUser: (...args: unknown[]) =>
-      findPaymentWithTravelPlanUser(...args),
+    findPaymentWithTravelPlanUser,
     findPaymentByExternalRefAndProvider: vi.fn(),
     updatePaymentFields: vi.fn(),
     runTransaction: vi.fn(),
@@ -16,8 +23,8 @@ vi.mock("../../repository/payment.repository", () => ({
 
 vi.mock("../../service/payment.service", () => ({
   paymentService: {
-    getCachedResponse: (...args: unknown[]) => getCachedResponse(...args),
-    storeProcessedResponse: (...args: unknown[]) => storeProcessedResponse(...args),
+    getCachedResponse,
+    storeProcessedResponse,
     createIntent: vi.fn(),
   },
 }));
