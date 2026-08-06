@@ -49,7 +49,7 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
   const booking = await findBookingById(bookingId);
 
   if (!booking) {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
   }
 
   if (!isValidTiyinAmount(params.amount)) {

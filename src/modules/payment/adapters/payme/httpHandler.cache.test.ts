@@ -116,9 +116,30 @@ describe("paymeHttpHandler booking_id response caching", () => {
       }),
       { accountMode: "booking_id", path: "/api/payme" },
     );
-    const body = (await res.json()) as { error?: { code?: number } };
+    const body = (await res.json()) as { id?: number; error?: { code?: number } };
     expect(body.error?.code).toBe(-32504);
+    expect(body.id).toBe(42);
     expect(performCalls.count).toBe(0);
+  });
+
+  it("sandbox: no Authorization header → -32504 with the request id (not -32300 / id:0)", async () => {
+    const res = await paymeHttpHandler(
+      new Request("https://safartrip.uz/api/payme", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 40223,
+          method: "CheckPerformTransaction",
+          params: { amount: 50000, account: {} },
+        }),
+      }),
+      { accountMode: "booking_id", path: "/api/payme" },
+    );
+    const body = (await res.json()) as { id?: number; error?: { code?: number } };
+    expect(body.error?.code).toBe(-32504);
+    expect(body.error?.code).not.toBe(-32300);
+    expect(body.id).toBe(40223);
   });
 
   it("accepts a lowercase scheme the way RFC 7235 requires", async () => {

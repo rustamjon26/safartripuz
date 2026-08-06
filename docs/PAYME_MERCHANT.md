@@ -110,6 +110,16 @@ NEXT_PUBLIC_APP_URL=https://safartrip.uz
 
 ---
 
+## Sandbox error-code contract (Berdiyar / песочница)
+
+| Scenario | Required code | Our response |
+| --- | --- | --- |
+| No `Authorization` header | `-32504` | `AUTH_FAILED`, echo request `id` |
+| Unknown / invalid `booking_id` or `order_id` | `-31050` … `-31099` | `INVALID_ACCOUNT` (`-31050`) |
+| Wrong amount | `-31001` | `WRONG_AMOUNT` |
+
+Do **not** return `-32300` for auth, or `-31001`/`-31003` for a missing account.
+
 ## Sandbox (`https://test.paycom.uz`)
 
 Docs: [Песочница](https://developer.help.paycom.uz/pesochnitsa).

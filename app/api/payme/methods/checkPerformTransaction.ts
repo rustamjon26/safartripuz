@@ -17,8 +17,9 @@ export async function checkPerformTransaction(id: number, params: PaymeRpcParams
     booking ? { id: booking.id, amount: booking.amount, status: booking.status } : null,
   );
 
+  // Sandbox: invalid/unknown account must be -31050..-31099, not -31001/-31003.
   if (!booking) {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
   }
 
   if (!isValidTiyinAmount(params.amount)) {

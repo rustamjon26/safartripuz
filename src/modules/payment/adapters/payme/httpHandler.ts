@@ -82,6 +82,25 @@ export async function paymeHttpHandler(
 
     rawBody = await req.text();
 
+    // Echo the request id on EVERY error envelope — including auth failures.
+    // Sandbox checks that "no Authorization" returns -32504 with the same id
+    // the request carried; parsing id only after auth left id:0 and failed the test.
+    let body: {
+      method?: string;
+      params?: Record<string, unknown>;
+      id?: number;
+    } | null = null;
+    try {
+      body = JSON.parse(rawBody) as {
+        method?: string;
+        params?: Record<string, unknown>;
+        id?: number;
+      };
+      if (typeof body.id === "number") rpcId = body.id;
+    } catch {
+      body = null;
+    }
+
     await paymentService.logInbound({
       provider: "PAYME",
       path: opts.path,
@@ -91,6 +110,7 @@ export async function paymeHttpHandler(
     });
 
     // Auth — one check for both stacks; only the key source differs.
+    // Must return AUTH_FAILED (-32504), never NOT_POST (-32300).
     let secretKey: string;
     if (opts.accountMode === "booking_id") {
       secretKey = getPaymeSecretKey();
@@ -111,18 +131,10 @@ export async function paymeHttpHandler(
       return paymeJson(paymeRpcError(rpcId, authResult.error));
     }
 
-    let body: {
-      method?: string;
-      params?: Record<string, unknown>;
-      id?: number;
-    };
-    try {
-      body = JSON.parse(rawBody) as typeof body;
-    } catch {
+    if (!body) {
       return paymeJson(paymeRpcError(rpcId, PAYME_ERRORS.PARSE_ERROR));
     }
 
-    rpcId = typeof body.id === "number" ? body.id : 0;
     const method = body.method;
     const params = body.params ?? {};
 
