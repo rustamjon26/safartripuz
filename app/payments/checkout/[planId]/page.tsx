@@ -7,6 +7,20 @@ import { Loader2, CreditCard, ShieldCheck, Box, Banknote, Tent, Home, Car, User 
 import { useRouter } from "next/navigation";
 import { ListChecks, MapPin, Tag } from "lucide-react";
 
+type PlanItem = { id: string; type: string; title: string; totalPrice: unknown };
+type PlanHomeStayBooking = {
+  id: string;
+  totalPrice: unknown;
+  listing?: { title?: string; city?: string };
+};
+type TravelPlan = {
+  destination: string;
+  totalAmount: unknown;
+  tourPackage?: { title?: string };
+  items?: PlanItem[];
+  homeStayBookings?: PlanHomeStayBooking[];
+};
+
 export default function CheckoutPage({ params }: { params: Promise<{ planId: string }> }) {
   const router = useRouter();
   const { planId } = use(params);
@@ -14,8 +28,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   
-  const [plan, setPlan] = useState<any>(null);
-  const [providers, setProviders] = useState<any>({ click: false, payme: false, uzum: false });
+  const [plan, setPlan] = useState<TravelPlan | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -45,8 +58,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
       if (!res.ok) throw new Error(data.error || "Xatolik");
 
       window.location.href = data.paymentUrl;
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Xatolik yuz berdi");
       setPaying(false);
     }
   }
@@ -94,10 +107,10 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
               </div>
             </div>
 
-            {(plan.items?.length > 0 || plan.homeStayBookings?.length > 0) && (
+            {((plan.items?.length ?? 0) > 0 || (plan.homeStayBookings?.length ?? 0) > 0) && (
               <div className="mt-6 pt-6 border-t border-gray-100 space-y-2">
                 <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Xizmatlar</p>
-                {plan.items?.map((item: { id: string; type: string; title: string; totalPrice: unknown }) => (
+                {plan.items?.map((item) => (
                   <div key={item.id} className="flex items-center justify-between gap-3 text-sm">
                     <span className="inline-flex items-center gap-2 text-gray-600 font-semibold min-w-0">
                       {item.type === "HOTEL" ? (
@@ -116,12 +129,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ planId: str
                     </span>
                   </div>
                 ))}
-                {!plan.items?.some((item: { type: string }) => item.type === "HOMESTAY") &&
-                  plan.homeStayBookings?.map((booking: {
-                    id: string;
-                    totalPrice: unknown;
-                    listing?: { title?: string; city?: string };
-                  }) => (
+                {!plan.items?.some((item) => item.type === "HOMESTAY") &&
+                  plan.homeStayBookings?.map((booking) => (
                     <div key={booking.id} className="flex items-center justify-between gap-3 text-sm">
                       <span className="inline-flex items-center gap-2 text-gray-600 font-semibold min-w-0">
                         <Tent size={14} className="shrink-0 text-slate-500" />

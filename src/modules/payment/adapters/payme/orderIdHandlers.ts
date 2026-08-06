@@ -1,5 +1,5 @@
 import { Money } from "@/src/shared/money";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import {
   isPaymeErrorResponse,

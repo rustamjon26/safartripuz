@@ -7,7 +7,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { loginWithNext } from "@/lib/authLinks";
-import { normalizeUzPhone } from "@/lib/phone";
+import { normalizeUzPhone } from "@/src/shared/phone";
 
 const schema = z.object({
   hotelName: z.string().trim().min(2, "Mehmonxona nomi majburiy"),

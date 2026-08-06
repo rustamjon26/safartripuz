@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Plus, Trash2 } from "lucide-react";
 import { INVOICE_LINE_PRESETS } from "../../mock-pack10";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type Line = { id: string; name: string; qty: number; price: number };
 
@@ -67,7 +68,7 @@ export default function InvoiceWizardPage() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/invoices", {
+      const res = await hotelFetch("/api/hotel/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -94,7 +95,7 @@ export default function InvoiceWizardPage() {
         throw new Error(data.message || "Invoys saqlanmadi");
       }
       // ISSUED → SENT for "yuborish"
-      const sendRes = await fetch(`/api/hotel/invoices/${data.invoice.id}`, {
+      const sendRes = await hotelFetch(`/api/hotel/invoices/${data.invoice.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "SENT" }),

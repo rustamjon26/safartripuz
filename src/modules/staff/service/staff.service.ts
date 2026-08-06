@@ -3,8 +3,8 @@ import {
   isProtectedPlatformRole,
   jobRoleToPlatformRole,
   platformRoleToJobRole,
-} from "@/lib/hotel/staffPlatformRole";
-import { normalizeUzPhone } from "@/lib/phone";
+} from "../domain/platform-role";
+import { normalizeUzPhone } from "@/src/shared/phone";
 import {
   assertShiftTransition,
   StaffShiftStatusError,

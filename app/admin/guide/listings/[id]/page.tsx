@@ -215,12 +215,12 @@ export default function AdminGuideListingDetailPage() {
             <div>
               <div className="text-xs font-black text-slate-400 uppercase mb-2">Rasmlar</div>
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {listing.images.map((src) => (
+                {listing.images.map((src, index) => (
                   // eslint-disable-next-line @next/next/no-img-element -- arbitrary listing URLs
                   <img
                     key={src}
                     src={src}
-                    alt=""
+                    alt={`${listing.title} — rasm ${index + 1} / ${listing.images.length}`}
                     className="w-40 h-28 shrink-0 rounded-xl object-cover bg-slate-100 border border-slate-200"
                   />
                 ))}

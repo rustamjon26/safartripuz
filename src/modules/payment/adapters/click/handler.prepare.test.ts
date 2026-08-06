@@ -23,20 +23,11 @@ vi.mock("./sign", () => ({
   verifyClickSignature: () => true,
 }));
 
-vi.mock("@/lib/payments/providerConfig", () => ({
-  getPaymentProvidersConfig: async () => ({}),
-  getClickConfig: () => ({
-    enabled: true,
-    serviceId: "77",
-    secretKey: "secret",
-  }),
-}));
-
 vi.mock("@/src/shared/observability/sentry", () => ({
   setMoneyPathContext: vi.fn(),
 }));
 
-vi.mock("@/lib/payments/completeSuccessfulPaymentTx", () => ({
+vi.mock("@/src/modules/booking", () => ({
   completeSuccessfulPaymentInTx: vi.fn(async () => {
     state.completed += 1;
     state.paymentStatus = "SUCCESS";
@@ -72,6 +63,17 @@ vi.mock("../../service/payment.service", () => ({
 
 vi.mock("../../repository/payment.repository", () => ({
   paymentRepository: {
+    findSystemSettingValue: vi.fn(async (key: string) =>
+      key === "payment_providers"
+        ? {
+            click: {
+              enabled: true,
+              serviceId: "77",
+              secretKey: "secret",
+            },
+          }
+        : null,
+    ),
     findPaymentWithTravelPlanUser: vi.fn(async (id: string) =>
       id === PAYMENT_ID
         ? {

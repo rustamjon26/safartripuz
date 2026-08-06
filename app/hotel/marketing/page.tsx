@@ -7,25 +7,60 @@ import {
   TrendingUp, Users, Award, ShieldCheck, X, ThumbsUp, Send
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { hotelApiErrorMessage, hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 interface Feedback { id: string; guestName: string; rating: number; comment: string | null; source: string; createdAt: string; }
+
+interface Loyalty { platinum: number; gold: number; silver: number; }
+interface Metrics {
+  avgRating: number;
+  totalFeedbacks: number;
+  promoterRate: number;
+  loyalty: Loyalty;
+  activePromos: number;
+}
+
+interface Promo {
+  id: string;
+  title: string;
+  code: string | null;
+  discountPercent: number;
+  type: string;
+  isActive: boolean;
+}
+
+const EMPTY_METRICS: Metrics = {
+  avgRating: 0,
+  totalFeedbacks: 0,
+  promoterRate: 0,
+  loyalty: { platinum: 0, gold: 0, silver: 0 },
+  activePromos: 0,
+};
 
 export default function MarketingPage() {
   const { t } = useLanguage();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [metrics, setMetrics] = useState({ avgRating: 0, totalFeedbacks: 0, promoterRate: 0 });
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [metrics, setMetrics] = useState<Metrics>(EMPTY_METRICS);
   const [loading, setLoading] = useState(true);
   const [addingFeed, setAddingFeed] = useState(false);
   const [addingPromo, setAddingPromo] = useState(false);
+  const [savingPromo, setSavingPromo] = useState(false);
   const [form, setForm] = useState({ guestName: "", rating: "5", comment: "", source: "DIRECT" });
   const [promoForm, setPromoForm] = useState({ title: "", code: "", discount: "", type: "SEASONAL" });
  
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/marketing");
+      const res = await hotelFetch("/api/hotel/marketing");
       const data = await res.json();
-      if (res.ok) { setFeedbacks(data.feedbacks); setMetrics(data.metrics); }
+      if (res.ok) {
+        setFeedbacks(data.feedbacks);
+        setMetrics({ ...EMPTY_METRICS, ...data.metrics });
+        setPromos(data.promos ?? []);
+      } else {
+        toast.error(hotelApiErrorMessage(res.status, data?.message));
+      }
     } catch { toast.error(t("common.toasts.error")); }
     setLoading(false);
   }
@@ -35,22 +70,64 @@ export default function MarketingPage() {
   async function handleSubmitFeedback(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/hotel/marketing", {
+      const res = await hotelFetch("/api/hotel/marketing", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
       if (res.ok) { 
         toast.success(t("marketing.toasts.feedback_success")); 
         setAddingFeed(false); void load(); 
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(hotelApiErrorMessage(res.status, data?.message));
       }
     } catch { toast.error(t("common.toasts.error")); }
   }
 
   async function handleSubmitPromo(e: React.FormEvent) {
     e.preventDefault();
-    toast.success(t("marketing.toasts.promo_success", { title: promoForm.title }));
-    setAddingPromo(false);
-    setPromoForm({ title: "", code: "", discount: "", type: "SEASONAL" });
+    setSavingPromo(true);
+    try {
+      const res = await hotelFetch("/api/hotel/promos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: promoForm.title,
+          code: promoForm.code,
+          discountPercent: promoForm.discount,
+          type: promoForm.type,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(hotelApiErrorMessage(res.status, data?.message));
+        return;
+      }
+      toast.success(t("marketing.toasts.promo_success", { title: promoForm.title }));
+      setAddingPromo(false);
+      setPromoForm({ title: "", code: "", discount: "", type: "SEASONAL" });
+      await load();
+    } catch {
+      toast.error(t("common.toasts.error"));
+    } finally {
+      setSavingPromo(false);
+    }
+  }
+
+  async function togglePromo(promo: Promo) {
+    try {
+      const res = await hotelFetch(`/api/hotel/promos/${promo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !promo.isActive }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(hotelApiErrorMessage(res.status, data?.message));
+        return;
+      }
+      await load();
+    } catch { toast.error(t("common.toasts.error")); }
   }
  
   return (
@@ -100,10 +177,11 @@ export default function MarketingPage() {
             <Users size={80} className="absolute -right-4 -bottom-4 text-blue-200 opacity-20"/>
             <div className="relative z-10">
                <span className="text-[10px] font-black text-blue-600 uppercase">{t("marketing.metrics.active_promos")}</span>
-               <div className="text-3xl font-black text-[var(--primary)] mb-1">2 <span className="text-sm text-blue-600">{t("marketing.metrics.promo_unit")}</span></div>
-               <div className="flex items-center gap-2 mt-2">
-                  <span className="px-2 py-0.5 bg-white text-[9px] font-black text-blue-600 rounded-md border border-blue-200 tracking-wider">#HOT_SUMMER</span>
-                  <span className="px-2 py-0.5 bg-white text-[9px] font-black text-blue-600 rounded-md border border-blue-200 tracking-wider">#OPENING_20</span>
+               <div className="text-3xl font-black text-[var(--primary)] mb-1">{metrics.activePromos} <span className="text-sm text-blue-600">{t("marketing.metrics.promo_unit")}</span></div>
+               <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {promos.filter(p => p.isActive && p.code).slice(0, 3).map(p => (
+                    <span key={p.id} className="px-2 py-0.5 bg-white text-[9px] font-black text-blue-600 rounded-md border border-blue-200 tracking-wider">#{p.code}</span>
+                  ))}
                </div>
             </div>
          </div>
@@ -152,9 +230,9 @@ export default function MarketingPage() {
                
                <div className="space-y-4">
                   {[
-                     { label: "Platinum", min: 5, count: (metrics as any).loyalty?.platinum || 0, color: "bg-blue-600", key: 'platinum' },
-                     { label: "Gold", min: 2, count: (metrics as any).loyalty?.gold || 0, color: "bg-amber-500", key: 'gold' },
-                     { label: "Silver", min: 1, count: (metrics as any).loyalty?.silver || 0, color: "bg-slate-400", key: 'silver' },
+                     { label: "Platinum", min: 5, count: metrics.loyalty.platinum, color: "bg-blue-600", key: 'platinum' },
+                     { label: "Gold", min: 2, count: metrics.loyalty.gold, color: "bg-amber-500", key: 'gold' },
+                     { label: "Silver", min: 1, count: metrics.loyalty.silver, color: "bg-slate-400", key: 'silver' },
                   ].map((lvl, idx) => (
                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group hover:border-[var(--accent)] transition-all">
                         <div className="flex items-center gap-3">
@@ -174,6 +252,41 @@ export default function MarketingPage() {
                      <Megaphone size={14}/> {t("marketing.new_promo_btn")}
                   </button>
                </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+               <h3 className="font-extrabold text-[var(--primary)] text-[15px] mb-4 flex items-center gap-2">
+                  <Megaphone size={18}/> {t("marketing.metrics.active_promos")}
+               </h3>
+               {promos.length === 0 ? (
+                 <p className="text-[12px] font-bold text-slate-400">
+                   {t("marketing.feedback_list.no_data")}
+                 </p>
+               ) : (
+                 <div className="space-y-2">
+                   {promos.map(p => (
+                     <div key={p.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                       <div className="min-w-0">
+                         <div className="text-[12px] font-black text-[var(--primary)] truncate">{p.title}</div>
+                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                           {p.code ? `#${p.code} · ` : ""}{p.discountPercent}% · {p.type}
+                         </div>
+                       </div>
+                       <button
+                         type="button"
+                         onClick={() => void togglePromo(p)}
+                         className={`px-2.5 py-1 text-[10px] font-black uppercase rounded-lg border tracking-wider shrink-0 ${
+                           p.isActive
+                             ? "bg-green-50 text-green-700 border-green-200"
+                             : "bg-slate-100 text-slate-400 border-slate-200"
+                         }`}
+                       >
+                         {p.isActive ? "ON" : "OFF"}
+                       </button>
+                     </div>
+                   ))}
+                 </div>
+               )}
             </div>
          </div>
       </div>
@@ -241,7 +354,7 @@ export default function MarketingPage() {
                      </div>
                      <div>
                         <label className="block text-[11px] font-black text-slate-500 uppercase mb-1">{t("marketing.forms.promo.discount")}</label>
-                        <input value={promoForm.discount} onChange={e=>setPromoForm({...promoForm, discount: e.target.value})} placeholder="15" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)]"/>
+                        <input required type="number" min={0.01} max={100} step={0.01} value={promoForm.discount} onChange={e=>setPromoForm({...promoForm, discount: e.target.value})} placeholder="15" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-[var(--accent)]"/>
                      </div>
                   </div>
                   <div>
@@ -253,8 +366,8 @@ export default function MarketingPage() {
                      </select>
                   </div>
                   <div className="pt-2">
-                     <button type="submit" className="w-full py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
-                       <Send size={16}/> {t("marketing.forms.promo.submit")}
+                     <button type="submit" disabled={savingPromo} className="w-full py-2.5 bg-[var(--primary)] text-white text-[13px] font-bold rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                       {savingPromo ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} {t("marketing.forms.promo.submit")}
                      </button>
                   </div>
                </form>

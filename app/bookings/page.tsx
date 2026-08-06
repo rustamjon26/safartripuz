@@ -10,6 +10,7 @@ import {
   Users, Loader2, Wallet, ListChecks, Map,
 } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { loginWithNext } from "@/lib/authLinks";
 
 type Item = { id: string; type: string; title: string; quantity: number; totalPrice: string };
 type Plan = {
@@ -42,7 +43,9 @@ export default function BookingsPage() {
     try {
       const res = await fetch("/api/travel-plans");
       if (res.status === 401) {
-        router.push(`/login?next=${encodeURIComponent(pathname || "/user/bookings")}`);
+        // This page is /bookings; the fallback used to send people to
+        // /user/bookings, a different route, after they signed in.
+        router.push(loginWithNext(pathname || "/bookings"));
         return;
       }
       const data = (await res.json()) as { items?: Plan[]; message?: string };

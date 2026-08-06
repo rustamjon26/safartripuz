@@ -1,5 +1,5 @@
 import { Money } from "@/src/shared/money";
-import { formatDateOnly } from "@/src/modules/inventory/domain/nights";
+import { formatDateOnly } from "@/src/modules/inventory";
 import { db, type DbClient } from "@/src/shared/db/client";
 import type {
   LosRuleInput,
@@ -51,6 +51,9 @@ export class RatesRepository {
           startDate: { lt: checkOut },
           endDate: { gte: checkIn },
         },
+        // Overlap precedence is decided in the domain (pickSeasonalOverride);
+        // ordering here only keeps the input stable across replicas.
+        orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
       });
       return rows.map(
         (r: {

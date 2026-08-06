@@ -19,7 +19,7 @@ const AMENITIES = [
   { key: "bbq", label: "Mangal (BBQ)" },
 ];
 
-type ListingData = {
+export type ListingData = {
   id?: string;
   title: string;
   description: string;

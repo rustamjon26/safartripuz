@@ -32,3 +32,20 @@ export {
   buildClickSignString,
   timingSafeEqualHex,
 } from "./adapters/click/sign";
+export {
+  appBaseUrl,
+  getClickConfig,
+  getPaymeConfig,
+  getPaymentProvidersConfig,
+  paymeMerchantKey,
+} from "./domain/provider-config";
+export type { ClickProviderConfig, PaymeProviderConfig } from "./domain/provider-config";
+export {
+  paymeBookingRepository,
+  PaymeBookingRepository,
+  paymeTransactionInclude,
+} from "./repository/payme-booking.repository";
+export type {
+  BookingWithHotel,
+  PaymeTransactionWithBooking,
+} from "./repository/payme-booking.repository";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertBalanced, UnbalancedLedgerError } from "./balance";
-import { splitBookingCommission } from "./commission";
+import { splitBookingCommission } from "@/src/modules/commission";
 
 describe("ledger.invariant", () => {
   it("accepts balanced debit/credit", () => {

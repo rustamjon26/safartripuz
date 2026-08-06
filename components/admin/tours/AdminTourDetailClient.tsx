@@ -321,15 +321,17 @@ export function AdminTourDetailClient({ data: initial }: Props) {
               </div>
               {galleryImages.length > 1 && (
                 <div className="grid grid-cols-3 gap-3">
-                  {galleryImages.map((url) => (
+                  {galleryImages.map((url, index) => (
                     <button
                       key={url}
                       type="button"
+                      aria-label={`Rasm ${index + 1} ni ko'rsatish`}
                       onClick={() => setSelectedImage(url)}
                       className={`rounded-xl overflow-hidden border-2 transition-all ${
                         selectedImage === url ? "border-slate-900" : "border-transparent"
                       }`}
                     >
+                      {/* Decorative: the button around it carries the label. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" className="w-full h-20 object-cover" />
                     </button>

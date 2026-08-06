@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { prisma } from "@/lib/prisma";
+import { adminDashboardService } from "@/src/modules/admin-dashboard";
 import Link from "next/link";
 import {
   Users,
@@ -21,139 +21,6 @@ import {
 import { formatDateTime } from "@/lib/formatDate";
 import { EmptyState } from "@/components/ui/EmptyState";
 
-async function getStats() {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-  const monthEnd = new Date(monthStart);
-  monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-  const [
-    totalUsers,
-    pendingPartners,
-    totalPayments,
-    successPayments,
-    totalTours,
-    totalHotels,
-    recentAudit,
-    recentPayments,
-    homeStayPendingListings,
-    homeStayActiveListings,
-    taxiOrdersToday,
-    onlineDrivers,
-    guideBookingsThisMonth,
-    guideActiveListings,
-    taxiDisputeCount,
-    guideDisputeCount,
-    guidePendingListingCount,
-    unverifiedDriverCount,
-    hotelBookingsToday,
-    hotelCheckoutsToday,
-    totalActiveRooms,
-    occupiedRooms,
-    hotelRevenueThisMonth,
-    pendingHotelApprovals,
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.partner.count({ where: { status: "pending" } }),
-    prisma.payment.count(),
-    prisma.payment.aggregate({
-      where: { status: "SUCCESS" },
-      _sum: { amount: true },
-    }),
-    prisma.tourPackage.count(),
-    prisma.hotel.count(),
-    prisma.auditLog.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: { actor: { select: { first_name: true, last_name: true, role: true } } },
-    }),
-    prisma.payment.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: { travelPlan: { select: { destination: true } } },
-    }),
-    prisma.homeStayListing.count({ where: { status: "PENDING" } }),
-    prisma.homeStayListing.count({ where: { status: "ACTIVE" } }),
-    prisma.taxiOrder.count({
-      where: { createdAt: { gte: startOfDay, lte: endOfDay } },
-    }),
-    prisma.driverProfile.count({ where: { isOnline: true } }),
-    prisma.guideBooking.count({
-      where: { createdAt: { gte: monthStart, lt: monthEnd } },
-    }),
-    prisma.guideListing.count({ where: { status: "ACTIVE" } }),
-    prisma.taxiOrder.count({ where: { status: "DISPUTE" } }),
-    prisma.guideBooking.count({ where: { status: "DISPUTE" } }),
-    prisma.guideListing.count({ where: { status: "PENDING" } }),
-    prisma.user.count({
-      where: {
-        role: "taxi_partner",
-        OR: [{ driverProfile: null }, { driverProfile: { isVerified: false } }],
-      },
-    }),
-    prisma.hotelBooking.count({
-      where: {
-        checkInDate: { gte: startOfDay, lte: endOfDay },
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
-      },
-    }),
-    prisma.hotelBooking.count({
-      where: {
-        checkOutDate: { gte: startOfDay, lte: endOfDay },
-        status: { in: ["CONFIRMED", "CHECKED_IN"] },
-      },
-    }),
-    prisma.physicalRoom.count({ where: { isActive: true } }),
-    prisma.physicalRoom.count({ where: { isActive: true, status: "OCCUPIED" } }),
-    prisma.hotelBooking.aggregate({
-      where: {
-        createdAt: { gte: monthStart, lt: monthEnd },
-        status: { not: "CANCELLED" },
-      },
-      _sum: { totalAmount: true },
-    }),
-    prisma.hotel.count({ where: { status: "draft" } }),
-  ]);
-
-  const hotelOccupancyRate =
-    totalActiveRooms > 0
-      ? Math.round((occupiedRooms / totalActiveRooms) * 1000) / 10
-      : 0;
-
-  return {
-    totalUsers,
-    pendingPartners,
-    totalPayments,
-    totalRevenue: Number(successPayments._sum.amount ?? 0),
-    totalTours,
-    totalHotels,
-    recentAudit,
-    recentPayments,
-    homeStayPendingListings,
-    homeStayActiveListings,
-    taxiOrdersToday,
-    onlineDrivers,
-    guideBookingsThisMonth,
-    guideActiveListings,
-    taxiDisputeCount,
-    guideDisputeCount,
-    guidePendingListingCount,
-    unverifiedDriverCount,
-    hotelBookingsToday,
-    hotelCheckoutsToday,
-    totalActiveRooms,
-    occupiedRooms,
-    hotelOccupancyRate,
-    hotelRevenueThisMonth: Number(hotelRevenueThisMonth._sum.totalAmount ?? 0),
-    pendingHotelApprovals,
-  };
-}
-
 function fmtMoney(amount: number) {
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M UZS`;
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K UZS`;
@@ -169,7 +36,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function AdminDashboard() {
-  const stats = await getStats();
+  const stats = await adminDashboardService.getStats();
 
   const kpiCards = [
     {

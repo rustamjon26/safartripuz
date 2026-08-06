@@ -34,17 +34,35 @@ npx prisma generate
 echo "==> Applying migrations (prefer migrate deploy over db:push)..."
 npx prisma migrate deploy
 
-echo "==> Typecheck + unit tests..."
+echo "==> Typecheck + lint + unit tests..."
 npm run typecheck
+# Blocking, matching CI. eslint errors are zero on main; the remaining ~430
+# warnings are the migration-debt gauge and do not fail the run.
+npm run lint
 npm run test:unit
 
-# Lint is intentionally NON-blocking here — matches CI (.github/workflows/ci.yml):
-# eslint still has large pre-existing debt on main; a hard fail aborts deploy after
-# migrate and leaves PM2 on the old build. Re-enable only after `npm run lint` is green.
-if npm run lint; then
-  echo "==> Lint: clean"
+# Integration tests are deliberately NOT run here. They need a throwaway
+# database (src/test/db.ts refuses to run without TEST_DATABASE_URL, and
+# resetTestDb drops the schema), and this host only has production MySQL —
+# pointing them at it would erase live data. CI is the gate that runs the full
+# suite against a disposable MySQL service container; this script re-runs the
+# cheap, side-effect-free checks as a last line of defence against deploying a
+# SHA that never went through a PR.
+#
+# Set TEST_DATABASE_URL on this host (a separate, empty database) to opt in.
+if [[ -n "${TEST_DATABASE_URL:-}" ]]; then
+  echo "==> Integration tests (TEST_DATABASE_URL is set)..."
+  npm run test:integration
 else
-  echo "==> Lint: FAILED (non-blocking — see CI note; continuing deploy)" >&2
+  echo "==> Integration tests: skipped (no TEST_DATABASE_URL — CI covers these)."
+fi
+
+# Same reason: drift detection needs a shadow database it can drop.
+if [[ -n "${SHADOW_DATABASE_URL:-}" ]]; then
+  echo "==> Migration drift check..."
+  bash scripts/check-migration-drift.sh
+else
+  echo "==> Migration drift check: skipped (no SHADOW_DATABASE_URL — CI covers this)."
 fi
 
 # Tradeoff: stopping the Next.js app (and optionally MySQL + workers) during build

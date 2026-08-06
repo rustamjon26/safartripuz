@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Settings, Building2, Mail, Phone, MapPin, Globe, Save,
   Loader2, ShieldCheck, CreditCard, Bell, Lock, ArrowLeft, Key, UserCheck, Cable
@@ -21,7 +22,7 @@ export default function SettingsPage() {
 
   async function load() {
     try {
-      const res  = await fetch("/api/hotel/me");
+      const res  = await hotelFetch("/api/hotel/me");
       const data = await res.json();
       if (res.ok && data.hotel) {
         setIsStaff(data.isStaff);
@@ -45,13 +46,13 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/profile", {
+      const res = await hotelFetch("/api/hotel/profile", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
       if (res.ok) toast.success(t("settings.toasts.save_success"));
       else throw new Error(await (await res.json()).message);
-    } catch (e: any) { toast.error(e.message || t("common.error")); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("common.error")); }
     setSaving(false);
   }
 
@@ -60,7 +61,7 @@ export default function SettingsPage() {
     if (passForm.newPassword !== passForm.confirmPassword) return toast.error(t("settings.toasts.pass_mismatch"));
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/profile/password", {
+      const res = await hotelFetch("/api/hotel/profile/password", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(passForm)
       });

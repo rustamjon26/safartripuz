@@ -17,6 +17,56 @@ function dateInRange(date: string, start: string, end: string): boolean {
   return date >= start && date <= end;
 }
 
+/** Inclusive day count of a YYYY-MM-DD range, used only to compare specificity. */
+function rangeSpanDays(rule: { startDate: string; endDate: string }): number {
+  const start = Date.parse(`${rule.startDate}T00:00:00Z`);
+  const end = Date.parse(`${rule.endDate}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end)) return Number.MAX_SAFE_INTEGER;
+  return Math.floor((end - start) / 86_400_000) + 1;
+}
+
+/**
+ * Which override wins when several cover the same night.
+ *
+ * **Most specific date range wins**: the narrowest window, because that is how
+ * an operator layers rules — a broad "summer season" with a narrow "Navruz
+ * week" carved out of it, expecting the narrow one to apply.
+ *
+ * Ties break on the later `startDate`, then on `priceTiyin`, so the result is
+ * deterministic even when two rules describe the same window. Before this, the
+ * winner was whichever row the database happened to return first — the query
+ * has no ORDER BY, so the same booking could be priced differently on a replica.
+ */
+export function pickSeasonalOverride<
+  T extends { startDate: string; endDate: string; priceTiyin: bigint },
+>(candidates: T[], date: string): T | null {
+  let best: T | null = null;
+
+  for (const rule of candidates) {
+    if (!dateInRange(date, rule.startDate, rule.endDate)) continue;
+    if (best === null) {
+      best = rule;
+      continue;
+    }
+
+    const span = rangeSpanDays(rule);
+    const bestSpan = rangeSpanDays(best);
+    if (span !== bestSpan) {
+      if (span < bestSpan) best = rule;
+      continue;
+    }
+    if (rule.startDate !== best.startDate) {
+      if (rule.startDate > best.startDate) best = rule;
+      continue;
+    }
+    if (rule.priceTiyin !== best.priceTiyin && rule.priceTiyin > best.priceTiyin) {
+      best = rule;
+    }
+  }
+
+  return best;
+}
+
 export function resolveBaseRate(input: PricingInput): PricingState {
   const nights: NightQuote[] = input.nightBases.map((n) => ({
     date: n.date,
@@ -34,9 +84,7 @@ export function resolveBaseRate(input: PricingInput): PricingState {
 
 export function applySeasonalOverride(state: PricingState, input: PricingInput): PricingState {
   const nights = state.nights.map((night) => {
-    const hit = input.seasonalOverrides.find((o) =>
-      dateInRange(night.date, o.startDate, o.endDate),
-    );
+    const hit = pickSeasonalOverride(input.seasonalOverrides, night.date);
     if (!hit) return night;
     const lineItems = [
       ...night.lineItems.filter((l) => l.code !== "BASE" && l.code !== "OVERRIDE"),

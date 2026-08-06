@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Printer } from "lucide-react";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 type InvoiceLine = {
   name: string;
   description: string | null;
@@ -83,7 +84,7 @@ function InvoicePreviewInner() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/hotel/invoices/${id}`);
+        const res = await hotelFetch(`/api/hotel/invoices/${id}`);
         const data = (await res.json()) as {
           invoice?: Invoice;
           message?: string;

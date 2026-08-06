@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
@@ -11,7 +13,7 @@ import {
   Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2,
   LifeBuoy, Plus, FileText,
 } from "lucide-react";
-import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
+import { LanguageProvider, useLanguage, type Translate } from "@/context/LanguageContext";
 import { normalizeHotelNavRole } from "./nav-role";
 
 interface HotelUser { 
@@ -22,7 +24,7 @@ interface HotelUser {
   hotelStaff?: { role: string };
 }
 
-const GET_NAV_GROUPS = (t: any) => [
+const GET_NAV_GROUPS = (t: Translate) => [
   {
     label: t("nav.front"),
     items: [
@@ -38,7 +40,7 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/guests",        label: t("nav.guests"), icon: Users, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/finance",       label: t("nav.finance"),       icon: Receipt, roles: ["hotel_manager", "admin", "receptionist"] },
-      { href: "/hotel/invoices/new",  label: "Invoys",               icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
+      { href: "/hotel/invoices/new",  label: t("nav.invoices"),      icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/revenue",       label: t("nav.revenue"),       icon: TrendingUp, roles: ["hotel_manager", "admin"] },
     ]
   },
@@ -78,17 +80,29 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const [collapsed,  setCollapsed]  = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user,       setUser]       = useState<HotelUser | null>(null);
+  const [ready,      setReady]      = useState(false);
 
   async function ensureAuth() {
     try {
-      const res = await fetch("/api/user/me");
+      // hotelFetch already refreshes once and retries on 401, so a 401 here
+      // means the refresh token is gone too — not just an expired access token.
+      const res = await hotelFetch("/api/user/me");
       if (res.status === 401) {
-        const r = await fetch("/api/auth/refresh", { method: "POST" });
-        if (r.ok) { const d = await (await fetch("/api/user/me")).json(); if (d.user) setUser(d.user); }
-        else router.push("/login?next=" + encodeURIComponent(pathname));
-      } else if (res.ok) { const d = await res.json(); if (d.user) setUser(d.user); }
-    } catch { /* suppress */ }
+        router.push("/login?next=" + encodeURIComponent(pathname));
+        return;
+      }
+      if (res.ok) {
+        const d = await res.json();
+        if (d.user) {
+          setUser(d.user);
+          setReady(true);
+        }
+      }
+    } catch { /* offline — keep the shell gated, the next request will retry */ }
   }
 
   // Auth once on mount — re-fetching on every pathname remounted the sidebar tree.
@@ -156,10 +170,10 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           {showText && (
             <div className="flex-1 min-w-0">
               <div className="font-display font-bold text-white text-[17px] leading-tight truncate">
-                SafarTrip Partner
+                {t("shell.brand")}
               </div>
               <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
-                Property Management
+                {t("shell.tagline")}
               </div>
             </div>
           )}
@@ -225,7 +239,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
             }${!showText ? " justify-center" : ""}`}
           >
             <Settings size={18} className="shrink-0" />
-            {showText && <span>Settings</span>}
+            {showText && <span>{t("shell.settings")}</span>}
           </Link>
           <Link
             href="/hotel/help"
@@ -254,7 +268,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-white truncate">
-                      {user ? `${user.first_name} ${user.last_name}` : "Manager"}
+                      {user ? `${user.first_name} ${user.last_name}` : t("shell.manager_fallback")}
                     </div>
                     <div className="text-[10px] text-white/45 truncate">
                       {user?.email || "hotel@safartrip.uz"}
@@ -375,6 +389,15 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Hotel data must not paint before the session check lands.
+  if (!ready) {
+    return (
+      <div className="hl-root flex h-screen items-center justify-center bg-[#f9f9ff] text-sm font-semibold text-[#64748B]">
+        Yuklanmoqda…
+      </div>
+    );
+  }
+
   return (
     <div className="hl-root flex h-screen bg-[#f9f9ff] overflow-hidden text-[#111c2d]">
 
@@ -391,8 +414,20 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
       {/* ━━━ MOBILE DRAWER ━━━ */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12">
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
+            className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12"
+          >
             <button
               type="button"
               className="absolute top-4 right-4 p-2 bg-white/10 text-white/80 rounded-lg z-50"
@@ -456,7 +491,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
                 className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#006781] hover:bg-[#005a71] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold transition-colors"
               >
                 <Plus size={14} strokeWidth={2.5} />
-                Check-in
+                {t("shell.check_in")}
               </Link>
             )}
 

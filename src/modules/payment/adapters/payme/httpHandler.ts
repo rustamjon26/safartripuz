@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { cancelTransaction } from "@/app/api/payme/methods/cancelTransaction";
-import { checkPerformTransaction } from "@/app/api/payme/methods/checkPerformTransaction";
-import { checkTransaction } from "@/app/api/payme/methods/checkTransaction";
+import { checkPerformTransaction } from "./bookingId/checkPerformTransaction";
+import { checkTransaction } from "./bookingId/checkTransaction";
 import { createTransaction } from "@/app/api/payme/methods/createTransaction";
-import { getStatement } from "@/app/api/payme/methods/getStatement";
+import { getStatement } from "./bookingId/getStatement";
 import { performTransaction } from "@/app/api/payme/methods/performTransaction";
 import {
   getPaymentProvidersConfig,
   getPaymeConfig,
   paymeMerchantKey,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 import { getPaymeSecretKey } from "@/app/api/payme/utils/helpers";
 import {
   isPaymeErrorResponse,

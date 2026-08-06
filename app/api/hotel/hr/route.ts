@@ -7,7 +7,7 @@ import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import {
   isProtectedPlatformRole,
   jobRoleToPlatformRole,
-} from "@/lib/hotel/staffPlatformRole";
+} from "@/src/modules/staff";
 
 const jobRoleSchema = z.enum(["RECEPTION", "CLEANER", "WAITER", "MANAGER"]);
 

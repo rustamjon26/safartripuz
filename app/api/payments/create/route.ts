@@ -9,7 +9,7 @@ import {
   getClickConfig,
   getPaymeConfig,
   getPaymentProvidersConfig,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 
 const schema = z.object({
   planId: z.string(),

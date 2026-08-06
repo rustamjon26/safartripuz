@@ -1,3 +1,5 @@
+import AuthGate from "@/components/auth/AuthGate";
+
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <AuthGate>{children}</AuthGate>;
 }

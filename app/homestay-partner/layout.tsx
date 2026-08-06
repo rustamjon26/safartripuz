@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
 import "../hotel/hotel.css";
 import type { ReactNode } from "react";
 
@@ -38,7 +39,11 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function loadMe() {
@@ -54,6 +59,7 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
           return;
         }
         setUser(data.user);
+        setReady(true);
       } catch {
         router.push("/login?next=/homestay-partner/dashboard");
       }
@@ -167,6 +173,16 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.label ||
     "Uy mehmonxonasi";
 
+  // Nothing renders until the session check resolves — otherwise the shell and
+  // its data are briefly visible to a signed-out visitor on a client navigation.
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
+      </div>
+    );
+  }
+
   return (
     <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">
       <aside className="hidden lg:flex w-[250px] border-r border-slate-200/80 bg-white shrink-0">
@@ -175,8 +191,20 @@ export default function HomeStayPartnerLayout({ children }: { children: ReactNod
 
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-white h-full shadow-2xl flex flex-col">
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[260px] bg-white h-full shadow-2xl flex flex-col"
+          >
             {renderSidebar(true)}
           </aside>
         </div>

@@ -1,12 +1,12 @@
 import type { Booking, Hotel, PaymeTransaction } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { paymeBookingRepository } from "@/src/modules/payment";
 import {
   buildPaymeReceiptDetail,
   getPaymeMxikCode as sharedGetPaymeMxikCode,
   getPaymePackageCode as sharedGetPaymePackageCode,
   getPaymeVatPercent as sharedGetPaymeVatPercent,
-  type PaymeReceiptDetail as SharedPaymeReceiptDetail,
-  type PaymeReceiptItem as SharedPaymeReceiptItem,
+  type PaymeReceiptDetail,
+  type PaymeReceiptItem,
 } from "@/src/modules/payment/domain/payme-receipt";
 
 export const PAYME_TRANSACTION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
@@ -46,8 +46,7 @@ export type PaymeRpcRequest = {
   id: number;
 };
 
-export type PaymeReceiptItem = SharedPaymeReceiptItem;
-export type PaymeReceiptDetail = SharedPaymeReceiptDetail;
+export type { PaymeReceiptItem, PaymeReceiptDetail };
 
 export type BookingWithHotel = Booking & {
   hotel: Pick<Hotel, "id" | "name">;
@@ -174,10 +173,7 @@ export function getBookingIdFromAccount(
 export async function findBookingById(bookingId: string | undefined): Promise<BookingWithHotel | null> {
   if (!bookingId) return null;
 
-  return prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: bookingHotelInclude,
-  });
+  return paymeBookingRepository.findBookingById(bookingId);
 }
 
 export async function findPaymeTransactionByPaymeId(
@@ -186,10 +182,7 @@ export async function findPaymeTransactionByPaymeId(
   const normalizedPaymeId = normalizePaymeTransactionId(paymeId);
   if (!normalizedPaymeId) return null;
 
-  return prisma.paymeTransaction.findUnique({
-    where: { paymeId: normalizedPaymeId },
-    include: paymeTransactionInclude,
-  });
+  return paymeBookingRepository.findTransactionByPaymeId(normalizedPaymeId);
 }
 
 /** One PaymeTransaction per booking (unique bookingId). */
@@ -197,10 +190,7 @@ export async function findPaymeTransactionByBookingId(
   bookingId: string | undefined,
 ): Promise<PaymeTransactionWithBooking | null> {
   if (!bookingId) return null;
-  return prisma.paymeTransaction.findUnique({
-    where: { bookingId },
-    include: paymeTransactionInclude,
-  });
+  return paymeBookingRepository.findTransactionByBookingId(bookingId);
 }
 
 export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetail {
@@ -291,17 +281,8 @@ export async function autoCancelExpiredTransaction(
 
   const cancelTime = BigInt(Date.now());
 
-  return prisma.paymeTransaction.update({
-    where: { id: transaction.id },
-    data: {
-      state: -1,
-      reason: 4,
-      cancelTime,
-    },
-    include: {
-      booking: {
-        include: bookingHotelInclude,
-      },
-    },
+  return paymeBookingRepository.markTransactionCancelled(transaction.id, {
+    reason: 4,
+    cancelTime,
   });
 }

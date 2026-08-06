@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Loader2,
   UserCog,
@@ -76,7 +77,7 @@ export default function HRPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/hr");
+      const res = await hotelFetch("/api/hotel/hr");
       const d = (await res.json()) as { staff?: Staff[]; message?: string };
       if (!res.ok) throw new Error(d.message ?? t("common.toasts.error"));
       setData(d.staff ?? []);
@@ -152,7 +153,7 @@ export default function HRPage() {
               : {}),
           };
 
-      const res = await fetch("/api/hotel/hr", {
+      const res = await hotelFetch("/api/hotel/hr", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -188,7 +189,7 @@ export default function HRPage() {
   async function handleDelete(id: string) {
     if (!confirm(t("hr.modal.confirm_delete"))) return;
     try {
-      const res = await fetch(`/api/hotel/hr?id=${id}`, { method: "DELETE" });
+      const res = await hotelFetch(`/api/hotel/hr?id=${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(t("common.toasts.error"));
       toast.success(t("hr.modal.delete_success"));
       void load();
@@ -199,7 +200,7 @@ export default function HRPage() {
 
   async function toggleStatus(id: string, current: boolean) {
     try {
-      const res = await fetch("/api/hotel/hr", {
+      const res = await hotelFetch("/api/hotel/hr", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive: !current }),

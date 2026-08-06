@@ -203,6 +203,60 @@ export function buildImprovements(
     });
 }
 
+export type SentimentTrendPoint = {
+  /** UTC calendar day, YYYY-MM-DD. */
+  date: string;
+  /** Short axis label, DD.MM. */
+  label: string;
+  positive: number;
+  neutral: number;
+  negative: number;
+};
+
+function utcDayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Daily positive/neutral/negative counts, bucketed in UTC so the series does not
+ * shift with the server's timezone. Days with no tickets are emitted as zeros —
+ * a gap in the chart has to read as "no feedback", not as missing data.
+ */
+export function buildSentimentTrend(
+  rows: Array<{ createdAt: Date; sentiment: FeedbackSentiment }>,
+  opts: { days: number; now: Date },
+): SentimentTrendPoint[] {
+  const days = Math.max(1, Math.floor(opts.days));
+  const buckets = new Map<string, SentimentTrendPoint>();
+
+  const todayUtc = Date.UTC(
+    opts.now.getUTCFullYear(),
+    opts.now.getUTCMonth(),
+    opts.now.getUTCDate(),
+  );
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const day = new Date(todayUtc - i * 24 * 60 * 60 * 1000);
+    const date = utcDayKey(day);
+    buckets.set(date, {
+      date,
+      label: `${date.slice(8, 10)}.${date.slice(5, 7)}`,
+      positive: 0,
+      neutral: 0,
+      negative: 0,
+    });
+  }
+
+  for (const row of rows) {
+    const bucket = buckets.get(utcDayKey(row.createdAt));
+    if (!bucket) continue;
+    if (row.sentiment === "POSITIVE") bucket.positive += 1;
+    else if (row.sentiment === "NEGATIVE") bucket.negative += 1;
+    else bucket.neutral += 1;
+  }
+
+  return [...buckets.values()];
+}
+
 export function sentimentBodiesSplit(
   tickets: Array<{ body: string; sentiment: FeedbackSentiment }>,
 ): { positive: string[]; negative: string[] } {

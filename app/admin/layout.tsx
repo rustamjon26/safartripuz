@@ -87,6 +87,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [ready, setReady] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [notifyDots, setNotifyDots] = useState({ taxi: false, guide: false, homestay: false });
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
@@ -126,37 +127,31 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   );
 
   const ensureAuth = useCallback(async () => {
+    function accept(data: { user?: AdminUser }) {
+      const r = data.user?.role;
+      if (!data.user || (r !== "admin" && r !== "super_admin")) {
+        router.replace("/dashboard");
+        return;
+      }
+      setUser(data.user);
+      setReady(true);
+    }
+
     try {
       const res = await fetch("/api/user/me");
       if (res.status === 401) {
         const refreshRes = await fetch("/api/auth/refresh", { method: "POST" });
-        if (refreshRes.ok) {
-          const retry = await fetch("/api/user/me");
-          const data = await retry.json();
-          if (data.user) {
-            const r = data.user.role as string;
-            if (r !== "admin" && r !== "super_admin") {
-              router.replace("/dashboard");
-              return;
-            }
-            setUser(data.user);
-          }
-        } else {
+        if (!refreshRes.ok) {
           router.push("/login?next=" + encodeURIComponent(pathname));
+          return;
         }
-      } else if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          const r = data.user.role as string;
-          if (r !== "admin" && r !== "super_admin") {
-            router.replace("/dashboard");
-            return;
-          }
-          setUser(data.user);
-        }
+        accept(await (await fetch("/api/user/me")).json());
+        return;
       }
+      if (res.ok) accept(await res.json());
     } catch {
-      /* offline */
+      // Offline: leave the shell gated rather than bouncing to /login, so a
+      // dropped connection does not read as a signed-out session.
     }
   }, [pathname, router]);
 
@@ -218,6 +213,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     initials,
     onLogout: handleLogout,
   };
+
+  // Admin data must not paint before the role check lands.
+  if (!ready) {
+    return (
+      <div className="admin-root flex min-h-screen items-center justify-center bg-[#f4f6fb] text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
+      </div>
+    );
+  }
 
   return (
     <div className="admin-root bg-[#f4f6fb]">

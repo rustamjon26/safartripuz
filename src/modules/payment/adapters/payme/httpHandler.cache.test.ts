@@ -5,13 +5,22 @@ const CREDENTIAL = Buffer.from(`Paycom:${KEY}`).toString("base64");
 
 const processedEvents = vi.hoisted(() => new Map<string, unknown>());
 const performCalls = vi.hoisted(() => ({ count: 0 }));
+const providerSetting = vi.hoisted(() => ({
+  value: null as Record<string, unknown> | null,
+}));
+const paymentRepoMock = vi.hoisted(() => ({
+  findSystemSettingValue: vi.fn(async (key: string) =>
+    key === "payment_providers" ? providerSetting.value : null,
+  ),
+}));
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
-vi.mock("@/lib/payments/providerConfig", () => ({
-  getPaymentProvidersConfig: vi.fn(async () => ({})),
-  getPaymeConfig: vi.fn(() => ({ enabled: true })),
-  paymeMerchantKey: vi.fn(() => ""),
+vi.mock("../../repository/payment.repository", () => ({
+  paymentRepository: paymentRepoMock,
+}));
+vi.mock("@/src/modules/payment/repository/payment.repository", () => ({
+  paymentRepository: paymentRepoMock,
 }));
 
 vi.mock("../../service/payment.service", () => ({
@@ -83,6 +92,7 @@ describe("paymeHttpHandler booking_id response caching", () => {
   beforeEach(() => {
     processedEvents.clear();
     performCalls.count = 0;
+    providerSetting.value = null;
     process.env.PAYME_SECRET_KEY = KEY;
     delete process.env.PAYME_IS_TEST;
   });
@@ -163,10 +173,11 @@ describe("paymeHttpHandler booking_id response caching", () => {
   });
 
   it("booking_id falls back to Admin payment_providers key when env is empty", async () => {
-    const { paymeMerchantKey } = await import("@/lib/payments/providerConfig");
     delete process.env.PAYME_SECRET_KEY;
     delete process.env.PAYME_TEST_SECRET_KEY;
-    vi.mocked(paymeMerchantKey).mockReturnValue(KEY);
+    providerSetting.value = {
+      payme: { enabled: true, merchantKey: KEY },
+    };
 
     const res = await paymeHttpHandler(
       new Request("https://safartrip.uz/api/payme", {

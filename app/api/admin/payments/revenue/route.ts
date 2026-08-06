@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/authz";
 import { ledgerPlatformFeesToBuckets } from "@/lib/admin/revenuePlatformFees";
 import { travelPlanPrimaryRevenueCategory, type RevenueCategory } from "@/lib/payments/travelPlanBookingTypes";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { prisma } from "@/lib/prisma";
 import { ledgerService } from "@/src/modules/ledger";
 import { Money } from "@/src/shared/money";
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
             },
           },
         }),
-        getCommissionRates(),
+        commissionService.getRates(),
         ledgerService.sumPlatformRevenueTiyin({ from: start, to: end }),
         ledgerService.sumPlatformRevenueByBookingTypeTiyin({
           from: start,

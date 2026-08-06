@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PAYME_ERRORS } from "./errors";
-import { canTransition } from "@/src/modules/booking/domain/booking.state";
+import { canTransition } from "@/src/modules/booking";
 
 describe("payme.webhook error codes", () => {
   it("maps business and transport codes", () => {
