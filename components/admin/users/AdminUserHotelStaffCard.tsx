@@ -8,7 +8,7 @@ import type { Role } from "@prisma/client";
 import {
   isHotelStaffPlatformRole,
   platformRoleToJobRole,
-} from "@/lib/hotel/staffPlatformRole";
+} from "@/src/modules/staff";
 
 type StaffLink = {
   id: string;

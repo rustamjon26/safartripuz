@@ -1,38 +1,11 @@
-import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/authz";
-import {
-  createSupportThreadSchema,
-  supportChatService,
-} from "@/src/modules/supportchat";
-import { mapSupportChatError } from "@/app/api/support/chat/_utils";
-
-/** Party side: hotel / homestay / taxi / guide / customer. */
-export async function GET(): Promise<NextResponse> {
-  try {
-    const actor = await requireUser();
-    const items = await supportChatService.listAsParty(actor.id);
-    return NextResponse.json({ items }, { status: 200 });
-  } catch (e) {
-    return mapSupportChatError(e);
-  }
-}
-
-export async function POST(req: Request): Promise<NextResponse> {
-  try {
-    const actor = await requireUser();
-    const parsed = createSupportThreadSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { message: parsed.error.issues[0]?.message ?? "Validatsiya xatosi" },
-        { status: 400 },
-      );
-    }
-    const thread = await supportChatService.openThreadAsParty(
-      actor.id,
-      parsed.data,
-    );
-    return NextResponse.json({ thread }, { status: 201 });
-  } catch (e) {
-    return mapSupportChatError(e);
-  }
-}
+/**
+ * Compatibility alias. The support chat API is one namespace now:
+ *   agents  → /api/support/chat/threads
+ *   parties → /api/support/chat/my/threads   (this route)
+ *
+ * `/api/support-chat` and `/api/support/chat` differed by a single character and
+ * neither name said which side it served. Kept as a re-export because the
+ * customer and partner UIs shipped against this path; delete once they and the
+ * Expo apps are on the new one.
+ */
+export { GET, POST } from "@/app/api/support/chat/my/threads/route";

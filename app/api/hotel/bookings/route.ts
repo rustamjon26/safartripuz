@@ -10,6 +10,10 @@ import {
   InsufficientInventoryError,
   InventoryLockError,
 } from "@/src/modules/inventory";
+import { ratesService } from "@/src/modules/rates";
+
+/** Som are stored to 2dp, so allow a rounding cent either way. */
+const PRICE_TOLERANCE_SOM = 1;
 
 export async function GET(req: Request) {
   try {
@@ -77,7 +81,11 @@ const createReceptionBookingSchema = z.object({
   checkInDate: z.union([z.string().min(1), z.number()]),
   checkOutDate: z.union([z.string().min(1), z.number()]),
   roomCount: z.number().int().min(1).max(50),
-  totalAmount: z.number().nonnegative().finite(),
+  /**
+   * Optional. The server always prices the stay itself; when a total is sent it
+   * is only checked against that price, never used in its place.
+   */
+  totalAmount: z.number().nonnegative().finite().optional(),
   paidAmount: z.number().nonnegative().finite().optional(),
   note: z.string().trim().max(2000).optional(),
   source: z
@@ -124,6 +132,64 @@ export async function POST(req: Request) {
     const guestName =
       `${guest0?.firstName ?? "Mehmon"}${guest0?.lastName ? ` ${guest0.lastName}` : ""}`;
 
+    // Same pricing pipeline the guest-facing booking route uses, so a stay
+    // costs the same however it was booked.
+    const adults = Math.max(1, guestRows.filter((g) => !g.isChild).length);
+    const children = guestRows.filter((g) => g.isChild).length;
+
+    let quote;
+    try {
+      quote = await ratesService.quoteHotel({
+        roomTypeId: body.roomTypeId,
+        checkIn: start,
+        checkOut: end,
+        roomCount: body.roomCount,
+        adults,
+        children,
+      });
+    } catch {
+      return NextResponse.json(
+        { message: "Xona turi topilmadi yoki narx hisoblanmadi" },
+        { status: 400 },
+      );
+    }
+    const serverTotal = quote.totalSom;
+
+    // A mismatch is usually a stale price on the desk's screen rather than
+    // tampering, but either way the booking must not carry the client's number.
+    if (
+      body.totalAmount !== undefined &&
+      Math.abs(body.totalAmount - serverTotal) > PRICE_TOLERANCE_SOM
+    ) {
+      console.error("ALERT reception_booking_price_mismatch", {
+        actorId: actor.id,
+        hotelId: ctx.hotel.id,
+        roomTypeId: body.roomTypeId,
+        checkIn: start.toISOString(),
+        checkOut: end.toISOString(),
+        roomCount: body.roomCount,
+        submittedTotal: body.totalAmount,
+        serverTotal,
+      });
+      return NextResponse.json(
+        {
+          message:
+            "Narx hisobida nomuvofiqlik aniqlandi. Sahifani yangilab, qayta urinib ko'ring.",
+          submittedTotal: body.totalAmount,
+          serverTotal,
+        },
+        { status: 400 },
+      );
+    }
+
+    const paidAmount = body.paidAmount ?? 0;
+    if (paidAmount > serverTotal + PRICE_TOLERANCE_SOM) {
+      return NextResponse.json(
+        { message: "To'langan summa umumiy summadan oshmasligi kerak", serverTotal },
+        { status: 400 },
+      );
+    }
+
     let booking;
     try {
       booking = await bookingService.createConfirmedHotelBooking({
@@ -133,10 +199,11 @@ export async function POST(req: Request) {
         checkInDate: start,
         checkOutDate: end,
         roomCount: body.roomCount,
-        totalAmount: body.totalAmount,
-        paidAmount: body.paidAmount ?? 0,
+        totalAmount: serverTotal,
+        paidAmount,
         source: bookingSource,
         note: noteStr,
+        pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
         guests: encryptedGuests,
       });
     } catch (err) {

@@ -7,7 +7,7 @@ import type {
   HotelBooking,
   Prisma,
 } from "@prisma/client";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
@@ -17,6 +17,7 @@ import {
   holdsInventory,
   IllegalTransitionError,
   isPaidStatus,
+  requiresPaymentEvidence,
   type BookingStatus,
 } from "../domain/booking.state";
 import {
@@ -203,7 +204,14 @@ export class BookingService {
       }
 
       const fromStatus = asStatus(booking.status);
-      assertTransition(fromStatus, asStatus(toStatus));
+      const nextStatus = asStatus(toStatus);
+
+      // Guarded edges are settled here, against the locked row, so no call site
+      // can confirm an unpaid booking by convention or by passing a flag.
+      const paymentConfirmed = requiresPaymentEvidence(fromStatus, nextStatus)
+        ? await bookingRepository.hasRecordedPayment(booking, tx)
+        : false;
+      assertTransition(fromStatus, nextStatus, { paymentConfirmed });
 
       const shouldRestore =
         ctx.restoreInventory === true ||
@@ -513,7 +521,9 @@ export class BookingService {
   /**
    * Idempotent hold expiry for hotel + homestay. Safe to run concurrently.
    */
-  async expireHolds(limit = 100): Promise<{ hotel: number; homestay: number }> {
+  async expireHolds(
+    limit = 100,
+  ): Promise<{ hotel: number; homestay: number; guide: number }> {
     const hotelHolds = await bookingRepository.findExpiredHolds(limit);
     let hotel = 0;
 
@@ -589,7 +599,51 @@ export class BookingService {
       }
     }
 
-    return { hotel, homestay };
+    const guideHolds = await bookingRepository.findExpiredGuideHolds(limit);
+    let guide = 0;
+
+    for (const hold of guideHolds) {
+      try {
+        const ok = await inventoryService.withSerializableRetry(async (tx) => {
+          const result = await tx.$executeRawUnsafe(
+            `UPDATE GuideBooking
+             SET status = 'CANCELLED', holdExpiresAt = NULL, updatedAt = NOW(3),
+                 cancelledBy = 'SYSTEM', cancellationReason = 'HOLD_EXPIRED'
+             WHERE id = ? AND status = 'PENDING' AND holdExpiresAt IS NOT NULL AND holdExpiresAt < NOW(3)`,
+            hold.id,
+          );
+          if (Number(result) === 0) return false;
+
+          // Release the slot this booking reserved at creation time.
+          await tx.guideBlockedSlot.deleteMany({
+            where: {
+              listingId: hold.listingId,
+              guideId: hold.guideId,
+              date: hold.date,
+              startTime: hold.startTime,
+              endTime: hold.endTime,
+              note: `BOOKED:${hold.id}`,
+            },
+          });
+
+          await tx.guideBookingLog.create({
+            data: {
+              bookingId: hold.id,
+              actorRole: "system",
+              fromStatus: "PENDING",
+              toStatus: "CANCELLED",
+              note: "HOLD_EXPIRED",
+            },
+          });
+          return true;
+        });
+        if (ok) guide += 1;
+      } catch (err) {
+        console.error("[expireHolds] guide failed", hold.id, err);
+      }
+    }
+
+    return { hotel, homestay, guide };
   }
 
   async cancelAndRelease(
@@ -673,7 +727,7 @@ export class BookingService {
             `Hotel partner missing for cancel accounting on booking ${bookingId}`,
           );
         }
-        const rates = await getCommissionRates(tx);
+        const rates = await commissionService.getRates(tx);
         await postCancelAccountingInTx(tx, {
           bookingType: "HOTEL",
           bookingId,
@@ -740,7 +794,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "HOMESTAY",
         bookingId: booking.id,
@@ -846,7 +900,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "GUIDE",
         bookingId: booking.id,

@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { Loader2, Copy, CheckCircle2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+/** Mirrors GET /api/payments/manual-info. */
+type ManualPaymentInfo = { cardNumber?: string; cardHolder?: string };
+
 export default function ManualPaymentPage({ params }: { params: Promise<{ paymentId: string }> }) {
   const router = useRouter();
   const { paymentId } = use(params);
   
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<ManualPaymentInfo | null>(null);
 
   useEffect(() => {
     async function loadConfig() {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type RoomType = {
   id: string;
@@ -38,7 +39,7 @@ export default function HotelInventoryPage() {
   async function load() {
     setLoading(true);
     try {
-      const meRes = await fetch("/api/hotel/me");
+      const meRes = await hotelFetch("/api/hotel/me");
       const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
       if (!meRes.ok || !meData.hotel?.id) {
         throw new Error(meData.message || "Mehmonxona topilmadi");
@@ -46,8 +47,8 @@ export default function HotelInventoryPage() {
 
       const hotelId = meData.hotel.id;
       const [typesRes, roomsRes] = await Promise.all([
-        fetch(`/api/hotels/${hotelId}/room-types`),
-        fetch("/api/hotel/physical-rooms"),
+        hotelFetch(`/api/hotels/${hotelId}/room-types`),
+        hotelFetch("/api/hotel/physical-rooms"),
       ]);
       const typesData = (await typesRes.json()) as { items?: RoomType[]; error?: string };
       const roomsData = (await roomsRes.json()) as {
@@ -94,13 +95,13 @@ export default function HotelInventoryPage() {
   async function createRoomType(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const meRes = await fetch("/api/hotel/me");
+      const meRes = await hotelFetch("/api/hotel/me");
       const meData = (await meRes.json()) as { hotel?: { id: string }; message?: string };
       if (!meRes.ok || !meData.hotel?.id) {
         throw new Error(meData.message || "Mehmonxona topilmadi");
       }
 
-      const res = await fetch(`/api/hotels/${meData.hotel.id}/room-types`, {
+      const res = await hotelFetch(`/api/hotels/${meData.hotel.id}/room-types`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -124,7 +125,7 @@ export default function HotelInventoryPage() {
   async function createRoom(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/hotel/physical-rooms", {
+      const res = await hotelFetch("/api/hotel/physical-rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

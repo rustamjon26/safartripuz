@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import ListingForm from "../../../_components/ListingForm";
+import ListingForm, { type ListingData } from "../../../_components/ListingForm";
 
 export default function EditHomeStayListingPage() {
   const params = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
-  const [initial, setInitial] = useState<any>(null);
+  const [initial, setInitial] = useState<ListingData | null>(null);
 
   useEffect(() => {
     async function load() {

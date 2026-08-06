@@ -1,15 +1,30 @@
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
 import { bookingService } from "@/src/modules/booking";
 import { fail, handleApiError, hasActiveListing, ok, onboardingResponse, requireGuidePartner } from "../../_utils";
 import type { GuideBookingStatus } from "@prisma/client";
 
-type BookingPatchInput = {
-  status?: GuideBookingStatus;
-  meetingPoint?: string;
-  note?: string;
-  cancellationReason?: string;
-};
+/**
+ * `status` must be a real GuideBookingStatus: the handler indexes
+ * `allowedTransitions[status]` and would otherwise call `.includes` on
+ * undefined and return 500 for any unknown string.
+ */
+const bookingPatchSchema = z.object({
+  status: z
+    .enum([
+      "PENDING",
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+      "DISPUTE",
+    ])
+    .optional(),
+  meetingPoint: z.string().trim().min(1).max(500).optional(),
+  note: z.string().trim().min(1).max(2000).optional(),
+  cancellationReason: z.string().trim().min(1).max(500).optional(),
+});
 
 const allowedTransitions: Record<GuideBookingStatus, GuideBookingStatus[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
@@ -79,7 +94,14 @@ export async function PATCH(
     const active = await hasActiveListing(actor.id);
     if (!active) return onboardingResponse();
     const { id } = await params;
-    const body = (await req.json()) as BookingPatchInput;
+
+    const parsed = bookingPatchSchema.safeParse(
+      await req.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      return fail(parsed.error.issues[0]?.message ?? "Validatsiya xatosi", 400);
+    }
+    const body = parsed.data;
 
     const booking = await prisma.guideBooking.findFirst({
       where: { id, guideId: actor.id },

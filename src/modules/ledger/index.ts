@@ -5,10 +5,7 @@ export type {
   PayoutOwnerType,
 } from "./service/ledger.service";
 export { assertBalanced, UnbalancedLedgerError } from "./domain/balance";
-export {
-  splitBookingCommission,
-  calcPlatformCommissionTiyin,
-} from "./domain/commission";
+// Commission math moved to src/modules/commission — import it from there.
 export { LedgerTxType, UNATTRIBUTED_OWNER } from "./domain/types";
 export { ledgerRepository } from "./repository/ledger.repository";
 export type { LedgerBookingType } from "./repository/ledger.repository";

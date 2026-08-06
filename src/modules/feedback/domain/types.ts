@@ -103,6 +103,15 @@ export type FeedbackDashboardView = {
   improvements: FeedbackReportsView["improvements"];
   positiveKeywords: Array<{ word: string; count: number }>;
   negativeKeywords: Array<{ word: string; count: number }>;
+  /** Window the daily trend covers — capped shorter than `days` for readability. */
+  trendDays: number;
+  trend: Array<{
+    date: string;
+    label: string;
+    positive: number;
+    neutral: number;
+    negative: number;
+  }>;
   recent: Array<{
     id: string;
     authorName: string;

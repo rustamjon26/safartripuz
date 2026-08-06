@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Receipt, Wallet, Search, CreditCard, Banknote, DollarSign,
   Loader2, RefreshCw, X, Verified, MoveDownRight, MoveUpRight, ArrowRight, Printer, FileText
@@ -48,7 +49,7 @@ export default function FinancePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/finance");
+      const res = await hotelFetch("/api/hotel/finance");
       const data = (await res.json()) as {
         bookings?: Booking[];
         analytics?: HotelFinanceAnalytics;
@@ -75,13 +76,13 @@ export default function FinancePage() {
      if(!activeBooking) return;
      try {
         if(actionType === "PAYMENT") {
-           const res = await fetch("/api/hotel/finance/payment", {
+           const res = await hotelFetch("/api/hotel/finance/payment", {
               method: "POST", headers: { "Content-Type" : "application/json" },
               body: JSON.stringify({ bookingId: activeBooking.id, amount: Number(amount), method })
            });
            if(res.ok) { toast.success(t("finance.toasts.payment_success")); setActiveBooking(null); void load(); }
         } else {
-           const res = await fetch("/api/hotel/finance/folio", {
+           const res = await hotelFetch("/api/hotel/finance/folio", {
               method: "POST", headers: { "Content-Type" : "application/json" },
               body: JSON.stringify({ bookingId: activeBooking.id, amount: Number(amount), category, description: desc })
            });

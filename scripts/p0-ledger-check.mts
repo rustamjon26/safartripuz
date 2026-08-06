@@ -51,7 +51,7 @@ function mustNotMatch(rel: string, re: RegExp, label: string): void {
   ok(label);
 }
 
-mustMatch("src/modules/ledger/domain/commission.ts", /calcPlatformCommissionTiyin/);
+mustMatch("src/modules/commission/domain/commission.ts", /calcPlatformCommissionTiyin/);
 mustMatch("src/modules/ledger/domain/types.ts", /CLAWBACK/);
 mustMatch("src/modules/ledger/service/ledger.service.ts", /MissingPartnerError/);
 mustMatch("src/modules/ledger/service/ledger.service.ts", /UNATTRIBUTED/);
@@ -60,12 +60,12 @@ mustMatch("app/api/hotel/bookings/[id]/status/route.ts", /cancelWithPolicy/);
 mustMatch("app/api/homestay/bookings/[id]/route.ts", /postCancelAccountingInTx/);
 mustMatch("app/api/guide/bookings/[id]/route.ts", /postCancelAccountingInTx/);
 mustMatch("app/api/guide/partner/bookings/[id]/route.ts", /postCancelAccountingInTx/);
-mustMatch("app/api/taxi/driver/orders/[id]/route.ts", /calcCommissionTiyin/);
+mustMatch("app/api/taxi/driver/orders/[id]/route.ts", /calcPlatformCommissionTiyin/);
 mustMatch(
   "src/modules/booking/service/payment-confirmation.service.ts",
   /payment:\$\{paymentId\}:booking:/,
 );
-mustMatch("lib/getCommissionRates.ts", /calcCommission \(float\) is removed/);
+mustMatch("src/modules/commission/index.ts", /calcPlatformCommissionTiyin/);
 mustMatch("eslint.config.mjs", /Float money banned/);
 // Hotel earnings read the ledger through this helper, not in the route.
 mustMatch("lib/earnings/loadPartnerEarningsHybrid.ts", /getPartnerBalanceSummary/);

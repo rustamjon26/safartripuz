@@ -23,7 +23,7 @@ export default defineConfig({
       "components/**/*.{test,spec}.ts",
       "scripts/**/*.{test,spec}.ts",
       "public/**/*.{test,spec}.ts",
-      // Root-level modules (middleware.ts, server.ts, eslint config) live here.
+      // Root-level modules (middleware.ts, server.ts, eslint config) live here, not in a folder.
       "*.{test,spec}.ts",
     ],
     exclude: ["node_modules/**", ".next/**"],

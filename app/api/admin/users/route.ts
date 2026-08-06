@@ -11,25 +11,11 @@ import {
 import {
   isHotelStaffPlatformRole,
   platformRoleToJobRole,
-} from "@/lib/hotel/staffPlatformRole";
+} from "@/src/modules/staff";
 import { StaffNotFoundError, staffService } from "@/src/modules/staff";
+import { isGuidePanelRole, isTaxiPanelRole, ROLES } from "@/src/shared/roles";
 
-const roleSchema = z.enum([
-  "super_admin",
-  "admin",
-  "user",
-  "taxi",
-  "taxi_partner",
-  "hotel_manager",
-  "guide",
-  "restaurant_manager",
-  "home_stay_partner",
-  "support",
-  "cleaner",
-  "receptionist",
-  "waiter",
-  "hotel_staff",
-]);
+const roleSchema = z.enum(ROLES);
 
 const createUserSchema = z.object({
   first_name: z.string().trim().min(1).max(100),
@@ -103,9 +89,8 @@ export async function GET(req: Request) {
           };
         }
 
-        const isTaxi = u.role === "taxi" || u.role === "taxi_partner";
         if (
-          isTaxi &&
+          isTaxiPanelRole(u.role) &&
           u.partnerProfile &&
           (u.partnerProfile.type !== "taxi" ||
             u.partnerProfile.status !== "approved")
@@ -127,7 +112,7 @@ export async function GET(req: Request) {
         }
 
         if (
-          u.role === "guide" &&
+          isGuidePanelRole(u.role) &&
           u.partnerProfile &&
           (u.partnerProfile.type !== "guide" ||
             u.partnerProfile.status !== "approved")

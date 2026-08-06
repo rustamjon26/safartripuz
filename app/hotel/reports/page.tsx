@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Area,
   Bar,
@@ -170,7 +171,7 @@ async function fetchReports(
   groupBy: ReportsGroupBy,
 ): Promise<HotelReports> {
   const params = new URLSearchParams({ start, end, group_by: groupBy });
-  const res = await fetch(`/api/hotels/${hotelId}/reports?${params.toString()}`);
+  const res = await hotelFetch(`/api/hotels/${hotelId}/reports?${params.toString()}`);
   const data = (await res.json()) as HotelReports & { error?: string };
   if (!res.ok) throw new Error(data.error || "Hisobot yuklanmadi");
   return data;
@@ -268,7 +269,7 @@ export default function HotelReportsPage() {
     let cancelled = false;
     async function init() {
       try {
-        const res = await fetch("/api/hotel/me");
+        const res = await hotelFetch("/api/hotel/me");
         const me = (await res.json()) as { hotel?: { id: string } };
         if (!res.ok || !me.hotel?.id) throw new Error("Mehmonxona topilmadi");
         if (!cancelled) setHotelId(me.hotel.id);
@@ -353,7 +354,7 @@ export default function HotelReportsPage() {
     if (type === "EXCEL") {
       setExcelLoading(true);
       try {
-        const res = await fetch(
+        const res = await hotelFetch(
           `/api/hotels/${hotelId}/reports/export/excel?${params.toString()}`,
         );
         if (!res.ok) {
@@ -381,7 +382,7 @@ export default function HotelReportsPage() {
 
     setPdfLoading(true);
     try {
-      const res = await fetch(
+      const res = await hotelFetch(
         `/api/hotels/${hotelId}/reports/export/pdf?${params.toString()}`,
       );
       if (!res.ok) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   AlertCircle,
   ArrowRight,
@@ -72,7 +73,7 @@ export default function HotelDashboard() {
     setStatsLoading(true);
     setStatsError(null);
     try {
-      const res = await fetch(`/api/hotels/${hotelId}/stats`);
+      const res = await hotelFetch(`/api/hotels/${hotelId}/stats`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t("dashboard.stats_load_error"));
       setStats(data);
@@ -88,7 +89,7 @@ export default function HotelDashboard() {
     setHotelLoading(true);
     setHotelError(null);
     try {
-      const res = await fetch("/api/hotel/me");
+      const res = await hotelFetch("/api/hotel/me");
       const data = (await res.json()) as HotelMeResponse;
       if (!res.ok) throw new Error((data as { message?: string }).message || t("common.error"));
       setHotel(data.hotel);
@@ -110,7 +111,7 @@ export default function HotelDashboard() {
 
     setCleaningBulkLoading(true);
     try {
-      const listRes = await fetch(
+      const listRes = await hotelFetch(
         `/api/hotels/${hotel.id}/rooms?status=CLEANING&fields=id,roomNumber`,
       );
       const listData = await listRes.json();
@@ -122,7 +123,7 @@ export default function HotelDashboard() {
         return;
       }
 
-      const patchRes = await fetch(`/api/hotels/${hotel.id}/rooms/bulk-status`, {
+      const patchRes = await hotelFetch(`/api/hotels/${hotel.id}/rooms/bulk-status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ room_ids: roomIds, status: "AVAILABLE" }),

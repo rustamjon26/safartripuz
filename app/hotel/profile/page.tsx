@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Building2, MapPin, Mail, Phone, Save, Loader2,
   Globe, CheckCircle2, Shield, Star,
@@ -37,7 +38,7 @@ export default function HotelProfile() {
 
   async function load() {
     try {
-      const res  = await fetch("/api/hotel/me");
+      const res  = await hotelFetch("/api/hotel/me");
       const data = await res.json();
       if (res.ok && data.hotel) {
         setFields({
@@ -64,7 +65,7 @@ export default function HotelProfile() {
     setSaving(true);
     setSaved(false);
     try {
-      const res = await fetch("/api/hotel/profile", {
+      const res = await hotelFetch("/api/hotel/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fields),

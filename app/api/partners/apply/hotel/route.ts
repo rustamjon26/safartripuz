@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { normalizeUzPhone } from "@/lib/phone";
+import { normalizeUzPhone } from "@/src/shared/phone";
 
 const schema = z.object({
   hotelName: z.string().trim().min(2),

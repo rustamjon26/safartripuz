@@ -1,42 +1,5 @@
-import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/authz";
-import {
-  sendSupportMessageSchema,
-  supportChatService,
-} from "@/src/modules/supportchat";
-import { mapSupportChatError } from "@/app/api/support/chat/_utils";
-
-type Ctx = { params: Promise<{ id: string }> };
-
-export async function GET(_req: Request, ctx: Ctx): Promise<NextResponse> {
-  try {
-    const actor = await requireUser();
-    const { id } = await ctx.params;
-    const data = await supportChatService.getMessagesForParty(actor.id, id);
-    return NextResponse.json(data, { status: 200 });
-  } catch (e) {
-    return mapSupportChatError(e);
-  }
-}
-
-export async function POST(req: Request, ctx: Ctx): Promise<NextResponse> {
-  try {
-    const actor = await requireUser();
-    const { id } = await ctx.params;
-    const parsed = sendSupportMessageSchema.safeParse(await req.json());
-    if (!parsed.success) {
-      return NextResponse.json(
-        { message: parsed.error.issues[0]?.message ?? "Validatsiya xatosi" },
-        { status: 400 },
-      );
-    }
-    const message = await supportChatService.sendAsParty(
-      actor.id,
-      id,
-      parsed.data.body,
-    );
-    return NextResponse.json({ message }, { status: 201 });
-  } catch (e) {
-    return mapSupportChatError(e);
-  }
-}
+/**
+ * Compatibility alias — see app/api/support-chat/threads/route.ts.
+ * Canonical path: /api/support/chat/my/threads/[id]/messages
+ */
+export { GET, POST } from "@/app/api/support/chat/my/threads/[id]/messages/route";
