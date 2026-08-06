@@ -170,8 +170,6 @@ export const PRISMA_ROUTE_DEBT = [
   // notifications — 2
   "app/api/notifications/[id]/route.ts",
   "app/api/notifications/route.ts",
-  // health — 1
-  "app/api/health/route.ts",
   // partners — 1
   "app/api/partners/apply/hotel/route.ts",
   // reviews — 1
