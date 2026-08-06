@@ -20,7 +20,8 @@ export async function GET() {
       const key = p.toLowerCase() as keyof NonNullable<typeof v>;
       const cfg = v?.[key];
       if (p === "MOCK") {
-        // MOCK never appears in production unless PAYMENTS_MOCK_ENABLED=true.
+        // MOCK is never offered on a production runtime, whatever the DB or
+        // PAYMENTS_MOCK_ENABLED say.
         if (!mockOk) return false;
         if (cfg == null) return true;
         return cfg.enabled !== false;

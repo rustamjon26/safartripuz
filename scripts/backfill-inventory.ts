@@ -6,10 +6,12 @@
  * Usage: npx tsx scripts/backfill-inventory.ts
  */
 import { PrismaClient } from "@prisma/client";
+import { ROOM_RELEASED_STATUSES } from "../src/modules/booking/domain/booking.state";
 
 const prisma = new PrismaClient();
 const HORIZON_DAYS = 540;
-const HOLDING_EXCLUDE = ["CANCELLED", "NO_SHOW", "EXPIRED", "REFUNDED"] as const;
+// Single source of truth, shared with the availability endpoint.
+const HOLDING_EXCLUDE = ROOM_RELEASED_STATUSES;
 
 function utcDateOnly(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));

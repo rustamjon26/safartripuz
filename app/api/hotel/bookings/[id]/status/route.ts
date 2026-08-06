@@ -6,6 +6,7 @@ import {
   bookingRepository,
   bookingService,
   IllegalTransitionError,
+  UnpaidConfirmationError,
 } from "@/src/modules/booking";
 
 const schema = z.object({
@@ -76,6 +77,15 @@ export async function PATCH(
 
       return NextResponse.json({ booking: updated }, { status: 200 });
     } catch (err) {
+      if (err instanceof UnpaidConfirmationError) {
+        return NextResponse.json(
+          {
+            message:
+              "To'lov qayd etilmagan bronni tasdiqlab bo'lmaydi. Avval to'lovni kiriting.",
+          },
+          { status: 400 },
+        );
+      }
       if (err instanceof IllegalTransitionError) {
         return NextResponse.json(
           {

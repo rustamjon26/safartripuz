@@ -1,9 +1,10 @@
 import type { PartnerEarningType, Prisma } from "@prisma/client";
-import {
-  calcPlatformCommissionTiyin,
-  ledgerService,
-} from "@/src/modules/ledger";
+import { ledgerRepository, ledgerService } from "@/src/modules/ledger";
 import { reversePartnerEarningInTx } from "./partner-earning";
+import {
+  assertCancelAmountsBalance,
+  resolveCancelAmounts,
+} from "../domain/cancel-amounts";
 import type { RefundBreakdown } from "../domain/refund";
 
 type Tx = Prisma.TransactionClient;
@@ -15,7 +16,8 @@ type CancelEarningType = Exclude<PartnerEarningType, "TAXI">;
  * Both writes share `tx` — caller must commit/rollback atomically.
  * Provider HTTP refund stays outside the caller.
  *
- * Fail-loud: no swallowed errors. Missing partner on a paid refund throws.
+ * Fail-loud: no swallowed errors. Missing partner on a paid refund throws, and
+ * so does any tiyin drift between the reversal and the original charge.
  */
 export async function postCancelAccountingInTx(
   tx: Tx,
@@ -33,15 +35,37 @@ export async function postCancelAccountingInTx(
 
   const payoutOwnerType = opts.payoutOwnerType ?? "PARTNER";
 
-  const grossPaidApprox =
-    opts.refund.refundPercent > 0
-      ? (opts.refund.refundTiyin * 100n) / BigInt(opts.refund.refundPercent)
-      : opts.refund.refundTiyin + opts.refund.retainedTiyin;
-
-  const { platformTotal } = calcPlatformCommissionTiyin(
-    grossPaidApprox,
-    opts.ratePercent,
+  // Read back what the payment actually posted rather than reconstructing it.
+  const posted = await ledgerRepository.findBookingPaymentCharge(
+    opts.bookingId,
+    tx,
   );
+
+  const { originalGrossTiyin, originalCommissionTiyin, source } =
+    resolveCancelAmounts({
+      refund: opts.refund,
+      ratePercent: opts.ratePercent,
+      posted,
+    });
+
+  // A booking whose ledger gross disagrees with the refund split is already
+  // inconsistent; surface it rather than quietly reversing the wrong number.
+  const splitGross = opts.refund.refundTiyin + opts.refund.retainedTiyin;
+  if (source === "ledger" && originalGrossTiyin !== splitGross) {
+    console.error("ALERT cancel_accounting_gross_drift", {
+      bookingType: opts.bookingType,
+      bookingId: opts.bookingId,
+      ledgerGrossTiyin: originalGrossTiyin.toString(),
+      refundSplitGrossTiyin: splitGross.toString(),
+    });
+  }
+
+  assertCancelAmountsBalance({
+    refund: opts.refund,
+    originalGrossTiyin: source === "ledger" ? splitGross : originalGrossTiyin,
+    originalCommissionTiyin,
+    context: { bookingType: opts.bookingType, bookingId: opts.bookingId },
+  });
 
   try {
     await ledgerService.postRefundCompensation(
@@ -52,7 +76,9 @@ export async function postCancelAccountingInTx(
         refundTiyin: opts.refund.refundTiyin,
         refundPercent: opts.refund.refundPercent,
         originalCommissionTiyin:
-          payoutOwnerType === "PLATFORM" ? opts.refund.refundTiyin : platformTotal,
+          payoutOwnerType === "PLATFORM"
+            ? opts.refund.refundTiyin
+            : originalCommissionTiyin,
         partnerUserId: opts.partnerUserId,
         allowUnattributed: false,
         payoutOwnerType,
@@ -76,6 +102,9 @@ export async function postCancelAccountingInTx(
       refundTiyin: opts.refund.refundTiyin.toString(),
       refundPercent: opts.refund.refundPercent,
       ratePercent: opts.ratePercent,
+      originalGrossTiyin: originalGrossTiyin.toString(),
+      originalCommissionTiyin: originalCommissionTiyin.toString(),
+      commissionSource: source,
       err: err instanceof Error ? err.message : String(err),
     });
     throw err;
