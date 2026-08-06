@@ -121,9 +121,12 @@ NEXT_PUBLIC_APP_URL=https://safartrip.uz
 | --- | --- | --- |
 | No `Authorization` header | `-32504` | `AUTH_FAILED`, echo request `id` |
 | Unknown / invalid `booking_id` or `order_id` | `-31050` … `-31099` | `INVALID_ACCOUNT` (`-31050`) |
+| Account busy (`state=1`) / already paid | `-31050` … `-31099` | `ORDER_ALREADY_PAID` (`-31099`) |
+| Booking `CANCELLED` | `-31050` … `-31099` | `INVALID_ACCOUNT` (`-31050`) |
 | Wrong amount | `-31001` | `WRONG_AMOUNT` |
 
-Do **not** return `-32300` for auth, or `-31001`/`-31003` for a missing account.
+Do **not** return `-32300` for auth, `-31008`/`-31003` for a blocked/missing account,
+or `-31001` for a missing account. Same codes apply to **CheckPerform** and **CreateTransaction**.
 
 ### CheckPerform form (test.paycom.uz)
 
