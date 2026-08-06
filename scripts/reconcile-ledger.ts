@@ -1,5 +1,7 @@
 /**
- * Read-only Ledger ↔ PartnerEarning reconciliation (Step 3).
+ * Read-only reconciliation:
+ *   - Ledger ↔ PartnerEarning drift
+ *   - captured payments ↔ posted ledger clearing (PAYMENT_LEDGER_MISMATCH)
  *
  *   npx tsx scripts/reconcile-ledger.ts [--json] [--since=YYYY-MM-DD]
  *

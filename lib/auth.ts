@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 
 export function hashToken(rawToken: string): string {
@@ -54,6 +54,10 @@ export async function signRefreshToken(payload: { sub: string }) {
   return new SignJWT({})
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
+    // `iat` only has second precision, so without a jti two refreshes in the
+    // same second produce an identical token — and the rotation insert then
+    // collides with the revoked row on RefreshToken.tokenHash.
+    .setJti(randomUUID())
     .setIssuedAt()
     .setExpirationTime("30d")
     .sign(getSecret("JWT_REFRESH_SECRET"));
