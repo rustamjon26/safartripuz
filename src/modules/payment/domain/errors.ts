@@ -109,14 +109,40 @@ export function paymeRpcSuccess<T extends object>(id: number, result: T) {
   };
 }
 
+/**
+ * A JSON-RPC envelope carrying `error` rather than `result`.
+ *
+ * These must never be memoized in ProcessedEvent: a transient failure (DB
+ * timeout, -32400) would then be replayed to every Payme retry and strand the
+ * payment permanently. Success envelopes are safe to cache — the handlers that
+ * produce them are idempotent.
+ */
+export function isPaymeErrorResponse(response: unknown): boolean {
+  return (
+    typeof response === "object" &&
+    response !== null &&
+    "error" in response &&
+    (response as { error?: unknown }).error != null
+  );
+}
+
+/**
+ * Click SHOP API error codes, in the provider's own wording:
+ *   0 Success | -1 SIGN CHECK FAILED | -2 Incorrect parameter amount
+ *   -3 Action not found | -4 Already paid | -5 User does not exist
+ *   -6 Transaction does not exist | -7 Failed to update user
+ *   -8 Error in request from click | -9 Transaction cancelled
+ */
 export const CLICK_ERRORS = {
   SUCCESS: 0,
   SIGN_FAILED: -1,
   INCORRECT_PARAMS: -2,
   ACTION_NOT_FOUND: -3,
   ALREADY_PAID: -4,
+  /** -5 "User does not exist" — the order behind merchant_trans_id. */
   TRANSACTION_NOT_FOUND: -5,
-  TRANSACTION_CANCELLED: -6,
+  /** -6 "Transaction does not exist" — no prepare record for merchant_prepare_id. */
+  TRANSACTION_NOT_EXIST: -6,
   /** @deprecated use ALREADY_PAID (-4) per harden plan */
   TRANSACTION_COMPLETED: -7,
   TRANSACTION_EXPIRED: -8,

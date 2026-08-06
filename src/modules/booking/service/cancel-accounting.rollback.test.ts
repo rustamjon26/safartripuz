@@ -23,9 +23,16 @@ const reversePartnerEarningInTx = vi.hoisted(() =>
   ),
 );
 
+const findBookingPaymentCharge = vi.hoisted(() =>
+  vi.fn(async (_bookingId: string, _tx?: unknown) => null),
+);
+
 vi.mock("@/src/modules/ledger", () => ({
   ledgerService: {
     postRefundCompensation,
+  },
+  ledgerRepository: {
+    findBookingPaymentCharge,
   },
   calcPlatformCommissionTiyin: (gross: bigint, rate: number) => {
     const platformTotal = (gross * BigInt(rate)) / 100n;
@@ -43,6 +50,8 @@ describe("postCancelAccountingInTx atomic failure", () => {
   beforeEach(() => {
     postRefundCompensation.mockReset();
     reversePartnerEarningInTx.mockReset();
+    findBookingPaymentCharge.mockReset();
+    findBookingPaymentCharge.mockResolvedValue(null);
     postRefundCompensation.mockResolvedValue({
       alreadyExisted: false,
       transactionId: "ltx1",
