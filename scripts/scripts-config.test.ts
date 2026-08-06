@@ -35,6 +35,14 @@ describe("setup-server.sh matches production", () => {
     expect(setup).not.toMatch(/\/var\/www\/safartrip\b/);
   });
 
+  it("verifies deploy via static chunk URL, not auth-gated /trip-builder HTML", () => {
+    const deploy = read("scripts/deploy-safe.sh");
+    // Anonymous /trip-builder redirects to /login — scraping HTML never finds the chunk.
+    expect(deploy).toContain("/_next/static/chunks/app/trip-builder/");
+    expect(deploy).toContain("/api/health");
+    expect(deploy).not.toMatch(/curl[^|]*\/trip-builder[^|]*grep/);
+  });
+
   it("keeps the nginx static alias narrow enough for /_next/image to reach the app", () => {
     expect(setup).toContain("location /_next/static/");
     expect(setup).not.toMatch(/location \/_next\/\s*\{/);

@@ -253,24 +253,36 @@ PM2_STOPPED_FOR_BUILD=0
 echo "==> PM2 status:"
 pm2 status
 
-# Fail deploy if the process on :3000 is still serving a stale build.
+# Fail deploy if :3000 is not serving this build's static assets.
+# Do NOT scrape /trip-builder HTML — middleware redirects anonymous users to
+# /login, so the page never references trip-builder/page-*.js (false FATAL).
 EXPECTED_BUILD_ID="$(tr -d '[:space:]' < .next/BUILD_ID)"
-echo "==> Verifying runtime serves on-disk trip-builder chunk (BUILD_ID=${EXPECTED_BUILD_ID})..."
+CHUNK_FILE="$(ls -1 .next/static/chunks/app/trip-builder/page-*.js 2>/dev/null | head -1 || true)"
+if [[ -z "$CHUNK_FILE" || ! -f "$CHUNK_FILE" ]]; then
+  echo "==> FATAL: no on-disk trip-builder page chunk after build." >&2
+  ls -la .next/static/chunks/app/trip-builder/ >&2 || true
+  exit 1
+fi
+CHUNK_BASENAME="$(basename "$CHUNK_FILE")"
+CHUNK_URL="http://127.0.0.1:3000/_next/static/chunks/app/trip-builder/${CHUNK_BASENAME}"
+echo "==> Verifying runtime serves ${CHUNK_BASENAME} + /api/health (BUILD_ID=${EXPECTED_BUILD_ID})..."
 VERIFY_OK=0
 for _try in 1 2 3 4 5 6 7 8 9 10; do
   sleep 1
-  HTML="$(curl -fsS --max-time 5 http://127.0.0.1:3000/trip-builder 2>/dev/null || true)"
-  CHUNK="$(printf '%s' "$HTML" | grep -oE 'trip-builder/page-[a-f0-9]+\.js' | head -1 || true)"
-  if [[ -n "$CHUNK" && -f ".next/static/chunks/app/${CHUNK}" ]]; then
-    echo "==> Runtime serves ${CHUNK} (on disk) — OK"
+  CODE="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$CHUNK_URL" 2>/dev/null || echo 000)"
+  HEALTH="$(curl -sS --max-time 5 http://127.0.0.1:3000/api/health 2>/dev/null || true)"
+  HEALTH_STATUS="$(printf '%s' "$HEALTH" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 || true)"
+  if [[ "$CODE" == "200" && ( "$HEALTH_STATUS" == "ok" || "$HEALTH_STATUS" == "degraded" ) ]]; then
+    echo "==> Runtime serves ${CHUNK_BASENAME} (HTTP 200) and health=${HEALTH_STATUS} — OK"
     VERIFY_OK=1
     break
   fi
-  echo "==> verify attempt ${_try}: chunk='${CHUNK:-none}' not on disk yet..."
+  echo "==> verify attempt ${_try}: chunk HTTP=${CODE} health='${HEALTH_STATUS:-none}'..."
 done
 if [[ "$VERIFY_OK" != "1" ]]; then
-  echo "==> FATAL: :3000 still serving stale/missing trip-builder chunk after restart." >&2
-  echo "    Expected files under .next/static/chunks/app/trip-builder/:" >&2
+  echo "==> FATAL: :3000 not serving this build's trip-builder chunk after restart." >&2
+  echo "    Expected URL: ${CHUNK_URL}" >&2
+  echo "    On-disk files:" >&2
   ls -la .next/static/chunks/app/trip-builder/ >&2 || true
   echo "    Recent safartrip logs:" >&2
   pm2 logs safartrip --lines 30 --nostream >&2 || true

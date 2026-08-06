@@ -106,6 +106,12 @@ sudo -u safartrip -H bash -lc 'cd /var/www/safar && git fetch origin && git rese
 curl -sS http://127.0.0.1:3000/api/health | jq
 # 200 = ok or degraded, 503 = unhealthy
 
+# Post-deploy check (deploy-safe.sh does this): serve this build's static chunk.
+# Do not scrape /trip-builder HTML — anonymous users are redirected to /login.
+CHUNK=$(ls -1 /var/www/safar/.next/static/chunks/app/trip-builder/page-*.js | head -1 | xargs -n1 basename)
+curl -sS -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:3000/_next/static/chunks/app/trip-builder/${CHUNK}"
+# expect: 200
+
 sudo -u safartrip -H bash -lc 'pm2 status'
 sudo -u safartrip -H bash -lc 'pm2 logs safartrip --lines 80'
 ```
