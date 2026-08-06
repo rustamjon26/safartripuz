@@ -1,5 +1,15 @@
 import { z } from "zod";
-import { MOCK_PAYMENTS_IN_PRODUCTION_MESSAGE } from "@/lib/payments/mockGate";
+
+/**
+ * Keep this string local — `src/shared/env` is imported by worker entry points
+ * via `tsx` (no Next path-alias resolver). Pulling `@/lib/payments/mockGate`
+ * here breaks boot with MODULE_NOT_FOUND before we can even report a missing
+ * DATABASE_URL. `lib/payments/mockGate.ts` keeps the same wording.
+ */
+const MOCK_PAYMENTS_IN_PRODUCTION_MESSAGE =
+  "PAYMENTS_MOCK_ENABLED=true is set on a production runtime. Mock payments " +
+  "let anyone mark a payment paid without a provider callback. Remove the " +
+  "variable from the server environment.";
 
 /**
  * Central env schema. Optional integrations stay optional at parse time;
