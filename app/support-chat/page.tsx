@@ -29,7 +29,7 @@ export default function PartySupportChatPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/support-chat/threads", {
+      const res = await fetch("/api/support/chat/my/threads", {
         credentials: "include",
         cache: "no-store",
       });
@@ -55,7 +55,7 @@ export default function PartySupportChatPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/support-chat/threads", {
+      const res = await fetch("/api/support/chat/my/threads", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
