@@ -192,6 +192,17 @@ export async function findPaymeTransactionByPaymeId(
   });
 }
 
+/** One PaymeTransaction per booking (unique bookingId). */
+export async function findPaymeTransactionByBookingId(
+  bookingId: string | undefined,
+): Promise<PaymeTransactionWithBooking | null> {
+  if (!bookingId) return null;
+  return prisma.paymeTransaction.findUnique({
+    where: { bookingId },
+    include: paymeTransactionInclude,
+  });
+}
+
 export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetail {
   return buildPaymeReceiptDetail({
     title: `Hotel booking - ${booking.hotel.name}`,
