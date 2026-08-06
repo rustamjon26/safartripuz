@@ -30,7 +30,7 @@ const INVALID_CREDENTIALS_MESSAGE = "Email yoki parol noto'g'ri";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!checkRateLimit(`signin:${ip}`, 10, 60_000)) {
+  if (!(await checkRateLimit(`signin:${ip}`, 10, 60_000))) {
     return NextResponse.json(
       { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
       { status: 429 },

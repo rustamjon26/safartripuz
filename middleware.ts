@@ -11,6 +11,24 @@ function getSecret() {
   return new TextEncoder().encode(v);
 }
 
+/**
+ * Role comes from the JWT claim, not the database — this file runs on the Edge
+ * runtime (legacy `middleware.ts` convention; Next 16's `proxy.ts` would be
+ * Node.js), where Prisma is not reachable. Do not add a DB lookup here.
+ *
+ * Blocking and demotion are therefore enforced where the DB *is* reachable:
+ *   - every protected API call, via `requireUser()` (reads role + isBlocked)
+ *   - `POST /api/auth/refresh`, which refuses to mint a token for a blocked
+ *     user and bakes the current DB role into the new one
+ *
+ * What is left is a shell that renders for at most one access-token lifetime
+ * (15m, see `signAccessToken`) after a block — the APIs behind it already fail.
+ *
+ * TODO(instant-revocation): to close that window, add a `tokenVersion` claim
+ * bumped on block/role change. It needs a store the Edge can read (migrating to
+ * `proxy.ts` for the Node.js runtime, or a signed/KV lookup), so it is a
+ * separate piece of work rather than a tweak here.
+ */
 async function getRoleFromAccessToken(token: string): Promise<Role | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());

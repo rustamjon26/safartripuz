@@ -9,23 +9,37 @@ import {
   verifyRefreshToken,
 } from "@/lib/auth";
 
+/**
+ * 401 + drop both cookies. Refresh is the only place a blocked or demoted user's
+ * session can be terminated server-side, so it must not leave a stale access
+ * cookie behind for the client to keep replaying.
+ */
+function unauthorized(): NextResponse {
+  const res = NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  res.cookies.set("access_token", "", { ...authCookieOptions, maxAge: 0 });
+  res.cookies.set("refresh_token", "", { ...authCookieOptions, maxAge: 0 });
+  return res;
+}
+
 export async function POST() {
   try {
     const token = (await cookies()).get("refresh_token")?.value;
     if (!token) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
     const { sub } = await verifyRefreshToken(token);
     const tokenHash = hashToken(token);
 
+    // Same authority as requireUser(): role and isBlocked come from the DB, never
+    // from a token claim. A user blocked mid-session cannot mint a new access token.
     const user = await prisma.user.findUnique({
       where: { id: sub },
       select: { id: true, role: true, isBlocked: true },
     });
 
     if (!user || user.isBlocked) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
     const refreshRow = await prisma.refreshToken.findFirst({
@@ -38,9 +52,10 @@ export async function POST() {
       select: { id: true },
     });
     if (!refreshRow) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return unauthorized();
     }
 
+    // Current DB role, so a demotion lands on the next refresh too.
     const nextAccess = await signAccessToken({ sub: user.id, role: user.role });
     const nextRefresh = await signRefreshToken({ sub: user.id });
     const nextRefreshHash = hashToken(nextRefresh);
@@ -71,6 +86,6 @@ export async function POST() {
     });
     return res;
   } catch {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    return unauthorized();
   }
 }
