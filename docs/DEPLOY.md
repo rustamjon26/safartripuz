@@ -133,6 +133,8 @@ After cutover on a fresh Contabo DB:
 
 Also confirm runtime env still has `DATABASE_URL`, JWT secrets, and `NEXT_PUBLIC_APP_URL` / `APP_URL` for redirects — those stay in `.env`, not in `payment_providers`.
 
+**Payme Merchant / kassa handoff** (Endpoint URL, `order_id` account, fiscal MXIK): see [`docs/PAYME_MERCHANT.md`](./PAYME_MERCHANT.md).
+
 ## Related scripts
 
 - `scripts/deploy-safe.sh` — preferred path (migrate, typecheck, tests, memory-aware build, PM2 reload)

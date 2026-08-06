@@ -7,6 +7,7 @@ import {
   paymeRpcError,
   paymeRpcSuccess,
 } from "../../domain/errors";
+import { buildPaymeReceiptDetail } from "../../domain/payme-receipt";
 import { paymentRepository } from "../../repository/payment.repository";
 import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
@@ -80,13 +81,21 @@ export async function handleOrderIdMethod(
     if (!payment || payment.provider !== "PAYME") {
       return paymeRpcError(rpcId, PAYME_ERRORS.INVALID_ACCOUNT, "order_id");
     }
-    if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment)) {
+    const amountTiyin = expectedTiyin(payment);
+    if (params.amount == null || BigInt(params.amount) !== amountTiyin) {
       return paymeRpcError(rpcId, PAYME_ERRORS.WRONG_AMOUNT);
     }
     if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.ORDER_ALREADY_PAID);
     }
-    return paymeRpcSuccess(rpcId, { allow: true });
+    // Fiscal detail required for Soliq turnover (Shohjahon / Merchant API).
+    return paymeRpcSuccess(rpcId, {
+      allow: true,
+      detail: buildPaymeReceiptDetail({
+        title: "SafarTrip sayohat to'lovi",
+        priceTiyin: Number(amountTiyin),
+      }),
+    });
   }
 
   if (method === "CreateTransaction") {

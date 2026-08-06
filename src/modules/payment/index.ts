@@ -17,6 +17,14 @@ export {
   isPaymentCaptured,
   isPaymentSettled,
 } from "./domain/payment-status";
+export {
+  buildPaymeReceiptDetail,
+  getPaymeMxikCode,
+  getPaymePackageCode,
+  getPaymeVatPercent,
+  type PaymeReceiptDetail,
+  type PaymeReceiptItem,
+} from "./domain/payme-receipt";
 export { paymeHttpHandler, type PaymeAccountMode } from "./adapters/payme/httpHandler";
 export { clickHttpHandler } from "./adapters/click/handler";
 export {
