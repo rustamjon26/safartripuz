@@ -1,5 +1,5 @@
 import type { Booking, Hotel, PaymeTransaction } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { paymeBookingRepository } from "@/src/modules/payment";
 
 export const PAYME_TRANSACTION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
@@ -178,10 +178,7 @@ export function getBookingIdFromAccount(
 export async function findBookingById(bookingId: string | undefined): Promise<BookingWithHotel | null> {
   if (!bookingId) return null;
 
-  return prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: bookingHotelInclude,
-  });
+  return paymeBookingRepository.findBookingById(bookingId);
 }
 
 export async function findPaymeTransactionByPaymeId(
@@ -190,10 +187,7 @@ export async function findPaymeTransactionByPaymeId(
   const normalizedPaymeId = normalizePaymeTransactionId(paymeId);
   if (!normalizedPaymeId) return null;
 
-  return prisma.paymeTransaction.findUnique({
-    where: { paymeId: normalizedPaymeId },
-    include: paymeTransactionInclude,
-  });
+  return paymeBookingRepository.findTransactionByPaymeId(normalizedPaymeId);
 }
 
 export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetail {
@@ -293,17 +287,8 @@ export async function autoCancelExpiredTransaction(
 
   const cancelTime = BigInt(Date.now());
 
-  return prisma.paymeTransaction.update({
-    where: { id: transaction.id },
-    data: {
-      state: -1,
-      reason: 4,
-      cancelTime,
-    },
-    include: {
-      booking: {
-        include: bookingHotelInclude,
-      },
-    },
+  return paymeBookingRepository.markTransactionCancelled(transaction.id, {
+    reason: 4,
+    cancelTime,
   });
 }
