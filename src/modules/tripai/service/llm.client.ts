@@ -10,11 +10,16 @@ export type LlmConfig = {
   model: string;
 };
 
+function readEnv(name: string): string {
+  const value = process.env[name];
+  return typeof value === "string" ? value.trim() : "";
+}
+
 export function loadTripaiLlmConfig(): LlmConfig | null {
-  const apiKey = process.env.TRIPAI_LLM_API_KEY?.trim();
-  const baseUrl = process.env.TRIPAI_LLM_BASE_URL?.trim();
-  const model = process.env.TRIPAI_LLM_MODEL?.trim();
-  const provider = process.env.TRIPAI_LLM_PROVIDER?.trim() || "alemllm";
+  const apiKey = readEnv("TRIPAI_LLM_API_KEY");
+  const baseUrl = readEnv("TRIPAI_LLM_BASE_URL");
+  const model = readEnv("TRIPAI_LLM_MODEL");
+  const provider = readEnv("TRIPAI_LLM_PROVIDER") || "alemllm";
   if (!apiKey || !baseUrl || !model) return null;
   return { provider, baseUrl, apiKey, model };
 }
@@ -61,10 +66,19 @@ export async function chatCompletions(
       return null;
     }
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string | null } }>;
+      choices?: Array<{
+        message?: {
+          content?: string | null;
+          reasoning_content?: string | null;
+        };
+      }>;
     };
-    const content = data.choices?.[0]?.message?.content?.trim();
-    return content ? content : null;
+    const msg = data.choices?.[0]?.message;
+    const content = msg?.content?.trim();
+    if (content) return content;
+    const reasoning = msg?.reasoning_content?.trim();
+    if (reasoning && reasoning.includes("{")) return reasoning;
+    return null;
   } catch (error) {
     console.error("LLM chatCompletions error:", error);
     return null;

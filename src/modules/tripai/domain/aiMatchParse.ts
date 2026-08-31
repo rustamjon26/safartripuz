@@ -59,6 +59,20 @@ const EMPTY_INTENT: AiMatchIntent = {
   message: "",
 };
 
+const ERRORISH_MESSAGE =
+  /api\s*xato|^xato$|internal server|unauthorized|not configured|llm returned/i;
+
+export const CITY_CLARIFY_MESSAGE =
+  "Qaysi shaharga boramiz? Samarqand, Buxoro yoki Xiva deb yozing — men mehmonxona, transfer va gidni yig'aman.";
+
+export function guestFacingMessage(raw: string, destination: string): string {
+  const text = raw.trim();
+  if (!text || ERRORISH_MESSAGE.test(text)) {
+    return destination ? `${destination} bo'yicha safar yig'ildi.` : CITY_CLARIFY_MESSAGE;
+  }
+  return text;
+}
+
 export function extractJsonObject(raw: string): string | null {
   const cleaned = raw.replace(/```json|```/gi, "").trim();
   try {
@@ -138,11 +152,7 @@ export function parseAiMatchIntent(
   return {
     ...base,
     destination,
-    message:
-      base.message ||
-      (destination
-        ? `${destination} bo'yicha safar yig'ildi.`
-        : "Shaharni aniqlay olmadim. Samarqand, Buxoro yoki Xiva kabi shahar nomini yozing."),
+    message: guestFacingMessage(base.message, destination),
   };
 }
 

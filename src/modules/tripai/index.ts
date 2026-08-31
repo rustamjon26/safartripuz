@@ -45,6 +45,8 @@ export { chatCompletions, loadTripaiLlmConfig } from "./service/llm.client";
 export {
   parseAiMatchIntent,
   buildAiMatchPrompt,
+  guestFacingMessage,
+  CITY_CLARIFY_MESSAGE,
 } from "./domain/aiMatchParse";
 export type { AiMatchIntent } from "./domain/aiMatchParse";
 export type {
