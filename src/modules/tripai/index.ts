@@ -42,6 +42,11 @@ export {
 export { plannerService, PlannerService } from "./service/planner.service";
 export type { CreatePlanInput } from "./service/planner.service";
 export { chatCompletions, loadTripaiLlmConfig } from "./service/llm.client";
+export {
+  parseAiMatchIntent,
+  buildAiMatchPrompt,
+} from "./domain/aiMatchParse";
+export type { AiMatchIntent } from "./domain/aiMatchParse";
 export type {
   PlanResult,
   PlanMeta,
