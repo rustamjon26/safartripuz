@@ -266,7 +266,7 @@ export default function TripBuilderPage() {
           pricePerHour: data.guide.pricePerHour,
         });
       
-      setAiMessage(data.message || "Safar muvaffaqiyatli yig'ildi!");
+      setAiMessage(data.aiMessage || data.message || "Safar muvaffaqiyatli yig'ildi!");
       const h = data.hotel?.nightlyPrice ? data.hotel.nightlyPrice * Math.max(1, Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 86400000)) : 0;
       const t = data.taxi?.price ?? 0;
       const g = data.guide?.pricePerDay ? data.guide.pricePerDay * Math.max(1, Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 86400000)) : 0;

@@ -1,82 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  buildAiMatchPrompt,
+  chatCompletions,
+  loadTripaiLlmConfig,
+  parseAiMatchIntent,
+} from "@/src/modules/tripai";
 
-async function parseWithClaude(prompt: string, availableCities: string[]) {
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: `Siz O'zbekiston bo'ylab sayohat rejalashtiruvchi 
-yordamchisiz. Foydalanuvchi so'rovi: "${prompt}"
-
-Mavjud shaharlar ro'yxati: ${availableCities.join(", ")}
-
-MUHIM: destination FAQAT yuqoridagi ro'yxatdan bo'lishi kerak.
-Agar foydalanuvchi Samarqand desa va ro'yxatda Samarqand bo'lsa,
-destination = "Samarqand" deb yoz.
-
-Faqat shu JSON ni qaytar, boshqa hech narsa yozma:
-{"destination":"shahar_nomi","pax":2,"budget":"cheap|expensive|any","days":2,"mood":"romantic|family|adventure|relax|business|any","message":"o'zbek tilida 1 jumlali javob"}`,
-          },
-        ],
-      }),
-    });
-
-    if (!res.ok) {
-      return { destination: "", pax: 2, budget: "any" as const, days: 2, mood: "any", message: "API xato" };
-    }
-
-    const data = await res.json();
-    const text = data.content?.[0]?.text ?? "{}";
-    const cleaned = text.replace(/```json|```/g, "").trim();
-
-    let result;
-    try {
-      result = JSON.parse(cleaned);
-    } catch {
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          result = JSON.parse(jsonMatch[0]);
-        } catch {
-          return {
-            destination: "",
-            pax: 2,
-            budget: "any" as const,
-            days: 2,
-            mood: "any",
-            message: "Tushunmadim, qayta yozing.",
-          };
-        }
-      } else {
-        return {
-          destination: "",
-          pax: 2,
-          budget: "any" as const,
-          days: 2,
-          mood: "any",
-          message: "Tushunmadim, qayta yozing.",
-        };
-      }
-    }
-
-    return result;
-  } catch {
-    return { destination: "", pax: 2, budget: "any" as const, days: 2, mood: "any", message: "Xato" };
-  }
-}
+const bodySchema = z.object({
+  prompt: z.string().trim().min(5).max(2000),
+});
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -91,11 +27,9 @@ export async function POST(req: NextRequest) {
     await requireUser();
 
     const rawBody = await req.text();
-
-    let prompt: string;
+    let json: unknown;
     try {
-      const parsed = JSON.parse(rawBody) as { prompt?: string };
-      prompt = parsed.prompt ?? "";
+      json = JSON.parse(rawBody);
     } catch {
       return NextResponse.json(
         { message: "JSON format noto'g'ri" },
@@ -103,10 +37,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!prompt || prompt.trim().length < 5) {
+    const body = bodySchema.safeParse(json);
+    if (!body.success) {
       return NextResponse.json(
         { message: "Iltimos, safar haqida batafsilroq yozing." },
         { status: 400 },
+      );
+    }
+    const prompt = body.data.prompt;
+
+    if (!loadTripaiLlmConfig()) {
+      console.error("AI match: TRIPAI_LLM_* is not configured");
+      return NextResponse.json(
+        { message: "AI hozir javob bera olmayapti. Keyinroq urinib ko'ring." },
+        { status: 503 },
       );
     }
 
@@ -123,7 +67,20 @@ export async function POST(req: NextRequest) {
       ),
     ];
 
-    const parsed = await parseWithClaude(prompt, availableCities);
+    const rawLlm = await chatCompletions(
+      [{ role: "user", content: buildAiMatchPrompt(prompt, availableCities) }],
+      { temperature: 0.2, maxTokens: 800, timeoutMs: 25_000 },
+    );
+
+    if (!rawLlm) {
+      console.error("AI match: LLM returned empty response");
+      return NextResponse.json(
+        { message: "AI javob bera olmadi. Keyinroq urinib ko'ring." },
+        { status: 502 },
+      );
+    }
+
+    const parsed = parseAiMatchIntent(rawLlm, availableCities, prompt);
 
     if (!parsed.destination) {
       return NextResponse.json(
@@ -232,6 +189,7 @@ export async function POST(req: NextRequest) {
         taxi: bestTaxi,
         guide: bestGuide,
         aiMessage: parsed.message,
+        message: parsed.message,
       },
     });
   } catch (error) {

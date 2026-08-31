@@ -51,12 +51,22 @@ export async function chatCompletions(
       }),
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error(
+        "LLM chatCompletions failed",
+        res.status,
+        errBody.slice(0, 300),
+      );
+      return null;
+    }
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string | null } }>;
     };
-    return data.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch {
+    const content = data.choices?.[0]?.message?.content?.trim();
+    return content ? content : null;
+  } catch (error) {
+    console.error("LLM chatCompletions error:", error);
     return null;
   } finally {
     clearTimeout(timeout);
