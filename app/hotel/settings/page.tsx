@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Settings, Building2, Mail, Phone, MapPin, Globe, Save,
-  Loader2, ShieldCheck, CreditCard, Bell, Lock, ArrowLeft, Key, UserCheck
+  Loader2, ShieldCheck, CreditCard, Bell, Lock, ArrowLeft, Key, UserCheck, Cable
 } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
@@ -21,7 +22,7 @@ export default function SettingsPage() {
 
   async function load() {
     try {
-      const res  = await fetch("/api/hotel/me");
+      const res  = await hotelFetch("/api/hotel/me");
       const data = await res.json();
       if (res.ok && data.hotel) {
         setIsStaff(data.isStaff);
@@ -45,13 +46,13 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/profile", {
+      const res = await hotelFetch("/api/hotel/profile", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
       if (res.ok) toast.success(t("settings.toasts.save_success"));
       else throw new Error(await (await res.json()).message);
-    } catch (e: any) { toast.error(e.message || t("common.error")); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t("common.error")); }
     setSaving(false);
   }
 
@@ -60,7 +61,7 @@ export default function SettingsPage() {
     if (passForm.newPassword !== passForm.confirmPassword) return toast.error(t("settings.toasts.pass_mismatch"));
     setSaving(true);
     try {
-      const res = await fetch("/api/hotel/profile/password", {
+      const res = await hotelFetch("/api/hotel/profile/password", {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(passForm)
       });
@@ -116,6 +117,14 @@ export default function SettingsPage() {
             <button className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-300 font-bold text-[13px] text-left opacity-50 cursor-not-allowed">
                <Bell size={16}/> {t("settings.tabs.notifications")}
             </button>
+            {!isStaff && (
+              <Link
+                href="/hotel/settings/integrations"
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-black text-[13px] text-left text-slate-400 hover:bg-slate-50 transition-all"
+              >
+                <Cable size={16}/> Integratsiyalar
+              </Link>
+            )}
          </div>
 
          {/* Main Content */}

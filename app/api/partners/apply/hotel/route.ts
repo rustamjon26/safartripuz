@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { normalizeUzPhone } from "@/src/shared/phone";
 
 const schema = z.object({
   hotelName: z.string().trim().min(2),
   city: z.string().trim().min(2),
   address: z.string().trim().min(5),
   contactEmail: z.string().trim().email(),
-  contactPhone: z.string().trim().regex(/^\+998\d{9}$/),
+  contactPhone: z.string().trim().min(9).max(40),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -17,7 +18,11 @@ export async function POST(req: Request) {
     const actor = await requireUser();
     if (actor.role !== "user") {
       return NextResponse.json(
-        { message: "Faqat user rolidagi foydalanuvchi ariza topshira oladi" },
+        {
+          message:
+            "Faqat oddiy foydalanuvchi (user) ariza topshira oladi. Hozirgi rol: " +
+            actor.role,
+        },
         { status: 403 },
       );
     }
@@ -25,7 +30,24 @@ export async function POST(req: Request) {
     const json = await req.json();
     const parsed = schema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json({ message: "Validation error" }, { status: 400 });
+      return NextResponse.json(
+        {
+          message:
+            parsed.error.issues[0]?.message ?? "Ma'lumotlar noto‘g‘ri to‘ldirilgan",
+        },
+        { status: 400 },
+      );
+    }
+
+    const contactPhone = normalizeUzPhone(parsed.data.contactPhone);
+    if (!contactPhone) {
+      return NextResponse.json(
+        {
+          message:
+            "Telefon formati noto‘g‘ri. Masalan: +998901234567 yoki 901234567",
+        },
+        { status: 400 },
+      );
     }
 
     const existing = await prisma.partner.findUnique({
@@ -34,7 +56,9 @@ export async function POST(req: Request) {
     });
     if (existing) {
       return NextResponse.json(
-        { message: "Sizda allaqachon partner ariza/profil mavjud" },
+        {
+          message: `Sizda allaqachon ${existing.type} partner arizasi bor (${existing.status})`,
+        },
         { status: 409 },
       );
     }
@@ -46,7 +70,7 @@ export async function POST(req: Request) {
         userId: actor.id,
         displayName: parsed.data.hotelName,
         contactEmail: parsed.data.contactEmail,
-        contactPhone: parsed.data.contactPhone,
+        contactPhone,
         meta: {
           city: parsed.data.city,
           address: parsed.data.address,
@@ -84,8 +108,12 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Avval tizimga kiring" },
+        { status: 401 },
+      );
     }
+    console.error("[partners/apply/hotel] failed", e);
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
 }

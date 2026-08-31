@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { fail, handleApiError, ok } from "./host/_utils";
+import {
+  cityOrRegionContainsAny,
+  destinationSearchTerms,
+} from "@/lib/trip-builder/destinationAliases";
 
 function parseDate(value: string | null) {
   if (!value) return null;
@@ -29,7 +33,7 @@ export async function GET(req: Request) {
 
     const where: {
       status: "ACTIVE";
-      city?: { contains: string };
+      OR?: ReturnType<typeof cityOrRegionContainsAny>;
       maxGuests?: { gte: number };
       pricePerNight?: { gte?: number; lte?: number };
       availabilities?: { none: { startDate: { lt: Date }; endDate: { gt: Date } } };
@@ -42,7 +46,8 @@ export async function GET(req: Request) {
       };
     } = { status: "ACTIVE" };
 
-    if (city) where.city = { contains: city };
+    const cityTerms = destinationSearchTerms(city);
+    if (cityTerms.length) where.OR = cityOrRegionContainsAny(cityTerms);
     if (guests > 0) where.maxGuests = { gte: guests };
     if (minPrice > 0 || maxPrice > 0) {
       where.pricePerNight = {};

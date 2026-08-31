@@ -2,28 +2,30 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import {
+  Bell,
   Car,
   CircleDollarSign,
   ClipboardList,
   LayoutDashboard,
+  LifeBuoy,
   LogOut,
   Menu,
+  Plus,
   UserCircle2,
-  Wrench,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import "../hotel/hotel.css";
-import type { ReactNode } from "react";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
+import "./taxi-partner.css";
 
 const NAV_ITEMS = [
   { href: "/taxi-partner/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/taxi-partner/orders", label: "Orders", icon: ClipboardList },
-  { href: "/taxi-partner/vehicles", label: "Vehicles", icon: Car },
-  { href: "/taxi-partner/earnings", label: "Earnings", icon: CircleDollarSign },
-  { href: "/taxi-partner/profile", label: "Profile", icon: UserCircle2 },
+  { href: "/taxi-partner/orders", label: "Safarlar", icon: ClipboardList },
+  { href: "/taxi-partner/vehicles", label: "Avtomobillar", icon: Car },
+  { href: "/taxi-partner/earnings", label: "Moliya", icon: CircleDollarSign },
+  { href: "/taxi-partner/profile", label: "Sozlamalar", icon: UserCircle2 },
 ];
 
 interface CurrentUser {
@@ -38,7 +40,11 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     async function loadMe() {
@@ -49,11 +55,15 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
           router.push("/login?next=/taxi-partner/dashboard");
           return;
         }
-        if (data?.user?.role !== "taxi_partner") {
+        const role = data?.user?.role as string | undefined;
+        // Admin may assign either `taxi` (driver) or `taxi_partner` (fleet).
+        // Middleware already allows both; the shell must match.
+        if (role !== "taxi" && role !== "taxi_partner") {
           router.push("/");
           return;
         }
         setUser(data.user);
+        setReady(true);
       } catch {
         router.push("/login?next=/taxi-partner/dashboard");
       }
@@ -83,133 +93,231 @@ export default function TaxiPartnerLayout({ children }: { children: ReactNode })
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full bg-white">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/80 min-h-[64px]">
-        <div className="w-9 h-9 rounded-xl bg-[var(--bg-light-blue)] flex items-center justify-center shrink-0 border border-slate-100 text-[var(--accent)]">
-          <Wrench size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-display font-bold text-[var(--primary)] text-lg leading-tight truncate">
-            Taxi CRM
-          </div>
-          <div className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
-            Driver Panel
-          </div>
-        </div>
-        {mobile && (
-          <button onClick={() => setDrawerOpen(false)} className="p-1.5 bg-slate-100 rounded-lg text-slate-500">
-            <X size={16} />
-          </button>
-        )}
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 p-2.5 rounded-xl transition-all text-[14px] font-bold ${
-                active
-                  ? "bg-[var(--bg-light-blue)] text-[var(--accent)]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-              }`}
-            >
-              <item.icon size={18} className="shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-slate-200/80 p-4 bg-slate-50/50">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <div className="text-[13px] font-bold text-slate-900 truncate">
-              {user ? `${user.first_name} ${user.last_name}` : "Driver"}
-            </div>
-            <div className="text-[11px] font-semibold text-slate-500 truncate">
-              {user?.email || "driver@safartrip.uz"}
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={() => void handleLogout()}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors text-sm font-bold"
-        >
-          <LogOut size={16} />
-          Chiqish
-        </button>
-      </div>
-    </div>
-  );
-
   const currentTitle =
     NAV_ITEMS.find((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))?.label ||
     "Taxi";
 
-  return (
-    <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">
-      <aside className="hidden lg:flex w-[250px] border-r border-slate-200/80 bg-white shrink-0">
-        <Sidebar />
-      </aside>
+  const roleLabel =
+    user?.role === "taxi_partner" ? "Fleet Partner" : "Taxi Hamkor";
 
-      {drawerOpen && (
+  function renderSidebar(mobile = false) {
+    return (
+      <div className="flex flex-col h-full bg-[#0d2137] text-white">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 min-h-[64px]">
+          <div className="w-9 h-9 rounded-xl bg-[#006781] flex items-center justify-center shrink-0 text-white shadow-[0_4px_12px_rgba(0,103,129,0.35)]">
+            <Car size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-white text-[17px] leading-tight truncate">
+              SafarTrip Partner
+            </div>
+            <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
+              Fleet Management
+            </div>
+          </div>
+          {mobile ? (
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(false)}
+              className="p-1.5 bg-white/10 rounded-lg text-white/80"
+            >
+              <X size={16} />
+            </button>
+          ) : null}
+        </div>
+
+        <nav className="tp-nav-scroll flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex items-center gap-3 p-2.5 rounded-xl transition-all text-[13px] font-[family-name:var(--font-sora)] font-semibold ${
+                  active
+                    ? "bg-[#006781]/25 text-[#8fdfff]"
+                    : "text-white/60 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {active ? (
+                  <span className="absolute left-0 top-[18%] bottom-[18%] w-[3px] rounded-r bg-[#8fdfff]" />
+                ) : null}
+                <item.icon size={18} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-white/10 p-3 space-y-2 bg-black/15">
+          <Link
+            href="/taxi-partner/profile"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#006781] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold hover:bg-[#005a71]"
+          >
+            <Plus size={14} />
+            Profil / Transport
+          </Link>
+          <Link
+            href="/support-chat"
+            className="flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold text-white/55 hover:bg-white/5 hover:text-white"
+          >
+            <LifeBuoy size={16} />
+            Yordam
+          </Link>
+          <div className="flex items-center gap-3 px-1 pt-1">
+            <Link
+              href="/taxi-partner/profile"
+              className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
+              title="Profil"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-semibold text-white truncate">
+                  {user ? `${user.first_name} ${user.last_name}` : "Driver"}
+                </div>
+                <div className="text-[10px] text-white/45 truncate">
+                  {user?.email || "driver@safartrip.uz"}
+                </div>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="p-2 text-white/45 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg"
+              title="Chiqish"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Nothing renders until the session check resolves — otherwise the shell and
+  // its data are briefly visible to a signed-out visitor on a client navigation.
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-semibold text-slate-500">
+        Yuklanmoqda…
+      </div>
+    );
+  }
+
+  return (
+    <div className="tp-root">
+      <aside className="tp-sidebar-desktop" aria-label="Taxi partner navigation">
+        {renderSidebar()}
+      </aside>
+      <div className="tp-sidebar-spacer" aria-hidden />
+
+      {drawerOpen ? (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-white h-full shadow-2xl flex flex-col">
-            <Sidebar mobile />
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
+            className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[270px] bg-[#0d2137] h-full shadow-2xl flex flex-col z-10"
+          >
+            {renderSidebar(true)}
           </aside>
         </div>
-      )}
+      ) : null}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-[64px] border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-10 sticky top-0">
-          <div className="flex items-center gap-4">
-            <button className="lg:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg" onClick={() => setDrawerOpen(true)}>
+      <div className="tp-main">
+        <header className="tp-topbar">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <button
+              type="button"
+              className="lg:hidden p-2 text-[#64748B] hover:bg-[#f0f3ff] rounded-lg shrink-0"
+              onClick={() => setDrawerOpen(true)}
+            >
               <Menu size={20} />
             </button>
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">
-                Taxi Driver
+            <div className="min-w-0">
+              <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#94A3B8] leading-none mb-1">
+                Taxi Partner
               </div>
-              <div className="text-[15px] font-extrabold text-[var(--primary)] leading-none font-display">
+              <div className="text-[15px] font-display font-bold text-[#0d2137] leading-none truncate">
                 {currentTitle}
               </div>
             </div>
           </div>
-          <Link
-            href="/taxi-partner/orders"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-sm font-bold hover:bg-[var(--secondary)]"
-          >
-            <ClipboardList size={14} />
-            Orders
-          </Link>
+
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              type="button"
+              className="p-2 text-[#64748B] hover:text-[#0d2137] hover:bg-[#f0f3ff] rounded-full transition-colors"
+              title="Bildirishnomalar"
+              aria-label="Bildirishnomalar"
+            >
+              <Bell size={18} strokeWidth={2.5} />
+            </button>
+
+            <div className="w-px h-6 bg-[#d8e3fb] hidden sm:block" />
+
+            <Link
+              href="/taxi-partner/profile"
+              className="flex items-center gap-2.5 pl-0.5 hover:opacity-90 transition-opacity"
+              title="Profil"
+              aria-label="Profil"
+            >
+              <div className="hidden sm:block text-right leading-tight">
+                <div className="text-[13px] font-semibold text-[#111c2d]">
+                  {user?.first_name || "Driver"}
+                </div>
+                <div className="text-[11px] font-medium text-[#64748B]">
+                  {roleLabel}
+                </div>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white font-bold flex items-center justify-center text-sm">
+                {initials}
+              </div>
+            </Link>
+          </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 custom-scrollbar relative">
-          <div className="max-w-[1400px] mx-auto pb-16 lg:pb-0">{children}</div>
+        <main className="tp-content">
+          <div className="tp-content-inner">
+            <Suspense
+              fallback={
+                <div className="flex min-h-[40vh] items-center justify-center text-[#64748B] text-sm font-semibold">
+                  Yuklanmoqda…
+                </div>
+              }
+            >
+              {children}
+            </Suspense>
+          </div>
         </main>
 
-        <div className="lg:hidden border-t border-slate-200 bg-white px-2 py-2 flex items-center justify-around">
-          <Link href="/taxi-partner/dashboard" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/taxi-partner/dashboard") ? "text-[var(--accent)]" : "text-slate-400"}`}>
-            <LayoutDashboard size={20} />
-            <span>Home</span>
-          </Link>
-          <Link href="/taxi-partner/orders" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/taxi-partner/orders") ? "text-[var(--accent)]" : "text-slate-400"}`}>
-            <ClipboardList size={20} />
-            <span>Orders</span>
-          </Link>
-          <Link href="/taxi-partner/vehicles" className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-black ${isActive("/taxi-partner/vehicles") ? "text-[var(--accent)]" : "text-slate-400"}`}>
-            <Car size={20} />
-            <span>Cars</span>
-          </Link>
-        </div>
+        <nav className="tp-bottom-nav" aria-label="Mobile navigation">
+          {NAV_ITEMS.slice(0, 4).map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center p-1 rounded-xl text-[10px] font-[family-name:var(--font-sora)] font-semibold ${
+                  active ? "text-[#006781]" : "text-[#94A3B8]"
+                }`}
+              >
+                <item.icon size={20} strokeWidth={active ? 2.5 : 2} className="mb-1" />
+                <span>{item.label.split(" ")[0]}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ export {
   bookingService,
   BookingService,
   IllegalTransitionError,
+  RoomAlreadyAssignedError,
 } from "./service/booking.service";
 export type {
   TransitionCtx,
@@ -12,9 +13,27 @@ export type {
   CancelNonHotelResult,
 } from "./service/booking.service";
 export { postCancelAccountingInTx } from "./service/cancel-accounting";
+export {
+  CancelAccountingDriftError,
+  assertCancelAmountsBalance,
+  originalGrossFromRefund,
+  refundSplitTiyin,
+  resolveCancelAmounts,
+} from "./domain/cancel-amounts";
+export type {
+  PostedCharge,
+  ResolvedCancelAmounts,
+} from "./domain/cancel-amounts";
 export { reversePartnerEarningInTx } from "./service/partner-earning";
 export {
+  completeSuccessfulPaymentInTx,
+  completeSuccessfulPaymentTx,
+  createPartnerEarningIfMissing,
+} from "./service/payment-confirmation.service";
+export {
   reconcileLedgerPartnerEarnings,
+  reconcilePaymentsAgainstLedger,
+  paymentIdFromLedgerKey,
   loadReconcileInput,
   formatReconcileReportHuman,
   LEGACY_UNCLASSIFIED_PAYOUT_NOTE,
@@ -24,6 +43,7 @@ export type {
   ReconcileFinding,
   ReconcileCheck,
   ReconcileInput,
+  ReconcilePaymentRow,
   ReconcilePayoutOwnerType,
 } from "./service/reconcile-ledger";
 export {
@@ -32,7 +52,11 @@ export {
   canTransition,
   isTerminal,
   holdsInventory,
+  occupiesRoomNights,
+  ROOM_RELEASED_STATUSES,
   isPaidStatus,
+  requiresPaymentEvidence,
+  UnpaidConfirmationError,
 } from "./domain/booking.state";
 export type { BookingStatus } from "./domain/booking.state";
 export { computeRefund, DEFAULT_FLEXIBLE_RULES } from "./domain/refund";

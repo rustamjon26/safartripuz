@@ -1,32 +1,14 @@
-import { requireUserWithProfile } from "@/lib/authz";
+import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { bookingService, IllegalTransitionError } from "@/src/modules/booking";
-
-function guestMatchWhere(actor: { phone: string | null; first_name: string; last_name: string | null }) {
-  const or: Array<Record<string, unknown>> = [];
-  if (actor.phone && actor.phone.trim()) {
-    or.push({ guestPhone: actor.phone.trim() });
-  }
-  or.push({
-    guests: {
-      some: {
-        firstName: actor.first_name,
-        ...(actor.last_name?.trim()
-          ? { lastName: actor.last_name.trim() }
-          : {}),
-      },
-    },
-  });
-  return { OR: or };
-}
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const actor = await requireUserWithProfile();
+    const actor = await requireUser();
     const { id } = await params;
     const body = (await req.json().catch(() => ({}))) as { action?: string };
 
@@ -38,7 +20,7 @@ export async function PATCH(
       where: {
         id,
         source: "SAFARTRIP",
-        ...guestMatchWhere(actor),
+        userId: actor.id,
       },
       select: { id: true, status: true },
     });

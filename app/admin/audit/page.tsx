@@ -9,8 +9,8 @@ type AuditRow = {
   action: string;
   entity: string;
   entityId: string | null;
-  oldData: any;
-  newData: any;
+  oldData: unknown;
+  newData: unknown;
   createdAt: string;
   actor: null | {
     id: string;
@@ -65,12 +65,20 @@ export default function AdminAuditPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header — Stitch Xavfsizlik va Audit */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Audit Loglari</h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">Tizimda amalga oshirilgan barcha o&apos;zgarishlar tarixi</p>
+          <h1 className="text-[28px] sm:text-[32px] font-display font-bold text-[#0d2137] tracking-tight">
+            Xavfsizlik va Audit Markazi
+          </h1>
+          <p className="text-[13px] font-medium text-[#64748B] mt-1.5 max-w-xl">
+            Platforma yaxlitligi va operatorlar faoliyatini real vaqt rejimida kuzatish.
+          </p>
         </div>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-[family-name:var(--font-sora)] font-semibold">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          Tizim holati: Faol
+        </span>
       </div>
 
       {/* Filters */}

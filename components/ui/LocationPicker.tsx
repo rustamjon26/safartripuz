@@ -205,21 +205,31 @@ export default function LocationPicker({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      <form
-        onSubmit={handleSearch}
-        className="flex flex-col sm:flex-row gap-2"
-      >
+      {/*
+        Must NOT be a <form>: ListingForm already wraps this picker in a
+        <form>. Nested forms are invalid HTML — browsers ignore the inner
+        form, so type=submit "Qidirish" submitted the parent listing form
+        instead of running geocode search.
+      */}
+      <div className="flex flex-col sm:flex-row gap-2">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleSearch();
+            }
+          }}
           placeholder="Manzil qidiruv: masalan Zomin, Jizzakh yoki ko‘cha nomi"
           className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500"
           autoComplete="street-address"
         />
         <button
-          type="submit"
+          type="button"
           disabled={searching}
+          onClick={() => void handleSearch()}
           className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black disabled:opacity-50 shrink-0"
         >
           {searching ? (
@@ -229,7 +239,7 @@ export default function LocationPicker({
           )}
           Qidirish
         </button>
-      </form>
+      </div>
 
       <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
         <strong className="text-slate-700">«Mening joyim»</strong> kompyuterni taxminiy (ba’zan Samarqand/Toshkent) ko‘rsatishi mumkin — GPS yoki

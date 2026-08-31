@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { hotelApiErrorMessage, hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
 type SortOption = "last_visit" | "visit_count" | "total_spent" | "name";
 
@@ -141,9 +142,9 @@ async function fetchGuests(
   if (opts.vipOnly) params.set("is_vip", "true");
   if (opts.blacklistOnly) params.set("is_blacklist", "true");
 
-  const res = await fetch(`/api/hotels/${hotelId}/guests?${params.toString()}`);
+  const res = await hotelFetch(`/api/hotels/${hotelId}/guests?${params.toString()}`);
   const data = (await res.json()) as GuestListResponse & { error?: string };
-  if (!res.ok) throw new Error(data.error || "Mehmonlar yuklanmadi");
+  if (!res.ok) throw new Error(hotelApiErrorMessage(res.status, data.error) || "Mehmonlar yuklanmadi");
   return data;
 }
 
@@ -151,8 +152,8 @@ async function loadGuestStats(hotelId: string): Promise<GuestStats> {
   const base = `/api/hotels/${hotelId}/guests`;
 
   const [allRes, vipRes] = await Promise.all([
-    fetch(`${base}?per_page=1`),
-    fetch(`${base}?is_vip=true&per_page=1`),
+    hotelFetch(`${base}?per_page=1`),
+    hotelFetch(`${base}?is_vip=true&per_page=1`),
   ]);
 
   const all = (await allRes.json()) as GuestListResponse;
@@ -164,7 +165,7 @@ async function loadGuestStats(hotelId: string): Promise<GuestStats> {
   const totalPages = all.pagination.total_pages;
 
   for (let page = 1; page <= totalPages; page++) {
-    const res = await fetch(`${base}?per_page=100&page=${page}`);
+    const res = await hotelFetch(`${base}?per_page=100&page=${page}`);
     const data = (await res.json()) as GuestListResponse;
     if (!res.ok) break;
     returning += data.guests.filter((guest) => guest.visit_count > 1).length;
@@ -353,9 +354,13 @@ export default function HotelGuestsPage() {
     let cancelled = false;
     async function init() {
       try {
-        const res = await fetch("/api/hotel/me");
-        const data = (await res.json()) as { hotel?: { id: string } };
-        if (!res.ok || !data.hotel?.id) throw new Error("Mehmonxona topilmadi");
+        const res = await hotelFetch("/api/hotel/me");
+        const data = (await res.json()) as { hotel?: { id: string }; message?: string };
+        if (!res.ok || !data.hotel?.id) {
+          throw new Error(
+            hotelApiErrorMessage(res.status, data.message) || "Mehmonxona topilmadi",
+          );
+        }
         if (!cancelled) setHotelId(data.hotel.id);
       } catch (e) {
         if (!cancelled) {
@@ -405,13 +410,33 @@ export default function HotelGuestsPage() {
       if (form.address.trim()) body.address = form.address.trim();
       if (form.notes.trim()) body.notes = form.notes.trim();
 
-      const res = await fetch(`/api/hotels/${hotelId}/guests`, {
+      const res = await hotelFetch(`/api/hotels/${hotelId}/guests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Saqlab bo'lmadi");
+      const data = (await res.json()) as {
+        error?: string;
+        details?: Record<string, string[] | undefined>;
+      };
+      if (!res.ok) {
+        const fieldHint = data.details
+          ? Object.values(data.details)
+              .flat()
+              .filter((v): v is string => typeof v === "string")
+              .join("; ")
+          : "";
+        const msg =
+          hotelApiErrorMessage(res.status, data.error) ||
+          fieldHint ||
+          "Saqlab bo'lmadi";
+        if (res.status === 401) {
+          toast.error(msg);
+          window.location.href = `/login?next=${encodeURIComponent("/hotel/guests")}`;
+          return;
+        }
+        throw new Error(fieldHint && data.error === "Validatsiya xatosi" ? fieldHint : msg);
+      }
 
       toast.success("Mehmon qo'shildi");
       setModalOpen(false);

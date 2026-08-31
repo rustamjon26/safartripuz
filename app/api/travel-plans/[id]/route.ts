@@ -46,7 +46,8 @@ export async function GET(
 
     const hotelBookingsLinked = await prisma.hotelBooking.findMany({
       where: {
-        note: { contains: plan.id },
+        // FK first; note-contains kept for rows created before the FK migration.
+        OR: [{ travelPlanId: plan.id }, { note: { contains: plan.id } }],
       },
       include: {
         hotel: { select: { id: true, name: true, city: true } },

@@ -1,12 +1,5 @@
 /**
- * Untyped Prisma accessors for new models until `prisma generate` is run.
- * Repositories should import from here rather than assuming generated delegates.
+ * Payment-module alias of the shared DB accessor.
+ * Other modules must import from `@/src/shared/db/client` — never from here.
  */
-import { prisma as base } from "@/src/shared/db/prisma";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyClient = any;
-
-export const db: AnyClient = base;
-
-export type DbClient = AnyClient;
+export { db, type DbClient } from "@/src/shared/db/client";

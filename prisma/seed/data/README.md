@@ -99,4 +99,17 @@ Do **not** put a numeric average price here. Empty `mealTypes` means the planner
 }
 ```
 
-All seeded rows are written as `status: DRAFT`.
+All seeded rows are written as `status: DRAFT`. Seed **never** writes `PUBLISHED`.
+
+## DRAFT → PUBLISHED (ops gate)
+
+Use `knowledgeService.publishSite(id)` (or `evaluatePublishEligibility` for a dry run). Required for every category, including **`BOSHQA`** (no shortcut):
+
+| Gate | Rule |
+|------|------|
+| `sourceUrl` | Non-empty trim |
+| `lat` / `lng` | Finite numbers |
+| `openingHours` | Usable `weekly` (≥1 weekday with a range) |
+| `prominence` | Explicit `PRIMARY` \| `SECONDARY` \| `OPTIONAL` |
+
+Dining (`RESTORAN` / `CHAYXONA` / `KAFE`) additionally needs planner-grade `dining` via `parseDining`: `priceBand` + non-empty `mealTypes`. Non-dining must have `dining: null`. Incomplete Maps imports (null `priceBand` / `mealTypes`, missing hours/prominence) stay DRAFT until edited — do not invent values.

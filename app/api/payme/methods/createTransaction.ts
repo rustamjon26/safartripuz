@@ -49,7 +49,7 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
   const booking = await findBookingById(bookingId);
 
   if (!booking) {
-    return paymeRpcError(id, PAYME_ERRORS.ORDER_NOT_FOUND, "booking_id");
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
   }
 
   if (!isValidTiyinAmount(params.amount)) {
@@ -62,12 +62,14 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
     return paymeRpcError(id, PAYME_ERRORS.AMOUNT_MISMATCH, "amount");
   }
 
+  // Sandbox "Заблокирован" — already paid / cancelled → -31050..-31099
+  // (not -31008 BAD_STATE / -31003 — those fail песочница range checks)
   if (booking.status === "PAID") {
-    return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
+    return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
   }
 
   if (booking.status === "CANCELLED") {
-    return paymeRpcError(id, PAYME_ERRORS.TRANSACTION_CANCELLED);
+    return paymeRpcError(id, PAYME_ERRORS.INVALID_ACCOUNT, "booking_id");
   }
 
   const existingBookingTransaction = await prisma.paymeTransaction.findUnique({
@@ -81,7 +83,7 @@ export async function createTransaction(id: number, params: PaymeRpcParams) {
     });
 
     if (current.state === 2) {
-      return paymeRpcError(id, PAYME_ERRORS.UNABLE_TO_PERFORM);
+      return paymeRpcError(id, PAYME_ERRORS.ORDER_ALREADY_PAID, "booking_id");
     }
 
     if (current.state === 1) {

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Car, Plus, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/Skeleton";
+import ImageUploader from "@/components/ui/ImageUploader";
 
 type Vehicle = {
   id: string;
@@ -24,7 +27,7 @@ type Form = {
   plateNumber: string;
   year: number;
   category: "STANDARD" | "COMFORT" | "MINIVAN" | "PREMIUM";
-  imagesText: string;
+  images: string[];
 };
 
 const emptyForm: Form = {
@@ -34,14 +37,22 @@ const emptyForm: Form = {
   plateNumber: "",
   year: new Date().getFullYear(),
   category: "STANDARD",
-  imagesText: "",
+  images: [],
 };
 
 export default function TaxiVehiclesPage() {
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<Vehicle[]>([]);
   const [form, setForm] = useState<Form>(emptyForm);
+  const [showForm, setShowForm] = useState(false);
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("q");
+    if (fromUrl != null) setQ(fromUrl);
+  }, [searchParams]);
 
   async function load() {
     setLoading(true);
@@ -58,11 +69,18 @@ export default function TaxiVehiclesPage() {
     void load();
   }, []);
 
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((v) =>
+      `${v.make} ${v.model} ${v.plateNumber} ${v.category}`.toLowerCase().includes(query),
+    );
+  }, [items, q]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const images = form.imagesText.split("\n").map((x) => x.trim()).filter(Boolean);
       const payload = {
         make: form.make,
         model: form.model,
@@ -70,7 +88,7 @@ export default function TaxiVehiclesPage() {
         plateNumber: form.plateNumber,
         year: form.year,
         category: form.category,
-        images,
+        images: form.images,
       };
       const url = form.id ? `/api/taxi/driver/vehicles/${form.id}` : "/api/taxi/driver/vehicles";
       const method = form.id ? "PUT" : "POST";
@@ -81,8 +99,9 @@ export default function TaxiVehiclesPage() {
       });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || "Xatolik");
-      toast.success(form.id ? "Vehicle yangilandi" : "Vehicle qo'shildi");
+      toast.success(form.id ? "Avtomobil yangilandi" : "Avtomobil qo‘shildi");
       setForm(emptyForm);
+      setShowForm(false);
       void load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Server xatosi");
@@ -96,7 +115,7 @@ export default function TaxiVehiclesPage() {
       const res = await fetch(`/api/taxi/driver/vehicles/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (!res.ok || json.success === false) throw new Error(json.error || "Xatolik");
-      toast.success("Vehicle deaktiv qilindi");
+      toast.success("Avtomobil deaktiv qilindi");
       void load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Server xatosi");
@@ -112,81 +131,176 @@ export default function TaxiVehiclesPage() {
       plateNumber: vehicle.plateNumber,
       year: vehicle.year,
       category: vehicle.category,
-      imagesText: vehicle.images.join("\n"),
+      images: vehicle.images ?? [],
     });
+    setShowForm(true);
   }
+
+  const activeCount = items.filter((v) => v.isActive).length;
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200/80 pb-3">
-        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Vehicles</h1>
-        <p className="text-[13px] font-semibold text-slate-500 mt-1">Mashinalarni boshqarish</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[26px] sm:text-[30px] font-display font-bold text-[#0d2137] tracking-tight">
+            Avtopark boshqaruvi
+          </h1>
+          <p className="text-[13px] font-medium text-[#64748B] mt-1.5">
+            Mashinalar, holat va texnik ma&apos;lumotlar
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setForm(emptyForm);
+            setShowForm(true);
+          }}
+          className="tp-btn tp-btn-navy"
+        >
+          <Plus size={14} />
+          Yangi mashina
+        </button>
       </div>
 
-      <form onSubmit={submit} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="h-input" placeholder="Make" value={form.make} onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))} required />
-          <input className="h-input" placeholder="Model" value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} required />
-          <input className="h-input" placeholder="Color" value={form.color} onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))} required />
-          <input className="h-input" placeholder="Plate number" value={form.plateNumber} onChange={(e) => setForm((p) => ({ ...p, plateNumber: e.target.value }))} required />
-          <input className="h-input" type="number" placeholder="Year" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: Number(e.target.value) }))} required />
-          <select className="h-input" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value as Form["category"] }))}>
-            <option value="STANDARD">STANDARD</option>
-            <option value="COMFORT">COMFORT</option>
-            <option value="MINIVAN">MINIVAN</option>
-            <option value="PREMIUM">PREMIUM</option>
-          </select>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4">
+          <div className="w-9 h-9 rounded-xl bg-white text-rose-500 flex items-center justify-center mb-3">
+            <Wrench size={16} />
+          </div>
+          <p className="text-[12px] font-[family-name:var(--font-sora)] font-semibold text-[#64748B]">
+            Jami transport
+          </p>
+          <p className="text-[24px] font-display font-bold text-[#111c2d] mt-1">{items.length}</p>
         </div>
-        <textarea className="h-input min-h-[100px]" placeholder="Image URLs (har qatorda bittadan)" value={form.imagesText} onChange={(e) => setForm((p) => ({ ...p, imagesText: e.target.value }))} />
-        <div className="flex gap-2">
-          <button disabled={saving} className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-bold">{saving ? "Saving..." : form.id ? "Update vehicle" : "Add vehicle"}</button>
-          {form.id ? <button type="button" onClick={() => setForm(emptyForm)} className="px-4 py-2 rounded-lg bg-slate-100 border border-slate-200 text-sm font-bold text-slate-700">Cancel edit</button> : null}
+        <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+          <div className="w-9 h-9 rounded-xl bg-white text-sky-600 flex items-center justify-center mb-3">
+            <Car size={16} />
+          </div>
+          <p className="text-[12px] font-[family-name:var(--font-sora)] font-semibold text-[#64748B]">
+            Faol
+          </p>
+          <p className="text-[24px] font-display font-bold text-[#111c2d] mt-1">{activeCount}</p>
         </div>
-      </form>
-
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-6 space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="py-3 px-5">Vehicle</th>
-                <th className="py-3 px-5">Plate</th>
-                <th className="py-3 px-5">Category</th>
-                <th className="py-3 px-5">Status</th>
-                <th className="py-3 px-5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-[13px]">
-              {items.length === 0 ? (
-                <tr><td colSpan={5} className="py-12 text-center text-slate-400 font-semibold">Vehicles topilmadi</td></tr>
-              ) : (
-                items.map((v) => (
-                  <tr key={v.id} className="border-b border-slate-50 last:border-0">
-                    <td className="py-3 px-5 font-bold text-slate-700">{v.make} {v.model} ({v.year})</td>
-                    <td className="py-3 px-5">{v.plateNumber}</td>
-                    <td className="py-3 px-5">{v.category}</td>
-                    <td className="py-3 px-5">
-                      <span className={`px-2 py-1 rounded border text-[10px] font-black uppercase ${v.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
-                        {v.isActive ? "ACTIVE" : "INACTIVE"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-5 text-right">
-                      <div className="inline-flex gap-2">
-                        <button onClick={() => edit(v)} className="px-2.5 py-1 text-xs font-black rounded border border-slate-200 text-slate-600">Edit</button>
-                        {v.isActive ? (
-                          <button onClick={() => void deactivate(v.id)} className="px-2.5 py-1 text-xs font-black rounded bg-red-50 border border-red-200 text-red-700">Deactivate</button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+          <div className="w-9 h-9 rounded-xl bg-white text-amber-600 flex items-center justify-center mb-3">
+            <Car size={16} />
+          </div>
+          <p className="text-[12px] font-[family-name:var(--font-sora)] font-semibold text-[#64748B]">
+            Nofaol
+          </p>
+          <p className="text-[24px] font-display font-bold text-[#111c2d] mt-1">
+            {items.length - activeCount}
+          </p>
+        </div>
       </div>
+
+      {showForm ? (
+        <form
+          onSubmit={(e) => void submit(e)}
+          className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm space-y-4"
+        >
+          <h3 className="font-display font-semibold text-[#0d2137]">
+            {form.id ? "Avtomobilni tahrirlash" : "Yangi avtomobil"}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input className="tp-input" placeholder="Make" value={form.make} onChange={(e) => setForm((p) => ({ ...p, make: e.target.value }))} required />
+            <input className="tp-input" placeholder="Model" value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))} required />
+            <input className="tp-input" placeholder="Rang" value={form.color} onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))} required />
+            <input className="tp-input" placeholder="Davlat raqami" value={form.plateNumber} onChange={(e) => setForm((p) => ({ ...p, plateNumber: e.target.value }))} required />
+            <input className="tp-input" type="number" placeholder="Yil" value={form.year} onChange={(e) => setForm((p) => ({ ...p, year: Number(e.target.value) }))} required />
+            <select className="tp-input" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value as Form["category"] }))}>
+              <option value="STANDARD">STANDARD</option>
+              <option value="COMFORT">COMFORT</option>
+              <option value="MINIVAN">MINIVAN</option>
+              <option value="PREMIUM">PREMIUM</option>
+            </select>
+          </div>
+          <div>
+            <p className="text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wide text-[#64748B] mb-2">
+              Rasmlar
+            </p>
+            <ImageUploader
+              value={form.images}
+              onChange={(urls) => setForm((p) => ({ ...p, images: urls }))}
+              maxImages={8}
+              placeholder="Mashina rasmini yuklash uchun bosing yoki shu yerga tashlang"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button disabled={saving} className="tp-btn tp-btn-primary">
+              {saving ? "Saqlanmoqda..." : form.id ? "Yangilash" : "Qo‘shish"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm(emptyForm);
+                setShowForm(false);
+              }}
+              className="tp-btn tp-btn-ghost"
+            >
+              Bekor
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl py-16 text-center text-[#94A3B8] font-semibold">
+          Avtomobillar topilmadi
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((v) => (
+            <div
+              key={v.id}
+              className="bg-white border border-[#d8e3fb] rounded-2xl overflow-hidden shadow-sm flex flex-col"
+            >
+              <div
+                className="h-36 bg-[#f0f3ff] relative flex items-center justify-center bg-cover bg-center"
+                style={v.images[0] ? { backgroundImage: `url(${v.images[0]})` } : undefined}
+              >
+                {!v.images[0] ? <Car size={40} className="text-[#94A3B8]" /> : null}
+                <span
+                  className={`absolute top-3 left-3 ${
+                    v.isActive ? "tp-badge tp-badge-ok" : "tp-badge tp-badge-muted"
+                  }`}
+                >
+                  {v.isActive ? "Faol" : "Nofaol"}
+                </span>
+              </div>
+              <div className="p-4 flex-1 flex flex-col">
+                <p className="font-display font-semibold text-[#0d2137] text-[17px]">
+                  {v.make} {v.model}
+                </p>
+                <p className="text-[12px] font-semibold text-[#64748B] mt-1">
+                  {v.plateNumber} · {v.year} · {v.category}
+                </p>
+                <p className="text-[12px] text-[#94A3B8] mt-1">{v.color}</p>
+                <div className="mt-auto pt-4 flex gap-2">
+                  <button type="button" onClick={() => edit(v)} className="tp-btn tp-btn-ghost flex-1">
+                    Tahrirlash
+                  </button>
+                  {v.isActive ? (
+                    <button
+                      type="button"
+                      onClick={() => void deactivate(v.id)}
+                      className="tp-btn flex-1 bg-rose-50 text-rose-600 border border-rose-100"
+                    >
+                      Deaktiv
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

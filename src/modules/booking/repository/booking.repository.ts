@@ -16,6 +16,60 @@ export class BookingRepository {
     return client.hotelBooking.findFirst({ where: { id, hotelId } });
   }
 
+  /**
+   * Is there money on record for this booking? Used to gate the
+   * PENDING/HELD → CONFIRMED edges, so the answer must come from persisted
+   * rows rather than anything the caller passes in.
+   */
+  async hasRecordedPayment(
+    booking: { id: string; paidAmount: Prisma.Decimal; travelPlanId: string | null },
+    client: Tx,
+  ): Promise<boolean> {
+    if (Number(booking.paidAmount) > 0) return true;
+
+    // Front desk cash / card taken through the PMS.
+    const hotelPayment = await client.hotelPayment.findFirst({
+      where: { bookingId: booking.id, status: "COMPLETED" },
+      select: { id: true },
+    });
+    if (hotelPayment) return true;
+
+    // Online payment against the travel plan this booking belongs to.
+    if (!booking.travelPlanId) return false;
+    const planPayment = await client.payment.findFirst({
+      where: { travelPlanId: booking.travelPlanId, status: "SUCCESS" },
+      select: { id: true },
+    });
+    return Boolean(planPayment);
+  }
+
+  async findHomestayStatusAndPlan(
+    bookingId: string,
+    client: Tx | typeof prisma = prisma,
+  ): Promise<{ status: string; travelPlanId: string | null } | null> {
+    return client.homeStayBooking.findUnique({
+      where: { id: bookingId },
+      select: { status: true, travelPlanId: true },
+    });
+  }
+
+  /**
+   * Homestay bookings carry no paidAmount column, so the only evidence is a
+   * settled payment against the travel plan they belong to. A PENDING homestay
+   * booking is an unpaid 15-minute hold, not something awaiting host approval.
+   */
+  async hasHomestayRecordedPayment(
+    booking: { travelPlanId: string | null },
+    client: Tx | typeof prisma = prisma,
+  ): Promise<boolean> {
+    if (!booking.travelPlanId) return false;
+    const paid = await client.payment.findFirst({
+      where: { travelPlanId: booking.travelPlanId, status: "SUCCESS" },
+      select: { id: true },
+    });
+    return Boolean(paid);
+  }
+
   async createAuditLog(
     input: {
       actorId: string;
@@ -104,6 +158,17 @@ export class BookingRepository {
     });
   }
 
+  /**
+   * Legacy `Booking` row (the Payme booking_id stack), with just the hotel
+   * fields the public payment page renders.
+   */
+  async findPaymeBookingWithHotel(id: string, client: Tx | typeof prisma = prisma) {
+    return client.booking.findUnique({
+      where: { id },
+      include: { hotel: { select: { name: true, city: true } } },
+    });
+  }
+
   async findExpiredHolds(limit: number, client: Tx | typeof prisma = prisma) {
     return client.hotelBooking.findMany({
       where: {
@@ -136,6 +201,26 @@ export class BookingRepository {
         listingId: true,
         checkIn: true,
         checkOut: true,
+        status: true,
+      },
+    });
+  }
+
+  async findExpiredGuideHolds(limit: number, client: Tx | typeof prisma = prisma) {
+    return client.guideBooking.findMany({
+      where: {
+        status: "PENDING",
+        holdExpiresAt: { lt: new Date() },
+      },
+      take: limit,
+      orderBy: { holdExpiresAt: "asc" },
+      select: {
+        id: true,
+        listingId: true,
+        guideId: true,
+        date: true,
+        startTime: true,
+        endTime: true,
         status: true,
       },
     });

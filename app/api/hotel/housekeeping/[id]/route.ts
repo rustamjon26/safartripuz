@@ -17,15 +17,31 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     });
     if(!task) return NextResponse.json({ message: "Not found" }, { status: 404 });
 
+    const nextStatus =
+      typeof json.status === "string" ? (json.status as typeof task.status) : undefined;
+    const nextStaffId =
+      json.staffId === null
+        ? null
+        : typeof json.staffId === "string"
+          ? json.staffId
+          : undefined;
+
+    if (!nextStatus && nextStaffId === undefined) {
+      return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
+    }
+
     const updatedTask = await prisma.$transaction(async (tx) => {
-      // 1. Update Task Status
+      // 1. Update task fields (status and/or assignee)
       const u = await tx.housekeepingTask.update({
         where: { id: task.id },
-        data: { status: json.status }
+        data: {
+          ...(nextStatus ? { status: nextStatus } : {}),
+          ...(nextStaffId !== undefined ? { staffId: nextStaffId } : {}),
+        },
       });
 
       // 2. Handle Consumptions
-      if (json.status === "DONE" && json.consumptions && Array.isArray(json.consumptions)) {
+      if (nextStatus === "DONE" && json.consumptions && Array.isArray(json.consumptions)) {
         for (const item of json.consumptions) {
           // Record Consumption
           await tx.taskConsumption.create({
@@ -46,7 +62,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       }
 
       // 3. Update Room Status
-      if(json.status === "DONE" && task.taskType === "CLEANING") {
+      if (nextStatus === "DONE" && task.taskType === "CLEANING") {
         await tx.physicalRoom.update({
           where: { id: task.physicalRoomId },
           data: { status: "AVAILABLE" }

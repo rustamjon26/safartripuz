@@ -21,8 +21,8 @@ apt-get install -y --no-install-recommends \
   ufw \
   fail2ban
 
-# 2. Node.js 20 LTS (NodeSource)
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+# 2. Node.js 22 LTS (NodeSource) — must match ecosystem.config.js / CI
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 node --version
 npm --version
@@ -40,14 +40,14 @@ systemctl enable --now mysql
 # mysql_secure_installation is interactive; harden MySQL in a follow-up session:
 #   sudo mysql_secure_installation
 # Then create DB and app user, e.g. (after editing the password in the file):
-#   sudo mysql < /var/www/safartrip/scripts/setup-mysql.sql
+#   sudo mysql < /var/www/safar/scripts/setup-mysql.sql
 # Or run the SQL in scripts/setup-mysql.sql manually.
 echo "[MySQL] Server installed. Create database and user with: scripts/setup-mysql.sql (see README or deploy notes)."
 
 # 5. Project and log directories
-mkdir -p /var/www/safartrip
+mkdir -p /var/www/safar
 mkdir -p /var/log/safartrip
-chown -R www-data:www-data /var/www/safartrip
+chown -R www-data:www-data /var/www/safar
 chown -R www-data:www-data /var/log/safartrip
 
 # 6. Firewall
@@ -76,9 +76,11 @@ server {
     gzip_types text/plain text/css application/json application/javascript;
     gzip_min_length 1000;
 
-    # Next.js static files (from project root .next; adjust after first build)
+    # Next.js static files (from project root .next; adjust after first build).
+    # Keep this exactly /_next/static/ — a broader /_next/ alias would swallow
+    # /_next/image, and the image optimizer would 404 instead of reaching the app.
     location /_next/static/ {
-        alias /var/www/safartrip/.next/static/;
+        alias /var/www/safar/.next/static/;
         access_log off;
         expires 1y;
         add_header Cache-Control "public, immutable";
@@ -114,9 +116,9 @@ echo "Next steps:"
 echo "1. Point safartrip.uz DNS to this server IP"
 echo "2. Harden MySQL:  sudo mysql_secure_installation"
 echo "3. Create DB/user: edit scripts/setup-mysql.sql (password), then:  sudo mysql < /path/to/scripts/setup-mysql.sql"
-echo "4. Clone repo:     sudo -u www-data git clone <repo> /var/www/safartrip  # or deploy as you prefer"
-echo "5. In /var/www/safartrip: copy .env.production, set DATABASE_URL and secrets"
-echo "6. Build & migrate:  sudo -u www-data -H bash -lc 'cd /var/www/safartrip && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build'"
-echo "7. PM2:            sudo -u www-data -H bash -lc 'cd /var/www/safartrip && pm2 start ecosystem.config.js --env production && pm2 save'"
+echo "4. Clone repo:     sudo -u www-data git clone <repo> /var/www/safar  # or deploy as you prefer"
+echo "5. In /var/www/safar: copy .env.production, set DATABASE_URL and secrets"
+echo "6. Build & migrate:  sudo -u www-data -H bash -lc 'cd /var/www/safar && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build'"
+echo "7. PM2:            sudo -u www-data -H bash -lc 'cd /var/www/safar && pm2 start ecosystem.config.js --env production && pm2 save'"
 echo "8. TLS:            sudo certbot --nginx -d safartrip.uz -d www.safartrip.uz"
 echo "9. (Optional) If pm2 startup printed a sudo env ... line, run it so PM2 restarts on reboot."

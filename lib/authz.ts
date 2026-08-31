@@ -30,14 +30,21 @@ export async function requireUser(): Promise<{
 }> {
   const token = await resolveAccessToken();
   if (!token) throw new Error("UNAUTHORIZED");
-  const { sub } = await verifyAccessToken(token);
+
+  let sub: string;
+  try {
+    ({ sub } = await verifyAccessToken(token));
+  } catch {
+    // Expired / malformed JWT → same as missing session (client should refresh).
+    throw new Error("UNAUTHORIZED");
+  }
 
   const u = await prisma.user.findUnique({
     where: { id: sub },
     select: { id: true, role: true, isBlocked: true },
   });
   if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
-  return { id: u.id, role: u.role as AppRole };
+  return { id: u.id, role: u.role };
 }
 
 /** Like `requireUser` but loads profile fields needed for guest matching / display. */
@@ -50,7 +57,13 @@ export async function requireUserWithProfile(): Promise<{
 }> {
   const token = await resolveAccessToken();
   if (!token) throw new Error("UNAUTHORIZED");
-  const { sub } = await verifyAccessToken(token);
+
+  let sub: string;
+  try {
+    ({ sub } = await verifyAccessToken(token));
+  } catch {
+    throw new Error("UNAUTHORIZED");
+  }
 
   const u = await prisma.user.findUnique({
     where: { id: sub },
@@ -66,7 +79,7 @@ export async function requireUserWithProfile(): Promise<{
   if (!u || u.isBlocked) throw new Error("UNAUTHORIZED");
   return {
     id: u.id,
-    role: u.role as AppRole,
+    role: u.role,
     first_name: u.first_name,
     last_name: u.last_name,
     phone: u.phone,

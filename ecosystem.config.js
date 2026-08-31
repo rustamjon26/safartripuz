@@ -1,3 +1,5 @@
+// PM2 runs the custom Socket.IO server through tsx, so tsx is a production
+// dependency — an `npm ci --omit=dev` would otherwise leave nothing to start.
 module.exports = {
   apps: [
     {
@@ -18,6 +20,9 @@ module.exports = {
       max_restarts: 10,
     },
     {
+      // Expires hotel/homestay holds AND taxi/guide bookings. Every minute:
+      // the taxi PENDING timeout is 5 min and guide transitions are wall-clock,
+      // so a coarser schedule would leave orders visibly stuck.
       name: "safartrip-expire-holds",
       cwd: "/var/www/safar",
       script: "npx",

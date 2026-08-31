@@ -16,20 +16,20 @@ import {
   Bell,
   Compass,
   Loader2,
+  WifiOff,
   Building2,
   Tent,
   X,
   List,
   Package,
+  Shield,
+  LifeBuoy,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
-import {
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-} from "@/lib/tripBuilderEvents";
+import { accountHomeForRole, profileHomeForRole } from "@/lib/auth/accountHome";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -49,12 +49,29 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "Admin panel", icon: Shield, roles: ["admin", "super_admin"] },
   { href: "/bookings", label: "Mening Sayohatlarim", icon: LayoutDashboard, roles: ["user"] },
   { href: "/trip-builder", label: "Yangi Safar (AI)", icon: ShoppingBag, roles: ["user"] },
   { href: "/tours", label: "Tayyor Turlar", icon: Compass, roles: ["user", "admin", "super_admin"] },
-  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel"] },
-  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide"] },
-  { href: "/taxi/home", label: "Taxi Paneli", icon: Car, roles: ["taxi"] },
+  { href: "/hotel", label: "Hotel Boshqaruvi", icon: Home, roles: ["hotel_manager", "hotel"] },
+  { href: "/guide-partner", label: "Gid Paneli", icon: Map, roles: ["guide", "guide_partner"] },
+  { href: "/taxi-partner", label: "Taxi Paneli", icon: Car, roles: ["taxi", "taxi_partner"] },
+  { href: "/support/dashboard", label: "Support", icon: List, roles: ["support"] },
+  {
+    href: "/support-chat",
+    label: "Yordam / Chat",
+    icon: LifeBuoy,
+    roles: [
+      "user",
+      "hotel_manager",
+      "home_stay_partner",
+      "taxi",
+      "taxi_partner",
+      "guide",
+      "guide_partner",
+    ],
+  },
+  /** href overridden per-role via profileHomeForRole — keep /profile as fallback */
   { href: "/profile", label: "Mening Profilim", icon: User },
 ];
 
@@ -66,19 +83,12 @@ const SERVICE_LINKS = [
   { href: "/tours", label: "Turlar", icon: Package },
 ] as const;
 
-type XizmatlarItem = {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  drawerTab?: TripBuilderDrawerTab;
-};
-
-const XIZMATLAR_ITEMS: XizmatlarItem[] = [
-  { href: "/hotels", label: "Mehmonxonalar", icon: Building2, drawerTab: "hotel" },
-  { href: "/homestay", label: "HomeStay", icon: Tent, drawerTab: "homestay" },
-  { href: "/guide", label: "Gidlar", icon: Map, drawerTab: "guide" },
-  { href: "/taxi", label: "Taxi", icon: Car, drawerTab: "transport" },
-];
+const XIZMATLAR_ITEMS = [
+  { href: "/hotels", label: "Mehmonxonalar", icon: Building2 },
+  { href: "/homestay", label: "HomeStay", icon: Tent },
+  { href: "/guide", label: "Gidlar", icon: Map },
+  { href: "/taxi", label: "Taxi", icon: Car },
+] as const;
 
 const PAGE_ICONS: Record<string, React.ElementType> = {
   "/bookings": LayoutDashboard,
@@ -96,10 +106,11 @@ interface DashboardShellProps {
 export default function DashboardShell({ children, title, subtitle }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading } = useCurrentUser();
+  const { user, loading, networkError, retry } = useCurrentUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
 
   async function fetchNotifications() {
     try {
@@ -168,12 +179,20 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase()
     : "?";
 
+  const panelHref = accountHomeForRole(user?.role);
+  const profileHref = profileHomeForRole(user?.role);
+
   const roleBadge: Record<string, string> = {
     user: "Sayohatchi",
     hotel: "Hotel",
+    hotel_manager: "Hotel egasi",
     guide: "Gid",
     taxi: "Taxi",
+    taxi_partner: "Taxi hamkor",
     admin: "Admin",
+    super_admin: "Super admin",
+    support: "Support",
+    home_stay_partner: "Homestay",
   };
 
   const PageIcon =
@@ -191,7 +210,30 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     );
   }
 
-  const SidebarContent = () => (
+  // Unreachable server, not an expired session — offer a retry instead of
+  // dropping the user at /login and losing where they were.
+  if (networkError && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dashboard-root px-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <WifiOff className="w-8 h-8 text-gray-400" />
+          <p className="text-gray-900 font-bold text-[15px]">Ulanishda muammo</p>
+          <p className="text-gray-500 font-medium text-sm">
+            Internetga ulanishni tekshirib, qayta urinib ko&apos;ring.
+          </p>
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="mt-1 rounded-xl bg-gray-900 px-5 py-2.5 text-[13px] font-bold text-white"
+          >
+            Qayta urinish
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const renderSidebarContent = () => (
     <div className="flex flex-col h-full bg-white">
       <Link
         href="/"
@@ -205,13 +247,15 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {visibleNavItems.map((item) => {
+          const href =
+            item.href === "/profile" ? profileHref : item.href;
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+            pathname === href ||
+            (href !== "/" && pathname.startsWith(href));
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={`${item.label}-${href}`}
+              href={href}
               className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-300 border-l-4 ${
                 isActive
                   ? "border-amber-500 bg-amber-50 text-amber-700"
@@ -233,34 +277,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               Xizmatlar
             </p>
             {XIZMATLAR_ITEMS.map((svc) => {
-              const isActive = pathname === svc.href || pathname.startsWith(`${svc.href}/`);
-              const className = `flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
-                isActive
-                  ? "border-amber-500 bg-amber-50 text-amber-700"
-                  : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`;
-              const onTripBuilder = pathname === "/trip-builder" || pathname.startsWith("/trip-builder/");
-
-              if (onTripBuilder && svc.drawerTab) {
-                return (
-                  <button
-                    key={svc.href}
-                    type="button"
-                    onClick={() => {
-                      setSidebarOpen(false);
-                      dispatchTripBuilderTab(svc.drawerTab!);
-                    }}
-                    className={className}
-                  >
-                    <svc.icon size={16} className="text-gray-400" />
-                    {svc.label}
-                  </button>
-                );
-              }
-
+              const isActive =
+                pathname === svc.href || pathname.startsWith(`${svc.href}/`);
               return (
-                <Link key={svc.href} href={svc.href} className={className}>
-                  <svc.icon size={16} className={isActive ? "text-amber-600" : "text-gray-400"} />
+                <Link
+                  key={svc.href}
+                  href={svc.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-all duration-300 border-l-4 w-full text-left ${
+                    isActive
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                >
+                  <svc.icon
+                    size={16}
+                    className={isActive ? "text-amber-600" : "text-gray-400"}
+                  />
                   {svc.label}
                 </Link>
               );
@@ -270,7 +303,12 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2">
+        <Link
+          href={profileHref}
+          onClick={() => setSidebarOpen(false)}
+          title="Mening profilim"
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
+        >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
             {initials}
           </div>
@@ -278,9 +316,11 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
             <div className="font-bold text-gray-900 text-sm truncate">
               {user?.first_name} {user?.last_name}
             </div>
-            <div className="text-xs text-gray-500 truncate">{user?.email}</div>
+            <div className="text-xs text-gray-500 truncate">
+              {roleBadge[user?.role?.toLowerCase() ?? ""] ?? user?.role ?? "—"}
+            </div>
           </div>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={() => void handleLogout()}
@@ -296,7 +336,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
   return (
     <div className="dashboard-root min-h-screen bg-gray-50 flex">
       <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-gray-200 flex-col fixed top-0 left-0 h-full z-30">
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       {sidebarOpen && (
@@ -317,7 +357,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 <X size={20} />
               </button>
             </div>
-            <SidebarContent />
+            {renderSidebarContent()}
           </aside>
         </div>
       )}
@@ -348,10 +388,13 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
               )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 relative">
+            <div className="flex items-center gap-2 shrink-0">
               <button
+                ref={notifBtnRef}
                 type="button"
-                onClick={() => setShowNotif(!showNotif)}
+                aria-expanded={showNotif}
+                aria-haspopup="dialog"
+                onClick={() => setShowNotif((v) => !v)}
                 className={`p-2.5 rounded-xl transition-all relative border ${
                   showNotif
                     ? "bg-amber-50 border-amber-200 text-amber-600"
@@ -366,17 +409,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 )}
               </button>
 
-              {showNotif && (
+              {showNotif ? (
                 <NotificationPopover
                   notifications={notifications}
                   onMarkRead={handleMarkRead}
                   onClose={() => setShowNotif(false)}
+                  anchorEl={notifBtnRef.current}
                 />
-              )}
+              ) : null}
 
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20">
+              <Link
+                href={panelHref}
+                title="Asosiy panel"
+                aria-label="Asosiy panel"
+                className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+              >
                 {initials}
-              </div>
+              </Link>
             </div>
           </div>
 

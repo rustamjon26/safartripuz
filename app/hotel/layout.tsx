@@ -4,13 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useDismissibleLayer } from "@/components/a11y/useDismissibleLayer";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import "./hotel.css";
 import {
   LayoutDashboard, Building2, BedDouble, CalendarCheck, CalendarDays,
-  LogOut, Menu, X, Hotel, Bell, ChevronLeft, ChevronRight,
-  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2, Globe
+  LogOut, Menu, X, Bell, ChevronLeft, ChevronRight,
+  Users, Brush, Receipt, TrendingUp, UserCog, Utensils, Package, Megaphone, Settings, BarChart2,
+  LifeBuoy, Plus, FileText,
 } from "lucide-react";
-import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
+import { LanguageProvider, useLanguage, type Translate } from "@/context/LanguageContext";
+import { normalizeHotelNavRole } from "./nav-role";
 
 interface HotelUser { 
   first_name: string; 
@@ -20,7 +24,7 @@ interface HotelUser {
   hotelStaff?: { role: string };
 }
 
-const GET_NAV_GROUPS = (t: any) => [
+const GET_NAV_GROUPS = (t: Translate) => [
   {
     label: t("nav.front"),
     items: [
@@ -36,6 +40,7 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/guests",        label: t("nav.guests"), icon: Users, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/finance",       label: t("nav.finance"),       icon: Receipt, roles: ["hotel_manager", "admin", "receptionist"] },
+      { href: "/hotel/invoices/new",  label: t("nav.invoices"),      icon: FileText, roles: ["hotel_manager", "admin", "receptionist"] },
       { href: "/hotel/revenue",       label: t("nav.revenue"),       icon: TrendingUp, roles: ["hotel_manager", "admin"] },
     ]
   },
@@ -52,7 +57,6 @@ const GET_NAV_GROUPS = (t: any) => [
     items: [
       { href: "/hotel/marketing",     label: t("nav.marketing"), icon: Megaphone, roles: ["hotel_manager", "admin"] },
       { href: "/hotel/reports",       label: t("nav.reports"),       icon: BarChart2, roles: ["hotel_manager", "admin"] },
-      { href: "/hotel/settings",      label: t("nav.settings"),icon: Settings, roles: ["hotel_manager", "admin", "receptionist", "waiter", "cleaner"] },
     ]
   }
 ];
@@ -76,21 +80,39 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const [collapsed,  setCollapsed]  = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerRef = useDismissibleLayer<HTMLElement>(drawerOpen, () =>
+    setDrawerOpen(false),
+  );
   const [user,       setUser]       = useState<HotelUser | null>(null);
+  const [ready,      setReady]      = useState(false);
 
   async function ensureAuth() {
     try {
-      const res = await fetch("/api/user/me");
+      // hotelFetch already refreshes once and retries on 401, so a 401 here
+      // means the refresh token is gone too — not just an expired access token.
+      const res = await hotelFetch("/api/user/me");
       if (res.status === 401) {
-        const r = await fetch("/api/auth/refresh", { method: "POST" });
-        if (r.ok) { const d = await (await fetch("/api/user/me")).json(); if (d.user) setUser(d.user); }
-        else router.push("/login?next=" + encodeURIComponent(pathname));
-      } else if (res.ok) { const d = await res.json(); if (d.user) setUser(d.user); }
-    } catch { /* suppress */ }
+        router.push("/login?next=" + encodeURIComponent(pathname));
+        return;
+      }
+      if (res.ok) {
+        const d = await res.json();
+        if (d.user) {
+          setUser(d.user);
+          setReady(true);
+        }
+      }
+    } catch { /* offline — keep the shell gated, the next request will retry */ }
   }
 
-  useEffect(() => { void ensureAuth(); }, [pathname]);
-  useEffect(() => { setDrawerOpen(false); }, [pathname]);
+  // Auth once on mount — re-fetching on every pathname remounted the sidebar tree.
+  useEffect(() => {
+    void ensureAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* noop */ }
@@ -101,12 +123,15 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
   const initials    = user ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase() : "H";
   const sideW = collapsed ? 80 : 250;
 
-  // 1. Role-based helpers
-  const effectiveRole = user?.hotelStaff?.role || user?.role || "user";
+  // HotelStaff jobs are UPPERCASE; nav `roles` arrays are lowercase platform keys.
+  const effectiveRole = normalizeHotelNavRole(
+    user?.hotelStaff?.role,
+    user?.role,
+  );
   const isOwner = user?.role === "hotel_manager" || user?.role === "admin";
-  const isCleaner = effectiveRole === "CLEANER" || user?.role === "cleaner";
-  const isReceptionist = effectiveRole === "RECEPTION" || user?.role === "receptionist";
-  const isWaiter = effectiveRole === "WAITER" || user?.role === "waiter";
+  const isCleaner = effectiveRole === "cleaner";
+  const isReceptionist = effectiveRole === "receptionist";
+  const isWaiter = effectiveRole === "waiter";
   const isStaff = isCleaner || isReceptionist || isWaiter;
 
   // Dashboard Redirection for specialized staff
@@ -125,64 +150,74 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const currentItem = ALL_ITEMS.find(i => isActive(i.href));
 
-  function SidebarContent({ forMobile = false }: { forMobile?: boolean }) {
+  // Render helpers (not components) — avoids remounting the tree on every parent render.
+  function renderSidebar(forMobile = false) {
     const showText = forMobile || !collapsed;
     
     // Determine which groups to show
     const visibleGroups = NAV_GROUPS.map(group => ({
       ...group,
-      items: group.items.filter(item => (item.roles as any).includes(effectiveRole))
+      items: group.items.filter((item) => item.roles.includes(effectiveRole))
     })).filter(g => g.items.length > 0);
 
     return (
-      <div className="flex flex-col h-full bg-white">
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/80 min-h-[64px]">
-          <div className="w-9 h-9 rounded-xl bg-[var(--bg-light-blue)] flex items-center justify-center shrink-0 border border-slate-100 text-[var(--accent)]"><Building2 size={20} /></div>
+      <div className="flex flex-col h-full bg-[#0d2137] text-white">
+        {/* Brand — Silk Road Partner HMS */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 min-h-[64px]">
+          <div className="w-9 h-9 rounded-xl bg-[#006781] flex items-center justify-center shrink-0 text-white shadow-[0_4px_12px_rgba(0,103,129,0.35)]">
+            <Building2 size={20} />
+          </div>
           {showText && (
             <div className="flex-1 min-w-0">
-              <div className="font-display font-bold text-[var(--primary)] text-lg leading-tight truncate">Safar PMS</div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">Enterprise</div>
+              <div className="font-display font-bold text-white text-[17px] leading-tight truncate">
+                {t("shell.brand")}
+              </div>
+              <div className="text-[10px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-[0.14em] text-[#8fdfff]">
+                {t("shell.tagline")}
+              </div>
             </div>
           )}
           {!forMobile && !isStaff && (
-            <button className="w-7 h-7 shrink-0 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors ml-auto" onClick={() => setCollapsed(p => !p)}>
+            <button
+              className="w-7 h-7 shrink-0 rounded-lg bg-white/10 hover:bg-white/15 text-white/70 flex items-center justify-center transition-colors ml-auto"
+              onClick={() => setCollapsed((p) => !p)}
+              type="button"
+            >
               {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
           )}
         </div>
 
-        {/* Role Switcher (Simulation - ONLY for Real Managers) */}
-        {isOwner && !user?.hotelStaff && !collapsed && (
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
-            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest pl-1">{t("common.roles.view_auth_sim")}</label>
-            <select 
-              value={user.role} 
-              onChange={(e) => setUser({ ...user, role: e.target.value as any })}
-              className="w-full text-[11px] font-bold py-1.5 px-2 rounded-lg border border-slate-200 bg-white outline-none focus:border-[var(--accent)]"
-            >
-              <option value="hotel_manager">{t("common.roles.hotel_manager")}</option>
-              <option value="RECEPTION">{t("common.roles.receptionist")}</option>
-              <option value="CLEANER">{t("common.roles.cleaner")}</option>
-              <option value="WAITER">{t("common.roles.waiter")}</option>
-            </select>
-          </div>
-        )}
-
         {/* Nav with Groups */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
+        <nav className="hl-nav-scroll flex-1 overflow-y-auto px-3 py-4">
           {visibleGroups.map((group, idx) => (
-            <div key={idx} className="mb-6">
-              {showText && <div className="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2 px-3">{group.label}</div>}
-              {(!showText && idx !== 0) && <div className="h-px bg-slate-200/60 w-8 mx-auto my-3" />}
-              
+            <div key={idx} className="mb-5">
+              {showText && (
+                <div className="text-[10px] uppercase font-[family-name:var(--font-sora)] font-semibold tracking-widest text-white/35 mb-2 px-3">
+                  {group.label}
+                </div>
+              )}
+              {!showText && idx !== 0 && (
+                <div className="h-px bg-white/10 w-8 mx-auto my-3" />
+              )}
+
               <div className="space-y-1">
-                {group.items.map(item => {
+                {group.items.map((item) => {
                   const active = isActive(item.href);
                   return (
-                    <Link key={item.href} href={item.href} title={!showText ? (item as any).label : undefined}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl transition-all text-[14px] font-bold ${active ? "bg-[var(--bg-light-blue)] text-[var(--accent)]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}${!showText ? " justify-center" : ""}`}
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={!showText ? item.label : undefined}
+                      className={`relative flex items-center gap-3 p-2.5 rounded-xl transition-all text-[13px] font-[family-name:var(--font-sora)] font-semibold ${
+                        active
+                          ? "bg-[#006781]/25 text-[#8fdfff]"
+                          : "text-white/60 hover:bg-white/5 hover:text-white"
+                      }${!showText ? " justify-center" : ""}`}
                     >
+                      {active ? (
+                        <span className="absolute left-0 top-[18%] bottom-[18%] w-[3px] rounded-r bg-[#8fdfff]" />
+                      ) : null}
                       <item.icon size={18} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
                       {showText && <span className="truncate">{item.label}</span>}
                     </Link>
@@ -193,36 +228,89 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {/* User + Logout */}
-        <div className={`border-t border-slate-200/80 p-4 ${showText ? "flex items-center justify-between" : "flex flex-col items-center gap-4"} bg-slate-50/50`}>
-          {showText ? (
-            <>
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0 shadow-sm">{initials}</div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-bold text-slate-900 truncate">{user ? `${user.first_name} ${user.last_name}` : "Manager"}</div>
-                  <div className="text-[11px] font-semibold text-slate-500 truncate">{user?.email || "hotel@safartrip.uz"}</div>
-                </div>
-              </div>
-              <button onClick={() => void handleLogout()} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0">
-                 <LogOut size={16} strokeWidth={2.5} />
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="w-10 h-10 rounded-full bg-[var(--primary)] text-white font-black flex items-center justify-center text-sm shrink-0 shadow-sm" title="Profil">{initials}</div>
-              <button onClick={() => void handleLogout()} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Chiqish">
-                <LogOut size={16} strokeWidth={2.5}/>
-              </button>
-            </>
-          )}
+        {/* Settings + Support + user */}
+        <div className="border-t border-white/10 p-3 space-y-1 bg-black/15">
+          <Link
+            href="/hotel/settings"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold transition-all ${
+              isActive("/hotel/settings")
+                ? "bg-[#006781]/25 text-[#8fdfff]"
+                : "text-white/55 hover:bg-white/5 hover:text-white"
+            }${!showText ? " justify-center" : ""}`}
+          >
+            <Settings size={18} className="shrink-0" />
+            {showText && <span>{t("shell.settings")}</span>}
+          </Link>
+          <Link
+            href="/hotel/help"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-[13px] font-[family-name:var(--font-sora)] font-semibold transition-all ${
+              isActive("/hotel/help")
+                ? "bg-[#006781]/25 text-[#8fdfff]"
+                : "text-white/55 hover:bg-white/5 hover:text-white"
+            }${!showText ? " justify-center" : ""}`}
+          >
+            <LifeBuoy size={18} className="shrink-0" />
+            {showText && <span>Yordam</span>}
+          </Link>
+
+          <div
+            className={`pt-2 ${showText ? "flex items-center justify-between" : "flex flex-col items-center gap-3"}`}
+          >
+            {showText ? (
+              <>
+                <Link
+                  href="/hotel/profile"
+                  className="flex items-center gap-3 min-w-0 hover:opacity-90 transition-opacity"
+                  title="Profil"
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-white truncate">
+                      {user ? `${user.first_name} ${user.last_name}` : t("shell.manager_fallback")}
+                    </div>
+                    <div className="text-[10px] text-white/45 truncate">
+                      {user?.email || "hotel@safartrip.uz"}
+                    </div>
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="p-2 text-white/45 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors shrink-0"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/hotel/profile"
+                  className="w-9 h-9 rounded-full bg-[#006781] text-white font-bold flex items-center justify-center text-sm hover:brightness-110"
+                  title="Profil"
+                  aria-label="Profil"
+                >
+                  {initials}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="p-2 text-white/45 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors"
+                  title="Chiqish"
+                >
+                  <LogOut size={16} strokeWidth={2.5} />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
   // Specialized Bottom Navigation for Staff
-  function BottomNav() {
+  function renderBottomNav() {
     if (isCleaner) {
       const items = [
         { href: "/hotel/housekeeping", label: t("common.bottom_nav.tasks"), icon: Brush },
@@ -301,25 +389,53 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Hotel data must not paint before the session check lands.
+  if (!ready) {
+    return (
+      <div className="hl-root flex h-screen items-center justify-center bg-[#f9f9ff] text-sm font-semibold text-[#64748B]">
+        Yuklanmoqda…
+      </div>
+    );
+  }
+
   return (
-    <div className="hl-root flex h-screen bg-slate-50 overflow-hidden text-slate-900">
+    <div className="hl-root flex h-screen bg-[#f9f9ff] overflow-hidden text-[#111c2d]">
 
       {/* ━━━ DESKTOP SIDEBAR ━━━ */}
       {!isStaff && (
-        <aside className="border-r border-slate-200/80 bg-white shadow-[2px_0_12px_rgba(0,0,0,0.02)] transition-all shrink-0 z-20 flex-col hidden lg:flex" style={{ width: sideW }}>
-          <SidebarContent />
+        <aside
+          className="border-r border-[#0d2137] bg-[#0d2137] shadow-[2px_0_16px_rgba(0,9,23,0.18)] transition-all shrink-0 z-20 flex-col hidden lg:flex"
+          style={{ width: sideW }}
+        >
+          {renderSidebar()}
         </aside>
       )}
 
       {/* ━━━ MOBILE DRAWER ━━━ */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <aside className="relative w-[260px] bg-white h-full shadow-2xl flex flex-col pt-12">
-            <button className="absolute top-4 right-4 p-2 bg-slate-100 text-slate-500 rounded-lg z-50" onClick={() => setDrawerOpen(false)}>
+          <button
+            type="button"
+            aria-label="Menyuni yopish"
+            className="fixed inset-0 bg-[#000917]/50 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigatsiya"
+            tabIndex={-1}
+            className="relative w-[260px] bg-[#0d2137] h-full shadow-2xl flex flex-col pt-12"
+          >
+            <button
+              type="button"
+              className="absolute top-4 right-4 p-2 bg-white/10 text-white/80 rounded-lg z-50"
+              onClick={() => setDrawerOpen(false)}
+            >
               <X size={18} />
             </button>
-            <SidebarContent forMobile />
+            {renderSidebar(true)}
           </aside>
         </div>
       )}
@@ -343,34 +459,56 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 mr-2">
-               <button 
-                  onClick={() => setLanguage("uz")}
-                  className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${language === 'uz' ? 'bg-white text-[var(--accent)] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                  UZ
-               </button>
-               <button 
-                  onClick={() => setLanguage("en")}
-                  className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${language === 'en' ? 'bg-white text-[var(--accent)] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                  EN
-               </button>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center bg-[#f0f3ff] rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setLanguage("uz")}
+                className={`px-3 py-1 text-[10px] font-[family-name:var(--font-sora)] font-semibold rounded-md transition-all ${language === "uz" ? "bg-white text-[#006781] shadow-sm" : "text-[#64748B] hover:text-[#111c2d]"}`}
+              >
+                UZ
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={`px-3 py-1 text-[10px] font-[family-name:var(--font-sora)] font-semibold rounded-md transition-all ${language === "en" ? "bg-white text-[#006781] shadow-sm" : "text-[#64748B] hover:text-[#111c2d]"}`}
+              >
+                EN
+              </button>
             </div>
 
-            <button className="relative p-2 text-slate-400 hover:text-[var(--primary)] hover:bg-slate-100 rounded-full transition-colors">
+            <button
+              type="button"
+              className="relative p-2 text-[#64748B] hover:text-[#0d2137] hover:bg-[#f0f3ff] rounded-full transition-colors"
+            >
               <Bell size={18} strokeWidth={2.5} />
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#F43F5E] rounded-full border border-white" />
             </button>
+
+            {(isOwner || isReceptionist) && (
+              <Link
+                href="/hotel/check-in"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#006781] hover:bg-[#005a71] text-white text-[12px] font-[family-name:var(--font-sora)] font-semibold transition-colors"
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                {t("shell.check_in")}
+              </Link>
+            )}
+
             {!isStaff && (
               <>
-                <div className="w-px h-6 bg-slate-200 hidden sm:block" />
-                <div className="hidden sm:flex items-center gap-3 pr-2">
+                <div className="w-px h-6 bg-[#d8e3fb] hidden sm:block" />
+                <div className="hidden sm:flex items-center gap-3 pr-1">
                   <div className="text-right">
-                    <div className="text-[13px] font-bold text-slate-900">{user?.first_name || t("common.manager")}</div>
-                    <div className="text-[11px] font-semibold text-slate-400">
-                       {user?.hotelStaff?.role ? t(`common.roles.${user.hotelStaff.role.toLowerCase()}`) : (user?.role === "admin" ? t("common.roles.admin") : t("common.roles.owner"))}
+                    <div className="text-[13px] font-semibold text-[#111c2d]">
+                      {user?.first_name || t("common.manager")}
+                    </div>
+                    <div className="text-[11px] font-medium text-[#64748B]">
+                      {user?.hotelStaff?.role
+                        ? t(`common.roles.${user.hotelStaff.role.toLowerCase()}`)
+                        : user?.role === "admin"
+                          ? t("common.roles.admin")
+                          : t("common.roles.owner")}
                     </div>
                   </div>
                 </div>
@@ -388,7 +526,7 @@ function HotelLayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* ━━━ BOTTOM NAV ━━━ */}
         <div className="lg:hidden">
-           <BottomNav />
+           {renderBottomNav()}
         </div>
       </div>
     </div>

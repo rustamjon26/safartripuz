@@ -4,7 +4,13 @@ import {
   parseHmm,
   type OpeningHours,
 } from "@/src/modules/knowledge";
+import {
+  classifyDayTripIds,
+  dayTripStartBudget,
+  reservedDayTripStartIndexes,
+} from "./dayTrip";
 import { haversine, travelMinutesBetween } from "./distance";
+import { getMaxIntraDayLegKm } from "./maxIntraDayLegKm";
 import { compareByProminence, prominenceRank } from "./prominence";
 import type {
   DataCoverage,
@@ -14,19 +20,18 @@ import type {
   ScheduleSlot,
 } from "./types";
 
+export { getMaxIntraDayLegKm, MAX_INTRA_DAY_LEG_KM } from "./maxIntraDayLegKm";
+export {
+  classifyDayTripIds,
+  dayTripStartBudget,
+  distanceToPrimaryCoreKm,
+  isDayTripCandidate,
+  primaryCoreAnchors,
+  reservedDayTripStartIndexes,
+} from "./dayTrip";
+
 /** Target stops per calendar day. Unfilled slots become NO_DATA. */
 export const SLOTS_PER_DAY = 3;
-
-/**
- * Max haversine km between consecutive PLACED stops on the same day
- * (slots 2+). Longer legs are refused → NO_DATA pad for remaining day slots.
- * Far sites can still open a day as slot 1 via prominence.
- *
- * Tuned for Samarqand old-city cluster (~Imom is outside). Tashkent’s
- * published spread is wider (~25 km across); Buxoro/Xiva will need their own
- * budget — prefer a per-`regionCode` map before those regions go live.
- */
-export const MAX_INTRA_DAY_LEG_KM = 12;
 
 const DEFAULT_VISIT_MINUTES = 90;
 const DEFAULT_GAP_MINUTES = 10;
@@ -110,6 +115,8 @@ export type ScheduleDaysInput = {
   /** Inclusive trip start (local calendar). */
   startDate: Date;
   dayCount: number;
+  /** Canonical `Site.regionCode` — drives {@link getMaxIntraDayLegKm}. */
+  regionCode: string;
   regionDisplay: string;
 };
 
@@ -171,20 +178,22 @@ function distanceKm(
  *
  * Slot 1 (no `last`): {@link compareByProminence} (prominence, then name).
  *
- * Slots 2+: distance is a **filter** ({@link MAX_INTRA_DAY_LEG_KM} from
- * `last`). Among survivors: {@link prominenceRank} → distance → name.
- * Do **not** use `compareByProminence` here — its name tie-break runs before
- * distance and recreates same-tier zigzags (Aqsaroy → Xizr instead of Ruxobod).
+ * Slots 2+: distance is a **filter** (`maxIntraDayLegKm` from `last`, via
+ * {@link getMaxIntraDayLegKm}). Among survivors: {@link prominenceRank} →
+ * distance → name. Do **not** use `compareByProminence` here — its name
+ * tie-break runs before distance and recreates same-tier zigzags
+ * (Aqsaroy → Xizr instead of Ruxobod).
  */
 export function orderCandidatesForSlot(
   remaining: ScheduleCandidateInput[],
   last: ScheduleCandidateInput | null,
+  maxIntraDayLegKm: number,
 ): ScheduleCandidateInput[] {
   if (!last) {
     return [...remaining].sort(compareByProminence);
   }
   return [...remaining]
-    .filter((c) => distanceKm(last, c) <= MAX_INTRA_DAY_LEG_KM)
+    .filter((c) => distanceKm(last, c) <= maxIntraDayLegKm)
     .sort((a, b) => {
       const byRank =
         prominenceRank(a.prominence) - prominenceRank(b.prominence);
@@ -253,11 +262,13 @@ function tryScheduleCandidate(
  * Each site is used at most once per plan. Sites are spread evenly across
  * days; remaining capacity → NO_DATA (days keep SLOTS_PER_DAY slots).
  *
- * Within a day: slot 1 by prominence; later slots by nearest to the last
- * placed site (see {@link orderCandidatesForSlot}).
+ * Within a day: slot 1 by prominence (or a reserved day-trip open on later
+ * days — see {@link dayTripStartBudget}); later slots by nearest to the last
+ * placed site within the region leg cap (see {@link orderCandidatesForSlot}).
  */
 export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
   const dayDates = buildDayDates(input.startDate, input.dayCount);
+  const maxIntraDayLegKm = getMaxIntraDayLegKm(input.regionCode);
   const missing: string[] = [];
   const usable: ScheduleCandidateInput[] = [];
 
@@ -268,6 +279,13 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
     }
     usable.push(c);
   }
+
+  const dayTripIds = classifyDayTripIds(usable, maxIntraDayLegKm);
+  const tripBudget = dayTripStartBudget(dayDates.length, dayTripIds.size);
+  const reservedStarts = reservedDayTripStartIndexes(
+    dayDates.length,
+    tripBudget,
+  );
 
   const targets = evenSlotTargets(usable.length, dayDates.length);
   const placed = new Set<string>();
@@ -289,9 +307,22 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
       );
       if (remaining.length === 0) break;
 
-      const ordered = orderCandidatesForSlot(remaining, last);
+      // Slot 1 on a reserved day: prefer unplaced day-trips so far SECONDARY
+      // sites (e.g. Imom al-Buxoriy) can open a day instead of staying
+      // unreachable behind PRIMARY-first starts + leg caps.
+      let pool = remaining;
+      if (last == null && reservedStarts.has(i)) {
+        const dayTripsLeft = remaining.filter((c) => dayTripIds.has(c.id));
+        if (dayTripsLeft.length > 0) pool = dayTripsLeft;
+      }
+
+      const ordered = orderCandidatesForSlot(
+        pool,
+        last,
+        maxIntraDayLegKm,
+      );
       if (ordered.length === 0) {
-        // No candidate within MAX_INTRA_DAY_LEG_KM of last — stop this day.
+        // No candidate within maxIntraDayLegKm of last — stop this day.
         break;
       }
 
@@ -306,6 +337,25 @@ export function scheduleDays(input: ScheduleDaysInput): ScheduleResult {
           last,
         );
         if (attempt) break;
+      }
+      // Reserved day-trip open failed hours/fit — fall back to normal pool.
+      if (!attempt && last == null && pool !== remaining) {
+        const fallback = orderCandidatesForSlot(
+          remaining,
+          null,
+          maxIntraDayLegKm,
+        );
+        for (const candidate of fallback) {
+          attempt = tryScheduleCandidate(
+            candidate,
+            dayDate,
+            dayOpen,
+            dayClose,
+            cursor,
+            null,
+          );
+          if (attempt) break;
+        }
       }
       if (!attempt) break;
 

@@ -105,4 +105,10 @@ export type ScheduleCandidateInput = {
   lng: number | null;
   openingHours: OpeningHours | null;
   visitMinutes: number;
+  /**
+   * Editorial day-trip override for slot-1 reservation.
+   * - `true` / `false`: force classification
+   * - unset: auto — farther than max intra-day leg from every PRIMARY
+   */
+  isDayTrip?: boolean;
 };

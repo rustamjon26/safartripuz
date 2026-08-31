@@ -168,6 +168,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates,
@@ -220,6 +221,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 2,
       candidates,
@@ -279,6 +281,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 1,
       candidates,
@@ -328,6 +331,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 1,
       candidates,
@@ -371,8 +375,7 @@ describe("distance-aware scheduleDays", () => {
 
     const candidates = [
       ...city,
-      // Name sorts first among SECONDARY so legacy round-robin places it
-      // right after the five PRIMARY city stops (mid-plan sandwich).
+      // Far SECONDARY — reserved day-3 start (day-trip), not mid-plan sandwich.
       site({
         id: "imom",
         name: "AAA Imom Far",
@@ -396,6 +399,7 @@ describe("distance-aware scheduleDays", () => {
 
     const result = scheduleDays({
       regionDisplay: "Samarqand",
+      regionCode: "samarqand",
       startDate: new Date(2026, 6, 27),
       dayCount: 3,
       candidates,
@@ -406,6 +410,12 @@ describe("distance-aware scheduleDays", () => {
     for (const id of primaryIds) {
       expect(placed.has(id)).toBe(true);
     }
+    // Day-trip reservation: Imom opens day 3 instead of staying unreachable.
+    expect(placed.has("imom")).toBe(true);
+    const day3Start = result.days[2]!.slots.find(
+      (s) => s.status === "PLACED",
+    )?.siteId;
+    expect(day3Start).toBe("imom");
     expect(legacyMax).toBeGreaterThan(MAX_INTRA_DAY_LEG_KM);
     expect(newMax).toBeLessThan(legacyMax);
     expect(newMax).toBeLessThanOrEqual(MAX_INTRA_DAY_LEG_KM);

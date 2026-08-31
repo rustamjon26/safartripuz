@@ -1,12 +1,22 @@
 import { z } from "zod";
 
+const optionalEmail = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().trim().email("Email noto'g'ri").optional().nullable(),
+);
+
 export const createGuestBodySchema = z.object({
-  fullName: z.string().trim().min(2),
-  phone: z.string().trim().min(1),
-  email: z.string().trim().email().optional().nullable(),
+  fullName: z.string().trim().min(2, "Ism kamida 2 belgi bo'lishi kerak"),
+  phone: z.string().trim().min(1, "Telefon majburiy"),
+  email: optionalEmail,
   passportId: z.string().trim().optional().nullable(),
   nationality: z.string().trim().optional().nullable(),
-  birthDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional().nullable(),
+  birthDate: z
+    .string()
+    .datetime()
+    .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/))
+    .optional()
+    .nullable(),
   gender: z.enum(["MALE", "FEMALE"]).optional().nullable(),
   address: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),

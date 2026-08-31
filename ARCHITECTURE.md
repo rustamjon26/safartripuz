@@ -14,10 +14,10 @@ Authoritative invariants also live in `.cursor/rules/` (modular monolith, money/
 | 1.2 | Booking state machine | done | HMS cancel → `cancelWithPolicy` (Step 1) |
 | 1.3 | Double-booking + hold TTL | done | Staging watch ~1 week |
 | — | DB backup + restore test | scripts landed; **ops verify pending** | **Gate for Step 2** |
-| 2.1 | Double-entry ledger (parallel-run / `LEDGER_V2`) | minimal only | `partnerUserId: null` on many payment posts; ≠ PartnerEarning |
+| 2.1 | Double-entry ledger dual-write | **done** (2026-08-02 Contabo `a6d1fe1`) | PE + ledger same tx; PLATFORM \| PARTNER `payoutOwnerType` |
 | 2.2 | Payment idempotency + webhook dedup | done | `ProcessedEvent` UNIQUE enforced |
-| 2.3 | Reconciliation job | pending | not found |
-| — | Ledger comparison clean → remove PartnerEarning reads | pending | reads still PartnerEarning |
+| 2.3 | Reconciliation job | **done** | `scripts/reconcile-ledger.ts` — Contabo clean after migrate |
+| — | ~~Ledger comparison clean → remove PartnerEarning reads~~ → **hybrid cutover (see below)** | **resolved (hybrid)** | Ledger = balance aggregates; PartnerEarning = line-item subledger |
 | 3.1 | Rate engine | done | som↔tiyin still outside payment adapters |
 | 3.2 | Cancellation policy engine | done | hotel wired; homestay/guide no ledger reverse |
 | 3.3 | Transactional outbox | done | consumer uses outbox repo (Step 1) |
@@ -25,10 +25,9 @@ Authoritative invariants also live in `.cursor/rules/` (modular monolith, money/
 
 ## P0 gaps (remaining)
 
-1. Ledger vs PartnerEarning already diverge (float commission + null partner on ledger payment) — Step 2.
-2. Homestay/guide guest cancel do not reverse ledger/earnings — Step 2.
-3. Float money paths (`calcCommission`, taxi `* 0.15`) — Step 2+.
-4. No **verified** restore yet (scripts exist) — **do not start ledger dual-write until you confirm restore passed**.
+1. ~~Ledger vs PartnerEarning dual-write / cancel funnel~~ — **closed** Steps 2–4 (`a6d1fe1`, Contabo reconcile clean).
+2. Float money paths still open for **taxi** (`DriverEarning` / `TODO(taxi)`) — out of PE scope.
+3. No **verified** restore-test on Contabo cron yet (scripts exist) — ops follow-up, not blocking accounting reads.
 
 ## After every refactor
 
@@ -70,9 +69,9 @@ Env (on server, **not in git**): `/etc/safartrip/backup.env` with `DATABASE_URL`
 | 0 Reality | done — `docs/reviews/2026-07-26-step0-reality.md` |
 | 1 Invariants | done — `docs/reviews/2026-07-26-step1-invariants.md` |
 | 1.5 Hotfix stop new drift | **after** Console SSH verify + restore passed |
-| 2 Ledger dual-write | **blocked** until restore + 1.5; two-phase backfill (below) |
-| 3 Provider recon | blocked on Step 2 |
-| 4 Read cutover | blocked until recon clean for days; impossible until partner attribution fixed |
+| 2 Ledger dual-write | **done** Contabo `a6d1fe1` (historical 2a/2b backfill still optional if old drift appears) |
+| 3 Provider recon | open (Payme/Click statement recon — separate from ledger↔PE) |
+| 4 Read cutover | **done** — hybrid Ledger balances / PE line items + `bookingType` |
 | 5 Backup automation | scripts + cron; DUMP_TS as-of compare; off-site required |
 
 ### Ops gate 0 — SSH host key (before any VPS shell / backup)
@@ -112,7 +111,21 @@ Confirmed bug: null partner → else-branch credits **100% gross** to Platform R
 | **2a Reclassify** | Existing `BOOKING_PAYMENT` txs that have no PARTNER credit | Compensating tx only: `DEBIT Platform Revenue partnerNet` + `CREDIT Partner Payable partnerNet`; `type: RECLASSIFICATION`, `originalTransactionId`; partner via hotel→partner join (recoverable set) | Report tiyin moved per tx |
 | **2b Primary events** | Never-posted / swallowed (homestay/guide cancel, missed reverses, etc.) | New txs from `HotelBooking` / `Payment` / `PaymentTransaction` / refund audit — **not** from PartnerEarning alone | Diff vs current PartnerEarning + ledger |
 
-UI today reads PartnerEarning (not ledger). Still audit any external “revenue” exports that may have used ledger.
+~~UI today reads PartnerEarning (not ledger). Still audit any external “revenue” exports that may have used ledger.~~
+
+### Step 4 — Read cutover: general ledger + subledger (resolved)
+
+Do **not** interpret “remove PartnerEarning reads” as “never query PartnerEarning for display.” Resolved pattern:
+
+| Concern | Source of truth | Why |
+|---------|-----------------|-----|
+| Balances / aggregates (partner payable, pending payout, platform revenue totals) | **Ledger** | Dual-write + `reconcile-ledger.ts` keep GL honest |
+| Line items / per-booking breakdown / CSV detail / dispute audit | **PartnerEarning** | Subsidiary ledger; Ledger txs intentionally lack booking-type drill-down |
+
+- Partner dashboards (`/api/hotel|homestay|guide/earnings`): Ledger → `totalNet` / `pendingNet` / `totalCommission`; PE → `earnings[]` + `pendingCount`.
+- Admin revenue: Ledger → `totalPlatformCommission` + per-type `platformFee` via `LedgerTransaction.bookingType` (includes PLATFORM-owned); PE `groupBy` → `commissionSummary` (partner-side detail only).
+- Taxi/`DriverEarning` remains separate (`TODO(taxi)`).
+- Never recompute partner net/commission on-the-fly from `booking.totalPrice` + `getCommissionRates` for display.
 
 ### Backup compare (no race)
 
@@ -141,6 +154,7 @@ Also: `ClaimPosition` (disputes), `AccuracyReport` (intake; `guideUserId` not li
 - Independence for `TASDIQLANGAN`: **≥ 2 distinct `Source.publisherKey`** at `A_RASMIY` (normalize via `normalizePublisherKey`), not ClaimSource row count.
 - `NIZOLI`: keep **all** positions; never pick a winner in UI or API.
 - Seed / import: status **`DRAFT`** until sources are attached — never bulk-`PUBLISHED` from `tourism_data.json`.
+- Publish gate (`evaluatePublishEligibility` / `knowledgeService.publishSite`): every category needs non-empty `sourceUrl`, finite lat/lng, usable `openingHours.weekly`, and explicit `prominence`. Dining (`RESTORAN`/`CHAYXONA`/`KAFE`) also needs planner-grade `dining` (`priceBand` + non-empty `mealTypes`). **`BOSHQA`** has no shortcut — same base gates; dining JSON must be absent.
 - `AccuracyReport.upheld`: `null` unreviewed, `true` upheld, `false` rejected — transparency pages show received vs upheld separately.
 - Opening hours: machine-readable JSON only (`isOpenAt` / `nextOpenSlot`); never free-text hours.
 

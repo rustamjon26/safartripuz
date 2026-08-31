@@ -1,115 +1,117 @@
 .section {
-  padding: var(--space-12) 0;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  color: var(--surface);
-  text-align: center;
+  padding: var(--space-10) 0;
+  background: var(--bg-light-blue);
+  overflow: hidden;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: var(--space-8);
-  color: var(--surface);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-6);
-  max-width: 1000px;
+.inner {
+  max-width: var(--container-width);
   margin: 0 auto;
+  padding: 0 var(--space-2);
 }
 
-@media (max-width: 768px) {
-  .grid {
-    grid-template-columns: 1fr;
-    gap: var(--space-8);
+@media (min-width: 768px) {
+  .inner {
+    padding: 0 var(--space-8);
+  }
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.header h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.75rem, 3vw, 2rem);
+  font-weight: 600;
+  color: var(--primary-ink);
+}
+
+.header p {
+  margin: 0 auto;
+  max-width: 36rem;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+}
+
+.line {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .line {
+    display: block;
+    position: absolute;
+    top: 48px;
+    left: 16%;
+    right: 16%;
+    border-top: 2px dashed var(--border-color);
+    z-index: 0;
   }
 }
 
 .step {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
-  /* Staggered reveal would be handled mostly by JS/Observer or CSS delay if class based */
+  text-align: center;
 }
 
-/* Connecting line */
-@media (min-width: 768px) {
-  .step:not(:last-child)::after {
-    content: "";
-    position: absolute;
-    top: 40px;
-    right: -50%;
-    width: 100%;
-    height: 2px;
-    background-color: rgba(255, 255, 255, 0.2);
-    z-index: 1;
-  }
-}
-
-.iconWrapper {
-  width: 80px;
-  height: 80px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
+.icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
   margin-bottom: var(--space-3);
-  position: relative;
-  z-index: 2;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-md);
+  color: #fff;
 }
 
-.stepNumber {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background-color: var(--warning);
-  color: var(--text-main);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.9rem;
+.iconTeal {
+  background: var(--secondary);
 }
 
-.stepTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: var(--space-1);
+.iconSoft {
+  background: var(--secondary-soft);
+  color: #004d62;
 }
 
-.stepDesc {
-  opacity: 0.8;
+.iconNavy {
+  background: var(--primary-ink);
+}
+
+.step h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-sora), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--primary-ink);
+}
+
+.step p {
+  margin: 0;
+  max-width: 18rem;
+  color: var(--text-muted);
+  font-size: 0.98rem;
   line-height: 1.5;
-  font-size: 1rem;
-}
-
-.ctaWrapper {
-  margin-top: var(--space-8);
-}
-
-.ctaBtn {
-  background-color: var(--surface);
-  color: var(--primary);
-  padding: 16px 40px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 1.125rem;
-  transition: var(--transition);
-  display: inline-flex;
-}
-
-.ctaBtn:hover {
-  background-color: var(--bg-sand);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }

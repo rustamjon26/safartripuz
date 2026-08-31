@@ -16,9 +16,21 @@ const signinSchema = z.object({
   password: z.string().min(1),
 });
 
+/**
+ * A real cost-12 hash (same cost as registration) of a random value nobody
+ * knows. Unknown emails are compared against it so that path costs the same as
+ * a wrong password — otherwise the response time alone reveals which accounts
+ * exist.
+ */
+const ABSENT_ACCOUNT_PASSWORD_HASH =
+  "$2b$12$z3krNiyR/pHfE51S7QJ2ourrxBTU.h3z.dZeIrcR/ibrTcmhZTNvW";
+
+/** One wording for both "no such email" and "wrong password". */
+const INVALID_CREDENTIALS_MESSAGE = "Email yoki parol noto'g'ri";
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!checkRateLimit(`signin:${ip}`, 10, 60_000)) {
+  if (!(await checkRateLimit(`signin:${ip}`, 10, 60_000))) {
     return NextResponse.json(
       { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
       { status: 429 },
@@ -52,19 +64,28 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ message: "Email topilmadi" }, { status: 404 });
+    // Always spend one bcrypt comparison, account or not. The empty-password
+    // case (Google-only accounts) falls back to the dummy hash too, since
+    // comparing against "" would return early and be measurably faster.
+    const passwordOk = await bcrypt.compare(
+      password,
+      user?.password || ABSENT_ACCOUNT_PASSWORD_HASH,
+    );
+
+    if (!user || !passwordOk) {
+      return NextResponse.json(
+        { message: INVALID_CREDENTIALS_MESSAGE },
+        { status: 401 },
+      );
     }
+
+    // Checked after the password so that only someone who already holds the
+    // credentials learns the account exists and is blocked.
     if (user.isBlocked) {
       return NextResponse.json(
         { message: "Hisobingiz bloklangan. Iltimos, admin bilan bog'laning." },
         { status: 403 },
       );
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.password);
-    if (!passwordOk) {
-      return NextResponse.json({ message: "Parol noto'g'ri" }, { status: 401 });
     }
 
     const access = await signAccessToken({ sub: user.id, role: user.role as AppRole });
@@ -80,9 +101,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Browsers authenticate via httpOnly cookies — no token in the JSON body
+    // (XSS can read JSON, not httpOnly cookies). Native apps (React Native
+    // fetch sends no Sec-Fetch-* headers) still need the bearer token.
+    const isBrowser = Boolean(req.headers.get("sec-fetch-mode"));
     const res = NextResponse.json(
       {
-        accessToken: access,
+        ...(isBrowser ? {} : { accessToken: access }),
         user: {
           id: user.id,
           first_name: user.first_name,

@@ -2,8 +2,14 @@
 #   sudo cp scripts/cron/safartrip-backup.cron.example /etc/cron.d/safartrip-backup
 #   # edit paths / env, then: sudo chmod 644 /etc/cron.d/safartrip-backup
 #
-# Daily dump at 02:15 UTC; weekly restore-test Sundays 04:00 UTC.
+# Daily dump at 02:15 (server local time); weekly restore-test Sundays 04:00.
 # Failures must alert — wrap with mail/Telegram if desired.
+#
+# IMPORTANT: invoke via `/bin/bash …/script.sh` (not bare path). Bare exec
+# fails with "Permission denied" if git checkout left scripts mode 0644
+# (seen Contabo 2026-07-27→08-02 — cron fired nightly, zero dumps written).
+# Repo marks backup.sh / restore-test.sh as 0755; bash-wrap is belt-and-braces.
+# Run as `safartrip` so rclone uses ~safartrip/.config/rclone (not root).
 
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -13,7 +19,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # (off-site is mandatory — backup.sh exits non-zero if BACKUP_OFFSITE_CMD is unset/fails).
 # Example off-site (copy dump + DUMP_TS sidecar):
 #   BACKUP_OFFSITE_CMD='scp "$OUT_DAILY" "$OUT_META" backup@otherhost:/backups/'
+# Contabo uses: rclone copy "$OUT_DAILY" backup:safartrip/ && rclone copy "$OUT_META" backup:safartrip/
 
-15 2 * * * root set -a; . /etc/safartrip/backup.env; set +a; /var/www/safar/scripts/backup.sh >> /var/log/safartrip-backup.log 2>&1 || echo "safartrip backup FAILED" | logger -t safartrip-backup
+15 2 * * * safartrip set -a; . /etc/safartrip/backup.env; set +a; /bin/bash /var/www/safar/scripts/backup.sh >> /var/log/safartrip-backup.log 2>&1 || echo "safartrip backup FAILED" | logger -t safartrip-backup
 
-0 4 * * 0 root set -a; . /etc/safartrip/backup.env; set +a; /var/www/safar/scripts/restore-test.sh >> /var/log/safartrip-restore-test.log 2>&1 || echo "safartrip restore-test FAILED" | logger -t safartrip-restore-test
+0 4 * * 0 safartrip set -a; . /etc/safartrip/backup.env; set +a; /bin/bash /var/www/safar/scripts/restore-test.sh >> /var/log/safartrip-restore-test.log 2>&1 || echo "safartrip restore-test FAILED" | logger -t safartrip-restore-test

@@ -27,7 +27,11 @@ export async function POST(req: Request) {
     let pricePerKm = 10000;
     if (body.serviceId) {
       const service = await prisma.taxiService.findFirst({
-        where: { id: body.serviceId, isActive: true },
+        where: {
+          id: body.serviceId,
+          isActive: true,
+          partner: { status: "approved", type: "taxi" },
+        },
         select: { id: true, price: true },
       });
       if (!service) return fail("Taxi service topilmadi", 404);

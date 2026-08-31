@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/src/shared/money";
 import { LedgerTxType } from "@/src/modules/ledger";
+import { CAPTURED_PAYMENT_STATUSES } from "@/src/modules/payment";
 
 // TODO(taxi): DriverEarning ↔ ledger needs the same reconcile treatment later.
 
@@ -15,12 +16,15 @@ export type ReconcileCheck =
   | "SUM_MISMATCH"
   | "REVERSAL_INCOMPLETE"
   | "ORPHAN_ENTRY"
+  | "PAYMENT_LEDGER_MISMATCH"
   | "POLICY";
 
 export type ReconcileFinding = {
   check: ReconcileCheck;
+  /** Set for booking-scoped checks; empty for payment-scoped ones. */
   bookingId: string;
   bookingType?: string;
+  paymentId?: string;
   expected?: string;
   actual?: string;
   deltaTiyin?: string;
@@ -78,11 +82,26 @@ export type ReconcileLedgerTxRow = {
   entries: ReconcileLedgerEntryRow[];
 };
 
+/**
+ * A captured payment plus the clearing DEBIT actually posted for it.
+ * `postedClearingTiyin` is summed from the BOOKING_PAYMENT ledger transactions
+ * keyed `payment:<id>:booking:<bookingId>:success`.
+ */
+export type ReconcilePaymentRow = {
+  id: string;
+  status: string;
+  amountTiyin: bigint;
+  postedClearingTiyin: bigint;
+  createdAt: Date;
+};
+
 export type ReconcileInput = {
   since: Date | null;
   bookings: ReconcileBookingRow[];
   partnerEarnings: ReconcilePartnerEarningRow[];
   ledgerTxs: ReconcileLedgerTxRow[];
+  /** Captured payments (SUCCESS + PENDING_REVIEW) with their posted clearing. */
+  payments: ReconcilePaymentRow[];
   /** All known booking ids across hotel/homestay/guide (+ optional legacy). */
   knownBookingIds: Set<string>;
 };
@@ -109,8 +128,42 @@ function emptyCounts(): Record<ReconcileCheck, number> {
     SUM_MISMATCH: 0,
     REVERSAL_INCOMPLETE: 0,
     ORPHAN_ENTRY: 0,
+    PAYMENT_LEDGER_MISMATCH: 0,
     POLICY: 0,
   };
+}
+
+/**
+ * Captured money must be fully represented in the ledger.
+ *
+ * A SUCCESS payment whose clearing DEBIT is short means we booked revenue we
+ * cannot back with entries; PENDING_REVIEW says the same thing but is already
+ * known to ops. Both are reported so the gap is never silent.
+ */
+export function reconcilePaymentsAgainstLedger(
+  payments: ReconcilePaymentRow[],
+): ReconcileFinding[] {
+  const findings: ReconcileFinding[] = [];
+
+  for (const payment of payments) {
+    const delta = payment.postedClearingTiyin - payment.amountTiyin;
+    if (delta === 0n) continue;
+
+    findings.push({
+      check: "PAYMENT_LEDGER_MISMATCH",
+      bookingId: "",
+      paymentId: payment.id,
+      expected: payment.amountTiyin.toString(),
+      actual: payment.postedClearingTiyin.toString(),
+      deltaTiyin: delta.toString(),
+      detail:
+        payment.status === "SUCCESS"
+          ? "Payment is SUCCESS but ledger clearing DEBIT != captured amount"
+          : `Payment is ${payment.status}: captured money is not fully posted (awaiting ops)`,
+    });
+  }
+
+  return findings;
 }
 
 function somDecimalToTiyin(value: { toString(): string }): bigint {
@@ -397,6 +450,9 @@ export function reconcileLedgerPartnerEarnings(
     }
   }
 
+  // --- 6. Captured money vs posted ledger ---
+  findings.push(...reconcilePaymentsAgainstLedger(input.payments));
+
   const counts = emptyCounts();
   for (const f of findings) {
     counts[f.check] += 1;
@@ -423,7 +479,18 @@ type DbClient = Pick<
   | "booking"
   | "partnerEarning"
   | "ledgerTransaction"
+  | "payment"
 >;
+
+/** Idempotency key written by completeSuccessfulPaymentInTx. */
+const PAYMENT_LEDGER_KEY_PREFIX = "payment:";
+
+/** `payment:<paymentId>:booking:<bookingId>:success` → `<paymentId>`. */
+export function paymentIdFromLedgerKey(key: string): string | null {
+  const parts = key.split(":");
+  if (parts.length < 2 || parts[0] !== "payment") return null;
+  return parts[1] || null;
+}
 
 /**
  * Load read-only snapshot for reconcile.
@@ -481,9 +548,9 @@ export async function loadReconcileInput(
           bookingType: true,
           bookingId: true,
           status: true,
-          grossAmount: true,
-          commissionFee: true,
-          netAmount: true,
+          grossTiyin: true,
+          commissionFeeTiyin: true,
+          netTiyin: true,
           createdAt: true,
         },
       }),
@@ -539,6 +606,54 @@ export async function loadReconcileInput(
     ...legacy.map((b) => b.id),
   ]);
 
+  // Captured payments and the clearing DEBIT actually posted for each. Not
+  // filtered by `since`: a payment created inside the window can be settled by
+  // ledger entries written outside it.
+  const capturedPayments = await client.payment.findMany({
+    where: {
+      status: { in: [...CAPTURED_PAYMENT_STATUSES] },
+      ...(createdFilter ? { createdAt: createdFilter } : {}),
+    },
+    select: { id: true, status: true, amountTiyin: true, createdAt: true },
+  });
+
+  const paymentLedgerTxs = capturedPayments.length
+    ? await client.ledgerTransaction.findMany({
+        where: {
+          type: LedgerTxType.BOOKING_PAYMENT,
+          idempotencyKey: { startsWith: PAYMENT_LEDGER_KEY_PREFIX },
+        },
+        select: {
+          idempotencyKey: true,
+          entries: {
+            select: {
+              amount: true,
+              direction: true,
+              account: { select: { type: true, ownerType: true } },
+            },
+          },
+        },
+      })
+    : [];
+
+  const postedByPaymentId = new Map<string, bigint>();
+  for (const tx of paymentLedgerTxs) {
+    const paymentId = paymentIdFromLedgerKey(tx.idempotencyKey);
+    if (!paymentId) continue;
+    const clearingDebit = tx.entries
+      .filter(
+        (e) =>
+          e.direction === "DEBIT" &&
+          e.account.type === "ASSET" &&
+          e.account.ownerType === "PLATFORM",
+      )
+      .reduce((sum, e) => sum + e.amount, 0n);
+    postedByPaymentId.set(
+      paymentId,
+      (postedByPaymentId.get(paymentId) ?? 0n) + clearingDebit,
+    );
+  }
+
   // When --since filters creations, still resolve orphans against all booking ids
   if (since) {
     const [allH, allHs, allG, allL] = await Promise.all([
@@ -560,9 +675,9 @@ export async function loadReconcileInput(
       bookingType: e.bookingType,
       bookingId: e.bookingId,
       status: e.status,
-      grossTiyin: somDecimalToTiyin(e.grossAmount),
-      commissionFeeTiyin: somDecimalToTiyin(e.commissionFee),
-      netTiyin: somDecimalToTiyin(e.netAmount),
+      grossTiyin: e.grossTiyin,
+      commissionFeeTiyin: e.commissionFeeTiyin,
+      netTiyin: e.netTiyin,
       createdAt: e.createdAt,
     })),
     ledgerTxs: ledgerTxs.map((tx) => ({
@@ -576,6 +691,13 @@ export async function loadReconcileInput(
         accountType: e.account.type,
         ownerType: e.account.ownerType,
       })),
+    })),
+    payments: capturedPayments.map((p) => ({
+      id: p.id,
+      status: p.status,
+      amountTiyin: p.amountTiyin,
+      postedClearingTiyin: postedByPaymentId.get(p.id) ?? 0n,
+      createdAt: p.createdAt,
     })),
     knownBookingIds,
   };
@@ -619,6 +741,7 @@ export function formatReconcileReportHuman(report: ReconcileReport): string {
     for (const f of items) {
       const bits = [
         f.bookingId,
+        f.paymentId ? `payment=${f.paymentId}` : "",
         f.bookingType ?? "",
         f.expected ? `expected=${f.expected}` : "",
         f.actual ? `actual=${f.actual}` : "",

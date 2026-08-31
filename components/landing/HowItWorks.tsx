@@ -1,50 +1,59 @@
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import { loginWithNext } from '@/lib/authLinks';
-import styles from './HowItWorks.module.css';
+import { MapPin, Sparkles, BadgeCheck } from "lucide-react";
+import styles from "./HowItWorks.module.css";
+
+const STEPS = [
+  {
+    title: "1. Manzilni tanlang",
+    text: "O'zingizga yoqqan yo'nalishni tanlang yoki bizdan tavsiya oling.",
+    icon: MapPin,
+    tone: "teal" as const,
+  },
+  {
+    title: "2. AI bilan rejalang",
+    text: "Aqlli tizimimiz siz uchun marshrut, mehmonxona va transportni tanlab beradi.",
+    icon: Sparkles,
+    tone: "soft" as const,
+  },
+  {
+    title: "3. Bron qiling va zavqlaning",
+    text: "Barcha xizmatlarni bir joyda to'lang va safaringizdan zavq oling.",
+    icon: BadgeCheck,
+    tone: "navy" as const,
+  },
+] as const;
 
 export default function HowItWorks() {
   return (
-    <section className={styles.section}>
-      <div className="container">
-        <h2 className={`${styles.title} font-display`}>Safar tuzish hech qachon bu qadar oson bo'lmagan</h2>
-        
-        <div className={styles.grid}>
-          {/* Step 1 */}
-          <div className={styles.step}>
-            <div className={styles.iconWrapper}>
-              📅
-              <span className={styles.stepNumber}>1</span>
-            </div>
-            <h3 className={styles.stepTitle}>Destinatsiya va sana tanlang</h3>
-            <p className={styles.stepDesc}>Zomin yoki Jizzax, qaysi sanalar, necha kishi — barchasi 1 daqiqada</p>
-          </div>
-
-          {/* Step 2 */}
-          <div className={styles.step}>
-            <div className={styles.iconWrapper}>
-              🏨🚗🧭
-              <span className={styles.stepNumber}>2</span>
-            </div>
-            <h3 className={styles.stepTitle}>Xizmatlarni tanlang</h3>
-            <p className={styles.stepDesc}>Mehmonxona, transport va gid — barcha variantlar narxlari bilan ko'rsatiladi</p>
-          </div>
-
-          {/* Step 3 */}
-          <div className={styles.step}>
-            <div className={styles.iconWrapper}>
-              ✅
-              <span className={styles.stepNumber}>3</span>
-            </div>
-            <h3 className={styles.stepTitle}>To'lang va boring</h3>
-            <p className={styles.stepDesc}>Xavfsiz to'lov, darhol tasdiqlash, safar boshlanadi!</p>
-          </div>
+    <section className={styles.section} id="how-it-works">
+      <div className={styles.inner}>
+        <div className={styles.header}>
+          <h2 className="font-display">Sayohat qanday boshlanadi?</h2>
+          <p>
+            Bizning platformamiz orqali safarni rejalashtirish juda oson va
+            qulay.
+          </p>
         </div>
 
-        <div className={styles.ctaWrapper}>
-          <Link href={loginWithNext("/trip-builder")} className={styles.ctaBtn}>
-            Hoziroq boshlash <ArrowRight size={20} style={{ marginLeft: 8 }} />
-          </Link>
+        <div className={styles.steps}>
+          <div className={styles.line} aria-hidden />
+          {STEPS.map((step) => {
+            const Icon = step.icon;
+            const toneClass =
+              step.tone === "teal"
+                ? styles.iconTeal
+                : step.tone === "soft"
+                  ? styles.iconSoft
+                  : styles.iconNavy;
+            return (
+              <div key={step.title} className={styles.step}>
+                <div className={`${styles.icon} ${toneClass}`}>
+                  <Icon size={36} strokeWidth={1.75} />
+                </div>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

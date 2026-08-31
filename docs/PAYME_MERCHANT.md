@@ -1,0 +1,176 @@
+# Payme Merchant API — Shohjahon / kassa ulash
+
+Payme Business merchant kassa yaratish uchun kerak bo‘lgan ma’lumotlar.
+Manba: [Merchant API protokoli](https://developer.help.paycom.uz/protokol-merchant-api/),
+[metodlar](https://developer.help.paycom.uz/metody-merchant-api/).
+
+## Shohjahonga yuboriladigan
+
+### 1) Endpoint URL (asosiy — travel plan / checkout)
+
+```
+https://safartrip.uz/api/payments/webhook/payme
+```
+
+Bu endpoint `account.order_id` bilan ishlaydi. Saytdagi asosiy to‘lov
+(`POST /api/payments/create` → Payme) shu yo‘lga ulangan.
+
+### 2) Account parametrlari
+
+| Key | Tip | Ma’nosi |
+| --- | --- | --- |
+| `order_id` | string | Bizning `Payment.id` (cuid). Checkout: `ac.order_id=<Payment.id>` |
+
+Checkout GET misoli (base64 ichida):
+
+```
+m=<MERCHANT_ID>;ac.order_id=<PAYMENT_ID>;a=<AMOUNT_TIYIN>;c=https://safartrip.uz/payments/success?paymentId=<PAYMENT_ID>
+```
+
+### 3) Ixtiyoriy ikkinchi kassa (legacy hotel Booking)
+
+Agar alohida hotel booking stack ham kerak bo‘lsa:
+
+```
+https://safartrip.uz/api/payme
+```
+
+| Key | Tip | Ma’nosi |
+| --- | --- | --- |
+| `booking_id` | string | Legacy `Booking.id` |
+
+Checkout: `ac.booking_id=<BOOKING_ID>`.
+
+**Birinchi kassa sifatida `order_id` endpointni bersangiz yetadi.**
+
+### 4) Auth
+
+Payme → bizga JSON-RPC `POST`, header:
+
+```
+Authorization: Basic base64("Paycom:<merchantKey>")
+```
+
+Kalit qidiruv tartibi (ikkala endpoint):
+
+1. `.env` — `PAYME_IS_TEST=true` bo‘lsa `PAYME_TEST_SECRET_KEY`, aks holda `PAYME_SECRET_KEY`
+2. Aks holda Admin → Settings → Payments → `payment_providers.payme.merchantKey` (yoki `secretKey`)
+
+**Sandbox:** kassadagi `TEST_KEY` ni shu ikkisidan biriga qo‘ying (Admin UI yetarli).
+`TEST_KEY` ≠ prod `key`. Endpoint kassada: `https://safartrip.uz/api/payme`.
+
+---
+
+## Amalga oshirilgan Merchant API usullari
+
+| Usul | `order_id` stack | `booking_id` stack |
+| --- | --- | --- |
+| CheckPerformTransaction | ✅ + fiscal `detail` | ✅ + fiscal `detail` |
+| CreateTransaction | ✅ | ✅ |
+| PerformTransaction | ✅ (ledger + booking confirm) | ✅ |
+| CancelTransaction | ✅ | ✅ |
+| CheckTransaction | ✅ | ✅ |
+| GetStatement | ✅ | ✅ |
+
+`PerformTransaction` — to‘lovni tasdiqlash uchun oxirgi usul (Shohjahon).
+
+---
+
+## Fiscal `detail` (soliq oboroti)
+
+`CheckPerformTransaction` muvaffaqiyatli javobi:
+
+```json
+{
+  "allow": true,
+  "detail": {
+    "receipt_type": 0,
+    "items": [
+      {
+        "title": "SafarTrip sayohat to'lovi",
+        "price": 1500000,
+        "count": 1,
+        "code": "<MXIK>",
+        "package_code": "<PACKAGE>",
+        "vat_percent": 12
+      }
+    ]
+  }
+}
+```
+
+`price` — **tiyin** (butun son). MXIK + `package_code` juftligini
+[Soliq tasnif](https://tasnif.soliq.uz/attribute/) da tekshiring.
+
+Runtime env (ixtiyoriy, default bor):
+
+```bash
+PAYME_MXIK_CODE=...          # Soliq MXIK
+PAYME_PACKAGE_CODE=...       # o‘lchov birligi (MXIK ga bog‘langan)
+PAYME_VAT_PERCENT=12
+PAYME_IS_TEST=true           # test.paycom.uz checkout (faqat test)
+NEXT_PUBLIC_PAYME_MERCHANT_ID=...   # browser checkout (booking_id stack)
+NEXT_PUBLIC_APP_URL=https://safartrip.uz
+```
+
+---
+
+## Sandbox error-code contract (Berdiyar / песочница)
+
+| Scenario | Required code | Our response |
+| --- | --- | --- |
+| No `Authorization` header | `-32504` | `AUTH_FAILED`, echo request `id` |
+| Unknown / invalid `booking_id` or `order_id` | `-31050` … `-31099` | `INVALID_ACCOUNT` (`-31050`) |
+| Account busy (`state=1`) / already paid | `-31050` … `-31099` | `ORDER_ALREADY_PAID` (`-31099`) |
+| Booking `CANCELLED` | `-31050` … `-31099` | `INVALID_ACCOUNT` (`-31050`) |
+| Wrong amount | `-31001` | `WRONG_AMOUNT` |
+
+Do **not** return `-32300` for auth, `-31008`/`-31003` for a blocked/missing account,
+or `-31001` for a missing account. Same codes apply to **CheckPerform** and **CreateTransaction**.
+
+### CheckPerform form (test.paycom.uz)
+
+| Field | Value |
+| --- | --- |
+| `booking_id` | `payme-test-001` |
+| Сумма (tiyin) | `15000000` |
+| Тип счета | **Одноразовый** (not Накопительный) |
+| Статус | Ожидает оплаты |
+
+If you still see `-32504`: sandbox `TEST_KEY` is not on the server (env or Admin → Payments).
+
+## Sandbox (`https://test.paycom.uz`)
+
+Docs: [Песочница](https://developer.help.paycom.uz/pesochnitsa).
+
+1. Kabinetda web-kassa ochiladi → `key` (prod) + `TEST_KEY` (sandbox).
+2. Kassa sozlamasida Endpoint URL = yuqoridagi webhook.
+3. Песочница UI da Merchant ID + `TEST_KEY` kiritiladi.
+4. Avval **scenario 1** (create → cancel unconfirmed), keyin **scenario 2**
+   (create → perform → cancel confirmed).
+5. Checkout init URL sandboxda: `https://test.paycom.uz` (prod: `checkout.paycom.uz`).
+
+Local auth probe (TEST_KEY siz faqat -32504 tekshiradi):
+
+```bash
+npx tsx scripts/payme-sandbox-probe.mts
+# With keys:
+# PAYME_TEST_SECRET_KEY=... PAYME_PROBE_ORDER_ID=... PAYME_PROBE_AMOUNT_TIYIN=... \
+#   npx tsx scripts/payme-sandbox-probe.mts
+```
+
+## Ops checklist (kassa ochilgach)
+
+1. Admin → Settings → Payments: Payme `enabled`, `merchantId`, `merchantKey`.
+2. Payme kabinetda Endpoint URL = yuqoridagi webhook.
+3. Test: kichik summa → CheckPerform → Create → Perform (Payme test yoki 1 so‘m).
+4. `pm2 logs safartrip` da Payme xatolik yo‘qligini ko‘ring.
+5. MXIK/package_code ni Shohjahon/buxgalter bilan tasdiqlang — default placeholder.
+
+## Checkout init (mijoz)
+
+- GET: [otpravka-cheka GET](https://developer.help.paycom.uz/initsializatsiya-platezhey/otpravka-cheka-po-metodu-get)
+- POST: [otpravka-cheka POST](https://developer.help.paycom.uz/initsializatsiya-platezhey/otpravka-cheka-po-metodu-post)
+
+Biz travel-plan uchun GET (base64) ishlatamiz; hotel UI `lib/payme.ts` orqali
+GET yoki POST qilishi mumkin.

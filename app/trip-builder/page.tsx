@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import {
   MapPin, Home, Car, UserCircle,
   CheckCircle2, Info, Loader2, ArrowRight,
-  Check, X, Calendar, Users, Sparkles, Wand2, Sun, CloudRain, Wind,
-  ChevronRight, Building2, Compass, Landmark, Trees, Mountain, Building, Tent,
+  Check, X, Calendar, Users, Sparkles, Sun, CloudRain, Wind, Cloud, Snowflake,
+  ChevronRight, ShoppingBag, Compass, Landmark, Trees, Mountain, Building, Building2, Tent,
+  Send, Rocket, Eye, Hotel,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { loginWithNext } from "@/lib/authLinks";
-import {
-  TRIP_BUILDER_TAB_EVENT,
-  dispatchTripBuilderTab,
-  type TripBuilderDrawerTab,
-  type TripBuilderTabEventDetail,
-} from "@/lib/tripBuilderEvents";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import {
@@ -25,6 +21,34 @@ import {
   languageLabel,
   taxiServiceTypeLabel,
 } from "@/lib/displayHelpers";
+import type { WeatherAdvice, WeatherAdviceKind } from "@/lib/weather/openWeather";
+import {
+  coverageHint,
+  fetchTripAiPlan,
+  type TripAiPlan,
+} from "./tripAiClient";
+
+const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+
+function weatherIcon(kind: WeatherAdviceKind) {
+  if (kind === "sun") return Sun;
+  if (kind === "rain") return CloudRain;
+  if (kind === "snow") return Snowflake;
+  if (kind === "wind") return Wind;
+  return Cloud;
+}
+
+const DestinationPreviewMap = dynamic(
+  () => import("@/components/trip-builder/DestinationPreviewMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl bg-[#f0f3ff] border border-[#d8e3fb] h-24 flex items-center justify-center text-[12px] font-semibold text-[#64748B]">
+        <Loader2 size={16} className="animate-spin mr-2" /> Xarita…
+      </div>
+    ),
+  },
+);
 
 type Destination = { id: string; title: string };
 
@@ -67,14 +91,7 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
-type DrawerTab = TripBuilderDrawerTab;
-
-const DRAWER_TITLES: Record<DrawerTab, string> = {
-  hotel: "Mehmonxonalar",
-  homestay: "HomeStay",
-  guide: "Gidlar",
-  transport: "Transport",
-};
+type CatalogKind = "hotel" | "homestay" | "guide" | "transport";
 
 const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }> = {
   samarqand: { icon: Landmark, gradient: "from-amber-700/90 via-amber-900/40 to-gray-900" },
@@ -85,7 +102,26 @@ const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }>
   jizzax:    { icon: Mountain, gradient: "from-slate-600/90 via-gray-800/40 to-gray-900" },
 };
 
-const AI_EXAMPLES = ["Samarqandga 2 kun", "Zominda tur", "Buxoroga oilaviy", "Xivaga 3 kun"];
+const AI_EXAMPLES = [
+  "Zomin tog'lariga",
+  "Toshkent bo'ylab 2 kun",
+  "Tarixiy shaharlar",
+  "Oilaviy dam olish",
+];
+
+const AI_WELCOME =
+  "Assalomu alaykum! Men SafarTrip intellektual yordamchisiman.\n\nQaerga borishni xohlaysiz? Men sizga mukammal sayohat tuzishda yordam beraman. O'zbekistonning eng go'zal go'shalarini birgalikda kashf etamiz.";
+
+type AiChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  plan?: TripAiPlan | null;
+};
+
+function newChatId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function destKey(title: string) {
   return title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -97,13 +133,6 @@ function getDestVisual(title: string) {
     if (key.includes(k)) return v;
   }
   return { icon: MapPin, gradient: "from-slate-700/90 to-gray-900" };
-}
-
-function pickDrawerItems(data: InventoryData, tab: DrawerTab): InventoryItem[] {
-  if (tab === "hotel") return data.hotels ?? [];
-  if (tab === "homestay") return data.homestays ?? [];
-  if (tab === "guide") return data.guides ?? [];
-  return data.taxis ?? [];
 }
 
 export default function TripBuilderPage() {
@@ -129,38 +158,47 @@ export default function TripBuilderPage() {
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiMessage, setAiMessage] = useState("");
+  const [aiChat, setAiChat] = useState<AiChatMessage[]>([
+    { id: "welcome", role: "assistant", text: AI_WELCOME },
+  ]);
   const [aiSuggestedTotal, setAiSuggestedTotal] = useState<number | null>(null);
+  const [tripAiPlan, setTripAiPlan] = useState<TripAiPlan | null>(null);
+  const [tripAiLoading, setTripAiLoading] = useState(false);
+  const [tripAiError, setTripAiError] = useState("");
   const [priceEditOpen, setPriceEditOpen] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [aiChat, aiLoading, tripAiLoading]);
 
   const [cartBash, setCartBash] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>("hotel");
-  const [drawerInventory, setDrawerInventory] = useState<InventoryData | null>(null);
-  const [drawerItems, setDrawerItems] = useState<InventoryItem[]>([]);
-  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [weather, setWeather] = useState<WeatherAdvice | null>(null);
+  const [weatherLive, setWeatherLive] = useState(false);
+  const [weatherLoading, setWeatherLoading] = useState(false);
 
   useEffect(() => {
     async function loadDestinations() {
       try {
         const res = await fetch("/api/builder/destinations");
-        setDestinations(await res.json());
+        const list = (await res.json()) as Destination[];
+        setDestinations(list);
+        // Support /trip-builder?dest=Zomin from deep links / Xizmatlar
+        if (typeof window !== "undefined" && !destination) {
+          const q = new URLSearchParams(window.location.search).get("dest");
+          if (q?.trim()) {
+            const match = list.find(
+              (d) => d.title.toLowerCase() === q.trim().toLowerCase(),
+            );
+            setDestination(match?.title ?? q.trim());
+          }
+        }
       } catch {
         toast.error("Manzillarni yuklashda xatolik");
       } finally { setLoadingDest(false); }
     }
     void loadDestinations();
-  }, []);
-
-  useEffect(() => {
-    function handleTabEvent(e: Event) {
-      const detail = (e as CustomEvent<TripBuilderTabEventDetail>).detail;
-      if (!detail?.open || !detail.tab) return;
-      setDrawerTab(detail.tab);
-      setDrawerOpen(true);
-    }
-    window.addEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
-    return () => window.removeEventListener(TRIP_BUILDER_TAB_EVENT, handleTabEvent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial URL dest once
   }, []);
 
   useEffect(() => {
@@ -170,6 +208,8 @@ export default function TripBuilderPage() {
       setSelectedHomestay(null);
       setSelectedTaxi(null);
       setSelectedGuide(null);
+      setTripAiPlan(null);
+      setTripAiError("");
       return;
     }
     async function fetchInventory() {
@@ -187,38 +227,55 @@ export default function TripBuilderPage() {
   }, [destination]);
 
   useEffect(() => {
-    if (!drawerOpen) {
-      setDrawerInventory(null);
-      setDrawerItems([]);
-      setDrawerLoading(false);
+    if (!destination) {
+      setWeather(null);
+      setWeatherLive(false);
+      setWeatherLoading(false);
       return;
     }
+
     let cancelled = false;
-    async function fetchDrawerInventory() {
-      setDrawerLoading(true);
+
+    async function loadWeather() {
+      setWeatherLoading(true);
       try {
-        const res = await fetch(`/api/builder/inventory?dest=${encodeURIComponent(destination || "")}`);
-        if (!res.ok) throw new Error("drawer inventory fetch failed");
-        const data: InventoryData = await res.json();
-        if (!cancelled) setDrawerInventory(data);
+        const res = await fetch(
+          `/api/weather?dest=${encodeURIComponent(destination)}`,
+          { credentials: "include", cache: "no-store" },
+        );
+        const data = (await res.json()) as {
+          live?: boolean;
+          advice?: WeatherAdvice;
+          message?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok || !data.advice) {
+          setWeather(null);
+          setWeatherLive(false);
+          return;
+        }
+        setWeather(data.advice);
+        setWeatherLive(Boolean(data.live));
       } catch {
         if (!cancelled) {
-          toast.error("Xizmatlarni yuklashda xato");
-          setDrawerInventory(null);
-          setDrawerItems([]);
+          setWeather(null);
+          setWeatherLive(false);
         }
       } finally {
-        if (!cancelled) setDrawerLoading(false);
+        if (!cancelled) setWeatherLoading(false);
       }
     }
-    void fetchDrawerInventory();
-    return () => { cancelled = true; };
-  }, [drawerOpen, destination]);
 
-  useEffect(() => {
-    if (!drawerInventory) return;
-    setDrawerItems(pickDrawerItems(drawerInventory, drawerTab));
-  }, [drawerInventory, drawerTab]);
+    void loadWeather();
+    const timer = window.setInterval(() => {
+      void loadWeather();
+    }, WEATHER_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [destination]);
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   const days = useMemo(() => {
@@ -238,45 +295,201 @@ export default function TripBuilderPage() {
     setTimeout(() => setCartBash(false), 300);
   };
 
-  async function handleAIGenerate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!aiPrompt.trim()) return;
-    setAiLoading(true); setAiMessage("");
+  async function loadTripAiPlan(opts?: {
+    region?: string;
+    startDate?: string;
+    endDate?: string;
+    pax?: number;
+    switchToAiTab?: boolean;
+    /** Skip toasts — chat UI shows status instead. */
+    quiet?: boolean;
+  }): Promise<TripAiPlan | null> {
+    const region = opts?.region ?? destination;
+    const sd = opts?.startDate ?? startDate;
+    const ed = opts?.endDate ?? endDate;
+    const people = opts?.pax ?? pax;
+    if (!region || !sd || !ed) {
+      if (!opts?.quiet) toast.error("Manzil va sanani to'ldiring!");
+      return null;
+    }
+
+    setTripAiLoading(true);
+    setTripAiError("");
+    try {
+      const result = await fetchTripAiPlan({
+        region,
+        startDate: sd,
+        endDate: ed,
+        pax: people,
+        lang: "uz",
+      });
+      if (!result.ok) {
+        if (result.status === 401) {
+          const back =
+            typeof window !== "undefined"
+              ? `${window.location.pathname}${window.location.search}`
+              : "/trip-builder";
+          router.push(loginWithNext(back || "/trip-builder"));
+          return null;
+        }
+        setTripAiPlan(null);
+        const msg = result.message || "Kunlik reja yaratilmadi";
+        setTripAiError(msg);
+        if (!opts?.quiet) toast.error(msg);
+        return null;
+      }
+      setTripAiPlan(result.plan);
+      if (opts?.switchToAiTab) setActiveTab("ai");
+      if (!opts?.quiet) {
+        toast.success("Joylar kunlik rejasi tayyor");
+        triggerCartBounce();
+      }
+      return result.plan;
+    } catch (e) {
+      setTripAiPlan(null);
+      const msg = e instanceof Error ? e.message : "TripAI xatosi";
+      setTripAiError(msg);
+      if (!opts?.quiet) toast.error(msg);
+      return null;
+    } finally {
+      setTripAiLoading(false);
+    }
+  }
+
+  function pushAiChat(msg: Omit<AiChatMessage, "id">): void {
+    setAiChat((prev) => [...prev, { ...msg, id: newChatId() }]);
+  }
+
+  async function sendAiMessage(rawText: string): Promise<void> {
+    const text = rawText.trim();
+    if (!text || aiLoading) return;
+
+    pushAiChat({ role: "user", text });
+    setAiPrompt("");
+    setAiLoading(true);
+    setTripAiError("");
+
     try {
       const res = await fetch("/api/builder/ai-match", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: text }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Tanish xatolik");
-      
+      const json = (await res.json()) as {
+        success?: boolean;
+        needsClarification?: boolean;
+        message?: string;
+        data?: {
+          destination: string;
+          startDate: string;
+          endDate: string;
+          pax: number;
+          hotel?: InventoryItem | null;
+          taxi?: InventoryItem | null;
+          guide?: InventoryItem | null;
+          aiMessage?: string;
+          message?: string;
+        };
+      };
+
+      if (res.status === 401) {
+        pushAiChat({
+          role: "assistant",
+          text: "Davom etish uchun tizimga kiring — keyin suhbatni davom ettiramiz.",
+        });
+        const back =
+          typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/trip-builder";
+        router.push(loginWithNext(back || "/trip-builder"));
+        return;
+      }
+
+      if (json.needsClarification && json.message) {
+        pushAiChat({ role: "assistant", text: json.message });
+        return;
+      }
+
+      if (!res.ok || !json.success || !json.data) {
+        pushAiChat({
+          role: "assistant",
+          text: json.message || "Kechirasiz, hozir javob bera olmadim. Qayta yozib ko‘ring.",
+        });
+        return;
+      }
+
       const { data } = json;
-      setDestination(data.destination); setStartDate(data.startDate); setEndDate(data.endDate); setPax(data.pax);
-      if (data.hotel)
+      setDestination(data.destination);
+      setStartDate(data.startDate);
+      setEndDate(data.endDate);
+      setPax(data.pax);
+      if (data.hotel) {
         setSelectedHotel({
           ...data.hotel,
           roomTypeId: data.hotel.roomTypeId,
           nightlyPrice: data.hotel.nightlyPrice,
         });
+      }
       if (data.taxi) setSelectedTaxi({ ...data.taxi, price: data.taxi.price });
-      if (data.guide)
+      if (data.guide) {
         setSelectedGuide({
           ...data.guide,
           pricePerDay: data.guide.pricePerDay,
           pricePerHour: data.guide.pricePerHour,
         });
-      
-      setAiMessage(data.aiMessage || data.message || "Safar muvaffaqiyatli yig'ildi!");
-      const h = data.hotel?.nightlyPrice ? data.hotel.nightlyPrice * Math.max(1, Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 86400000)) : 0;
+      }
+
+      const tripDays = Math.max(
+        1,
+        Math.ceil(
+          (new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 86400000,
+        ),
+      );
+      const h = data.hotel?.nightlyPrice ? data.hotel.nightlyPrice * tripDays : 0;
       const t = data.taxi?.price ?? 0;
-      const g = data.guide?.pricePerDay ? data.guide.pricePerDay * Math.max(1, Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / 86400000)) : 0;
+      const g = data.guide?.pricePerDay ? data.guide.pricePerDay * tripDays : 0;
       setAiSuggestedTotal(h + t + g);
-      toast.success("AI ishladi! Sayohat jadvali yangilandi ✨");
       triggerCartBounce();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Xato");
-    } finally { setAiLoading(false); }
+
+      const summary =
+        (typeof data.aiMessage === "string" && data.aiMessage.trim()) ||
+        (typeof data.message === "string" && data.message.trim()) ||
+        `${data.destination} uchun reja tayyorlandi: ${data.startDate} → ${data.endDate}, ${data.pax} kishi.`;
+
+      pushAiChat({ role: "assistant", text: summary });
+
+      const plan = await loadTripAiPlan({
+        region: data.destination,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        pax: data.pax,
+        quiet: true,
+      });
+
+      if (plan) {
+        pushAiChat({
+          role: "assistant",
+          text: `${plan.regionDisplay} bo‘yicha kunlik marshrut tayyor. Kunlarni pastdan ko‘ring yoki Manzil / Mehmonxona bosqichiga o‘ting.`,
+          plan,
+        });
+      }
+      // Plan failure stays in the chat thread via tripAiError + retry.
+    } catch {
+      pushAiChat({
+        role: "assistant",
+        text: "Aloqa xatosi. Internetni tekshirib, qayta yozing.",
+      });
+    } finally {
+      setAiLoading(false);
+    }
   }
+
+  async function handleAIGenerate(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    await sendAiMessage(aiPrompt);
+  }
+
+  const aiAssisted = aiChat.some((m) => m.role === "user") || Boolean(tripAiPlan);
 
   async function checkout() {
     if (!destination || !startDate || !endDate) {
@@ -332,7 +545,7 @@ export default function TripBuilderPage() {
     } finally { setSubmitting(false); }
   }
 
-  function drawerItemToCardProps(item: InventoryItem, tab: DrawerTab) {
+  function drawerItemToCardProps(item: InventoryItem, tab: CatalogKind) {
     if (tab === "hotel") {
       return {
         title: item.title,
@@ -382,22 +595,6 @@ export default function TripBuilderPage() {
     };
   }
 
-  function DrawerCatalogSkeleton() {
-    return (
-      <div className="grid grid-cols-1 gap-4">
-        {[1, 2, 3].map((k) => (
-          <ServiceCardSkeleton key={k} />
-        ))}
-      </div>
-    );
-  }
-
-  function catalogTabToDrawerTab(tabId: "hotel" | "transport" | "guide"): DrawerTab {
-    if (tabId === "hotel") return "hotel";
-    if (tabId === "guide") return "guide";
-    return "transport";
-  }
-
   function CatalogSkeleton() {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -440,13 +637,11 @@ export default function TripBuilderPage() {
       );
     }
 
-    const drawerTab = catalogTabToDrawerTab(tabId);
-
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => {
           const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
+          const cardProps = drawerItemToCardProps(item, tabId);
           return (
             <ServiceCard
               key={item.id}
@@ -463,72 +658,64 @@ export default function TripBuilderPage() {
     );
   }
 
-  function renderDrawerCatalog() {
-    const selectedItem =
-      drawerTab === "hotel"
-        ? selectedHotel
-        : drawerTab === "homestay"
-          ? selectedHomestay
-          : drawerTab === "guide"
-            ? selectedGuide
-            : selectedTaxi;
-    const setSelected =
-      drawerTab === "hotel"
-        ? setSelectedHotel
-        : drawerTab === "homestay"
-          ? setSelectedHomestay
-          : drawerTab === "guide"
-            ? setSelectedGuide
-            : setSelectedTaxi;
-    const label =
-      drawerTab === "hotel"
-        ? "mehmonxona"
-        : drawerTab === "homestay"
-          ? "homestay"
-          : drawerTab === "guide"
-            ? "gid"
-            : "transport";
-
-    const handleSelect = (item: InventoryItem) => {
-      const isDeselecting = selectedItem?.id === item.id;
-      setSelected(isDeselecting ? null : item);
-      if (aiSuggestedTotal != null) setAiSuggestedTotal(null);
-      if (!isDeselecting) setDrawerOpen(false);
-    };
-
-    if (drawerLoading) return <DrawerCatalogSkeleton />;
-
-    if (drawerItems.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-3xl py-16 bg-white/50">
-          <Info className="w-10 h-10 text-gray-400 mb-3" />
-          <h3 className="font-black text-gray-900">Tizimda takliflar yo&apos;q</h3>
-          <p className="text-gray-500 text-sm text-center mt-1 max-w-xs">
-            {destination
-              ? `${destination} hududida hozircha "${label}" mavjud emas.`
-              : `Hozircha "${label}" takliflari mavjud emas.`}
-          </p>
-        </div>
-      );
-    }
+  function PlanStepRow({
+    title,
+    text,
+    status,
+    icon: Icon,
+    onAction,
+    actionLabel,
+  }: {
+    title: string;
+    text: string;
+    status: "done" | "active" | "wait";
+    icon: React.ElementType;
+    onAction: () => void;
+    actionLabel: string;
+  }) {
+    const dot =
+      status === "done"
+        ? "bg-[#10B981] ring-[#10B981]/20"
+        : status === "active"
+          ? "bg-[#0EA5E9] ring-[#0EA5E9]/20"
+          : "bg-[#64748B]/35 ring-[#64748B]/10";
+    const badge =
+      status === "done"
+        ? "bg-[#10B981]/10 text-[#10B981]"
+        : status === "active"
+          ? "bg-[#0EA5E9]/10 text-[#0EA5E9]"
+          : "bg-[#64748B]/10 text-[#64748B]";
+    const badgeText =
+      status === "done" ? "Rejalashtirilgan" : status === "active" ? "Tanlanmoqda" : "Kutilmoqda";
 
     return (
-      <div className="grid grid-cols-1 gap-4">
-        {drawerItems.map((item) => {
-          const isSelected = selectedItem?.id === item.id;
-          const cardProps = drawerItemToCardProps(item, drawerTab);
-          return (
-            <ServiceCard
-              key={item.id}
-              {...cardProps}
-              isSelected={isSelected}
-              onClick={() => {
-                handleSelect(item);
-                triggerCartBounce();
-              }}
-            />
-          );
-        })}
+      <div className={`relative pl-7 ${status === "wait" ? "opacity-60" : ""}`}>
+        <div className={`absolute left-0 top-1.5 size-3 rounded-full ring-4 ${dot}`} />
+        <div className="flex items-start gap-3">
+          <div className="size-14 rounded-xl bg-[#f0f3ff] border border-[#d8e3fb] flex items-center justify-center shrink-0">
+            <Icon size={20} className="text-[#006781]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between gap-2 items-start">
+              <h4 className="font-[family-name:var(--font-sora)] font-semibold text-sm text-[#111c2d]">
+                {title}
+              </h4>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${badge}`}>
+                {badgeText}
+              </span>
+            </div>
+            <p className="text-xs text-[#64748B] mt-1">{text}</p>
+            {status !== "done" ? (
+              <button
+                type="button"
+                onClick={onAction}
+                className="mt-2 w-full py-2 bg-[#0EA5E9]/10 border border-[#0EA5E9]/20 text-[#0EA5E9] text-xs font-bold rounded-lg hover:bg-[#0EA5E9] hover:text-white transition-all"
+              >
+                {actionLabel}
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
     );
   }
@@ -605,28 +792,26 @@ export default function TripBuilderPage() {
     );
   }
 
-  const getWeatherAdvice = () => {
-    if (!destination) return null;
-    const dest = destination.toLowerCase();
-    if (dest === "zomin" || dest === "chimyon" || dest.includes("tog")) {
-      return { icon: Wind, tip: `Tog'li muhit. ${destination} qishda sovuq, yozda salqin bo'ladi. Issiqroq kiyim olishni unutmang.`, temp: "+12°C" };
-    }
-    if (dest === "samarqand" || dest === "buxoro" || dest === "xiva") {
-      return { icon: Sun, tip: "Havo quruq va issiq. Qulay yozgi kiyim, bosh kiyim va suv zaxirasini olish maslahat beriladi.", temp: "+28°C" };
-    }
-    return { icon: CloudRain, tip: "O'zgaruvchan havo kutilmoqda. Safar sanasida ob-havoni tekshiring.", temp: "+20°C" };
-  };
-
-  const weather = getWeatherAdvice();
   const hasServices = !!(selectedHotel || selectedHomestay || selectedTaxi || selectedGuide);
+  const WeatherIcon = weather ? weatherIcon(weather.kind) : Cloud;
   const stepIndex = TABS.findIndex((t) => t.id === activeTab);
+
+  const readinessPct = Math.min(
+    100,
+    (destination ? 25 : 0) +
+      (startDate && endDate ? 15 : 0) +
+      (selectedHotel || selectedHomestay ? 25 : 0) +
+      (selectedTaxi ? 15 : 0) +
+      (selectedGuide ? 10 : 0) +
+      (tripAiPlan ? 10 : 0),
+  );
 
   return (
     <DashboardShell
       title="Safar Yig'uvchi"
-      subtitle="AI ob-havo va Timeline yordamida safaringizni chizing"
+      subtitle="AI yordamida safaringizni birgalikda tuzamiz"
     >
-      <div className="flex bg-white border border-gray-200 p-1.5 rounded-2xl shadow-sm mb-6 gap-1 overflow-x-auto hide-scrollbar w-full">
+      <div className="flex bg-white border border-[#e9edf2] p-1.5 rounded-2xl shadow-sm mb-6 gap-1 overflow-x-auto hide-scrollbar w-full">
         {TABS.map((tab) => {
           const isDisabled = tab.id !== "basics" && tab.id !== "ai" && !destination;
           const isAI = tab.id === "ai";
@@ -636,15 +821,15 @@ export default function TripBuilderPage() {
               type="button"
               onClick={() => !isDisabled && setActiveTab(tab.id)}
               disabled={isDisabled}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 whitespace-nowrap font-[family-name:var(--font-sora)] ${
                 activeTab === tab.id
                   ? isAI
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/30"
-                    : "bg-gray-900 text-white shadow-md"
+                    ? "bg-[#0d2137] text-white shadow-lg shadow-[#0d2137]/20"
+                    : "bg-[#0d2137] text-white shadow-md"
                   : isDisabled
                     ? "text-gray-300 cursor-not-allowed"
                     : isAI
-                      ? "text-violet-600 hover:bg-violet-50"
+                      ? "text-[#006781] hover:bg-[#f0f3ff]"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >
@@ -655,6 +840,16 @@ export default function TripBuilderPage() {
         })}
       </div>
 
+      {activeTab === "ai" ? (
+        <div className="flex flex-col xl:flex-row gap-0 xl:gap-0 w-full min-h-[min(720px,78vh)] rounded-3xl border border-[#e9edf2] bg-[#f9f9ff] overflow-hidden shadow-sm">
+          <div className="flex-1 xl:w-[58%] min-w-0 border-b xl:border-b-0 xl:border-r border-[#e9edf2] bg-white/70">
+            {renderAiChatPanel()}
+          </div>
+          <div className="w-full xl:w-[42%] shrink-0 bg-white">
+            {renderAiPlanSidebar()}
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-col xl:flex-row gap-6 items-start w-full max-w-full">
         <div className="flex-1 w-full min-w-0 max-w-full">
           <div className="hidden lg:flex gap-6">
@@ -671,7 +866,7 @@ export default function TripBuilderPage() {
                     onClick={() => !isDisabled && setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-sm font-bold transition-all ${
                       isActive
-                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        ? "bg-[#f0f3ff] text-[#006781] border border-[#d8e3fb]"
                         : isDone
                           ? "text-gray-600 hover:bg-gray-50"
                           : isDisabled
@@ -680,7 +875,7 @@ export default function TripBuilderPage() {
                     }`}
                   >
                     <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${
-                      isActive ? "bg-amber-500 text-white" : isDone ? "bg-emerald-500/20 text-emerald-400" : "bg-gray-50 text-gray-500"
+                      isActive ? "bg-[#006781] text-white" : isDone ? "bg-emerald-500/20 text-emerald-500" : "bg-gray-50 text-gray-500"
                     }`}>
                       {isDone && !isActive ? <Check size={12} /> : i + 1}
                     </span>
@@ -699,44 +894,10 @@ export default function TripBuilderPage() {
           <div className="lg:hidden">{renderMainPanel()}</div>
         </div>
 
-        {/* Right sidebar */}
         <div className="w-full xl:w-[350px] shrink-0 xl:sticky xl:top-24 max-w-full">
           {renderTripSidebar()}
         </div>
       </div>
-
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[60]">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Yopish"
-          />
-          <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl sm:rounded-none sm:bottom-auto sm:right-0 sm:top-0 sm:left-auto sm:h-full sm:max-h-none w-full sm:w-[480px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 shrink-0">
-              <h2 className="text-lg font-black text-gray-900">{DRAWER_TITLES[drawerTab]}</h2>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-                aria-label="Yopish"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {destination && (
-                <div className="mb-4">
-                  <span className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
-                    {destination}
-                  </span>
-                </div>
-              )}
-              {renderDrawerCatalog()}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Mobile floating price bar */}
@@ -763,70 +924,359 @@ export default function TripBuilderPage() {
     </DashboardShell>
   );
 
+  function renderAiChatPanel() {
+    return (
+      <div className="flex flex-col h-full min-h-[560px] max-h-[min(780px,78vh)]">
+        <div className="px-5 sm:px-7 py-4 border-b border-[#e9edf2] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#0d2137] flex items-center justify-center text-[#b5c8e5] shadow-md">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="font-[family-name:var(--font-sora)] font-semibold text-[#111c2d] text-sm sm:text-base">
+                SafarTrip AI Assistant
+              </h2>
+              <p className="text-xs text-[#64748B] font-[family-name:var(--font-sora)] flex items-center gap-1.5">
+                <span className="block size-2 rounded-full bg-[#10B981] animate-pulse" />
+                Onlayn
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 flex flex-col gap-5 min-h-0">
+          {aiChat.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full shrink-0 flex items-center justify-center mt-1 ${
+                  msg.role === "user"
+                    ? "bg-[#8fdfff] text-[#00647d]"
+                    : "bg-[#0d2137] text-white"
+                }`}
+              >
+                {msg.role === "user" ? <Users size={14} /> : <Sparkles size={14} />}
+              </div>
+              <div className={`max-w-[85%] flex flex-col gap-1 ${msg.role === "user" ? "text-right" : ""}`}>
+                <div
+                  className={`px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                    msg.role === "user"
+                      ? "bg-[#000917] text-white rounded-2xl rounded-tr-md"
+                      : "bg-[#e7eeff] text-[#111c2d] border border-[#d8e3fb] rounded-2xl rounded-tl-md"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap text-left">{msg.text}</p>
+                  {msg.plan && msg.plan.days.length > 0 ? (
+                    <div className="mt-3 flex flex-col gap-2 border-t border-[#c4c6cd]/40 pt-3 text-left">
+                      {msg.plan.days.map((day) => (
+                        <div
+                          key={`${msg.id}-${day.day}`}
+                          className="rounded-xl bg-white/70 border border-[#d8e3fb] p-3"
+                        >
+                          <p className="font-[family-name:var(--font-sora)] font-semibold text-xs text-[#111c2d] mb-1">
+                            {day.title || `${day.day}-kun`}
+                            <span className="ml-2 text-[#64748B] font-medium">{day.date}</span>
+                          </p>
+                          <ul className="flex flex-col gap-1">
+                            {day.slots.slice(0, 4).map((slot, idx) => (
+                              <li
+                                key={`${msg.id}-${day.day}-${idx}`}
+                                className="text-xs text-[#44474d] flex gap-2"
+                              >
+                                <span className="text-[#006781] font-mono shrink-0">
+                                  {slot.startTime}
+                                </span>
+                                <span>
+                                  {slot.status === "NO_DATA"
+                                    ? "Ma'lumot yo'q"
+                                    : slot.siteName ?? "Joy"}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {(aiLoading || tripAiLoading) && (
+            <div className="flex gap-3 items-center">
+              <div className="w-8 h-8 rounded-full bg-[#dee8ff] flex items-center justify-center text-[#64748B]">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+              <p className="text-sm italic text-[#64748B] font-[family-name:var(--font-sora)]">
+                {aiLoading
+                  ? "Siz uchun eng maqbul marshrutni shakllantiryapman..."
+                  : "Kunlik reja tuzilmoqda..."}
+              </p>
+            </div>
+          )}
+
+          {tripAiError && !tripAiLoading && !aiLoading && (
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900 space-y-2">
+              <p className="font-semibold">{tripAiError}</p>
+              <button
+                type="button"
+                disabled={!destination || !startDate || !endDate}
+                onClick={() => void loadTripAiPlan({ quiet: false })}
+                className="text-xs font-[family-name:var(--font-sora)] font-semibold uppercase tracking-widest text-[#006781] disabled:opacity-40"
+              >
+                Qayta urinish
+              </button>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="shrink-0 p-4 sm:p-5 bg-white border-t border-[#e9edf2] space-y-3">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {AI_EXAMPLES.map((ex) => (
+              <button
+                key={ex}
+                type="button"
+                disabled={aiLoading}
+                onClick={() => void sendAiMessage(ex)}
+                className="shrink-0 px-3.5 py-2 rounded-full border border-[#d8e3fb] bg-[#f0f3ff] hover:bg-[#dee8ff] text-[#111c2d] text-xs font-medium transition-all disabled:opacity-40"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={handleAIGenerate} className="relative">
+            <input
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Safar haqida yozing..."
+              disabled={aiLoading}
+              className="w-full bg-[#f0f3ff] border border-transparent focus:border-[#0d2137]/15 focus:ring-2 focus:ring-[#0d2137]/10 rounded-2xl py-3.5 pl-4 pr-28 text-sm text-[#111c2d] placeholder:text-[#64748B]/70 outline-none disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={aiLoading || !aiPrompt.trim()}
+              className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#000917] hover:bg-[#0d2137] disabled:opacity-40 text-white font-[family-name:var(--font-sora)] font-semibold px-4 rounded-xl flex items-center gap-2 text-sm transition-all"
+            >
+              {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Yuborish
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAiPlanSidebar() {
+    const planDays = tripAiPlan?.days ?? [];
+    return (
+      <div className="flex flex-col h-full min-h-[560px] max-h-[min(780px,78vh)] p-5 sm:p-7 relative">
+        <div className="flex items-start justify-between mb-6 shrink-0">
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-[#000917]">Safar rejasi</h2>
+            <p className="text-xs text-[#64748B] mt-1 font-[family-name:var(--font-sora)] flex items-center gap-1.5">
+              <MapPin size={14} />
+              {destination || "Manzil tanlanmagan"}
+              {destination ? `, ${days} kunlik` : ""}
+            </p>
+          </div>
+          <div className="w-9 h-9 rounded-full bg-[#0d2137] text-white text-[11px] font-bold flex items-center justify-center">
+            {pax}
+          </div>
+        </div>
+
+        <div className="bg-[#0d2137] p-4 rounded-2xl mb-6 border border-[#0d2137]/10 shadow-sm shrink-0">
+          <div className="flex justify-between items-end mb-3">
+            <div>
+              <span className="text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#b5c8e5] uppercase tracking-widest">
+                Sayohat tayyorgarligi
+              </span>
+              <h4 className="text-lg font-bold text-white">{readinessPct}% Tugallandi</h4>
+            </div>
+            <span className="text-[#7689a4] text-xs font-semibold flex items-center gap-1">
+              <Sparkles size={14} /> Premium
+            </span>
+          </div>
+          <div className="w-full bg-white/10 h-2.5 rounded-full overflow-hidden">
+            <div
+              className="bg-[#10B981] h-full transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.45)]"
+              style={{ width: `${readinessPct}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-5 overflow-y-auto min-h-0 pr-1">
+          {planDays.length > 0 ? (
+            planDays.map((day, i) => {
+              const placed = day.slots.filter((s) => s.status === "PLACED");
+              const done = placed.length > 0;
+              const summary = placed
+                .slice(0, 3)
+                .map((s) => s.siteName)
+                .filter(Boolean)
+                .join(", ");
+              return (
+                <div key={day.day} className="relative pl-7">
+                  {i < planDays.length - 1 ? (
+                    <div className="absolute left-[5px] top-3 bottom-[-20px] w-0.5 bg-[#d8e3fb]" />
+                  ) : null}
+                  <div
+                    className={`absolute left-0 top-1.5 size-3 rounded-full ring-4 ${
+                      done
+                        ? "bg-[#10B981] ring-[#10B981]/20"
+                        : "bg-[#0EA5E9] ring-[#0EA5E9]/20"
+                    }`}
+                  />
+                  <div className="flex items-start gap-3">
+                    <div className="size-14 rounded-xl bg-[#f0f3ff] border border-[#d8e3fb] flex items-center justify-center shrink-0">
+                      <Landmark size={20} className="text-[#006781]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between gap-2 items-start">
+                        <h4 className="font-[family-name:var(--font-sora)] font-semibold text-sm text-[#111c2d]">
+                          {day.title || `${day.day}-kun`}
+                        </h4>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                            done
+                              ? "bg-[#10B981]/10 text-[#10B981]"
+                              : "bg-[#0EA5E9]/10 text-[#0EA5E9]"
+                          }`}
+                        >
+                          {done ? "Rejalashtirilgan" : "Tanlanmoqda"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#64748B] mt-1 line-clamp-2">
+                        {summary || day.date || "Joylar yuklanmoqda..."}
+                      </p>
+                      {done ? (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("basics")}
+                          className="mt-2 text-[11px] font-bold text-[#000917] flex items-center gap-1 hover:underline"
+                        >
+                          <Eye size={14} /> Ko&apos;rish
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <>
+              <PlanStepRow
+                title="1. Manzil"
+                status={destination ? "done" : "wait"}
+                text={destination || "AI orqali yoki Manzil bo'limidan tanlang"}
+                icon={MapPin}
+                onAction={() => setActiveTab("basics")}
+                actionLabel="Tanlash"
+              />
+              <PlanStepRow
+                title="2. Mehmonxona"
+                status={selectedHotel || selectedHomestay ? "done" : destination ? "active" : "wait"}
+                text={
+                  selectedHotel?.title ||
+                  selectedHomestay?.title ||
+                  (destination ? "Mos variantlarni ko'ring" : "Avval manzil kerak")
+                }
+                icon={Hotel}
+                onAction={() => setActiveTab("hotel")}
+                actionLabel="Variantlarni ko'rish"
+              />
+              <PlanStepRow
+                title="3. Transport"
+                status={selectedTaxi ? "done" : destination ? "active" : "wait"}
+                text={selectedTaxi?.title || "Transfer yoki taxi tanlang"}
+                icon={Car}
+                onAction={() => setActiveTab("transport")}
+                actionLabel="Variantlarni ko'rish"
+              />
+            </>
+          )}
+        </div>
+
+        <div className="mt-5 pt-5 border-t border-[#e9edf2] shrink-0 flex flex-col gap-3">
+          <DestinationPreviewMap
+            destination={destination}
+            height={168}
+            destinations={destinations}
+            onSelectDestination={(title) => {
+              setDestination(title);
+              if (title) setActiveTab("basics");
+            }}
+          />
+          <div className="flex items-center justify-between text-sm px-1">
+            <span className="text-[#64748B] font-[family-name:var(--font-sora)]">Jami</span>
+            <span className="font-bold text-[#000917]">
+              {formatUzInteger(grandTotal || aiSuggestedTotal || 0)} so&apos;m
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void checkout()}
+            disabled={submitting || !destination}
+            className="w-full py-3.5 bg-[#000917] text-white rounded-xl font-[family-name:var(--font-sora)] font-bold flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-40"
+          >
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket size={18} />}
+            {destination ? "Safarni Bron Qilish" : "Avval manzil tanlang"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function renderMainPanel() {
     return (
       <div className="bg-white rounded-[2rem] border border-gray-200 p-4 sm:p-8 min-h-[400px] transition-all relative overflow-hidden w-full">
-        {destination && activeTab !== "ai" && weather && (
+        {destination && (weather || weatherLoading) ? (
           <div className="mb-6 p-4 bg-sky-50 border border-sky-200 rounded-2xl flex gap-4 items-start animate-in slide-in-from-top-4">
             <div className="w-11 h-11 bg-white border border-sky-200 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
-              <weather.icon size={22} className="text-sky-500" />
+              {weatherLoading && !weather ? (
+                <Loader2 size={22} className="text-sky-500 animate-spin" />
+              ) : (
+                <WeatherIcon size={22} className="text-sky-500" />
+              )}
             </div>
-            <div>
-              <h3 className="font-black text-gray-900 text-sm mb-1">
-                {destination} — {weather.temp}
-              </h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{weather.tip}</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h3 className="font-black text-gray-900 text-sm">
+                  {destination}
+                  {weather ? ` — ${weather.tempLabel}` : weatherLoading ? " — …" : ""}
+                </h3>
+                {weather ? (
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      weatherLive
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    {weatherLive ? "Jonli" : "Taxminiy"}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {weather ? weather.tip : "Ob-havo yuklanmoqda…"}
+              </p>
+              {weather && weatherLive ? (
+                <p className="text-[11px] font-semibold text-emerald-700/80 mt-1.5">
+                  OpenWeather · hozirgi holat
+                  {weather.fetchedAt
+                    ? ` · ${new Date(weather.fetchedAt).toLocaleTimeString("uz-UZ", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : ""}
+                </p>
+              ) : null}
             </div>
           </div>
-        )}
-
-        {activeTab === "ai" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 rounded-3xl p-6 sm:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center">
-                <Sparkles size={22} className="text-violet-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-gray-900">AI Sayohat Yordamchisi</h2>
-                <p className="text-sm text-gray-500">Istaganingizni yozing — qolganini men qilaman</p>
-              </div>
-            </div>
-            <form onSubmit={handleAIGenerate} className="relative mb-5">
-              <textarea
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Masalan: Men oilam (4 kishi) bilan Zominga 3 kunlik arzonroq safar qilmoqchiman."
-                className="w-full h-32 bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 text-gray-900 placeholder:text-gray-400 resize-none outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 transition-all text-sm"
-              />
-              <button
-                type="submit"
-                disabled={aiLoading || !aiPrompt.trim()}
-                className="absolute bottom-4 right-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white font-black px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm transition-all shadow-lg shadow-violet-500/25"
-              >
-                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                Tuzish
-              </button>
-            </form>
-            <div className="relative z-10 flex flex-wrap gap-2 mb-5">
-              {AI_EXAMPLES.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  onClick={() => setAiPrompt(ex)}
-                  className="text-xs px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 text-gray-600 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200 transition-all"
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-            {aiMessage && (
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold flex items-start gap-3 animate-in zoom-in-95">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                {aiMessage}
-              </div>
-            )}
-          </div>
-        )}
+        ) : null}
 
         {activeTab === "basics" && (
           <div>
@@ -902,14 +1352,29 @@ export default function TripBuilderPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+              <button
+                type="button"
+                disabled={tripAiLoading || !destination || !startDate || !endDate}
+                onClick={() =>
+                  void loadTripAiPlan({ switchToAiTab: true })
+                }
+                className="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-bold px-6 py-3 rounded-2xl shadow-lg shadow-violet-500/20 text-sm"
+              >
+                {tripAiLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                Joylar kunlik rejasini yaratish
+              </button>
               <button
                 type="button"
                 onClick={() => {
                   if (!destination || !startDate || !endDate) return toast.error("Manzil va sanani to'ldiring!");
                   setActiveTab("hotel");
                 }}
-                className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3 rounded-2xl shadow-lg text-sm"
+                className="inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3 rounded-2xl shadow-lg text-sm"
               >
                 Katalogni ko&apos;rish <ArrowRight size={16} />
               </button>
@@ -943,23 +1408,65 @@ export default function TripBuilderPage() {
       >
         <div
           className={`px-6 py-5 rounded-t-[2rem] transition-colors ${
-            aiMessage
+            aiAssisted
               ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white"
               : "bg-gray-900 text-white"
           }`}
         >
           <div className="flex items-center gap-2 mb-1">
-            {aiMessage ? (
+            {aiAssisted ? (
               <Sparkles size={16} className="text-violet-200 animate-pulse" />
             ) : (
               <MapPin size={16} className="text-amber-400" />
             )}
             <h3 className="font-black text-sm">Sayohat Rejasi</h3>
           </div>
-          <p className={`text-xs uppercase tracking-widest font-bold ${aiMessage ? "text-violet-200" : "text-gray-400"}`}>
+          <p className={`text-xs uppercase tracking-widest font-bold ${aiAssisted ? "text-violet-200" : "text-gray-400"}`}>
             {destination || "Manzil tanlanmagan"} • {days} kun • {pax} kishi
           </p>
         </div>
+
+        {tripAiPlan && tripAiPlan.days.length > 0 && (
+          <div className="px-5 pt-4 pb-3 border-b border-gray-100">
+            <p className="text-[10px] uppercase tracking-widest font-black text-violet-600 mb-2">
+              Joylar rejasi
+            </p>
+            <div className="space-y-3 max-h-48 overflow-y-auto">
+              {tripAiPlan.days.map((day) => {
+                const placed = day.slots.filter((s) => s.status === "PLACED");
+                return (
+                  <div key={day.day}>
+                    <p className="text-xs font-black text-gray-900 mb-1">
+                      {day.day}-kun
+                    </p>
+                    {placed.length === 0 ? (
+                      <p className="text-[11px] text-gray-400 italic">Joylar yo&apos;q</p>
+                    ) : (
+                      placed.slice(0, 4).map((slot, i) => (
+                        <p
+                          key={`${day.day}-s-${i}`}
+                          className="text-[11px] text-gray-500 truncate"
+                        >
+                          <span className="text-violet-500 font-mono">
+                            {slot.startTime}
+                          </span>{" "}
+                          {slot.siteName}
+                        </p>
+                      ))
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai")}
+              className="text-[11px] font-bold text-violet-600 mt-2 hover:text-violet-800"
+            >
+              Batafsil →
+            </button>
+          </div>
+        )}
 
         <div className="p-5 pb-0">
           <TimelineNode
@@ -1017,7 +1524,7 @@ export default function TripBuilderPage() {
             title="HomeStay"
             time="1-KUN, 15:00"
             isAdded={!!selectedHomestay}
-            onNavigate={() => dispatchTripBuilderTab("homestay")}
+            onNavigate={() => router.push("/homestay")}
             onRemove={() => setSelectedHomestay(null)}
           >
             {selectedHomestay && (

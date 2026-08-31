@@ -1,8 +1,15 @@
 import type { BookingStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { bookingService } from "@/src/modules/booking";
-import { InsufficientInventoryError } from "@/src/modules/inventory";
+import {
+  bookingService,
+  RoomAlreadyAssignedError,
+} from "@/src/modules/booking";
+import {
+  InsufficientInventoryError,
+  parseDateOnlyUtc,
+} from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
+import { Money } from "@/src/shared/money";
 
 export class QuickBookingError extends Error {
   constructor(
@@ -28,17 +35,14 @@ export type QuickBookingInput = {
   status: BookingStatus;
 };
 
+/**
+ * Calendar dates are read as UTC midnight, the convention inventory keys its
+ * nights on. Reading them in the server's zone shifted every stay by a day on
+ * the Asia/Tashkent host.
+ */
 function parseDateOnly(raw: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    throw new QuickBookingError("Sana YYYY-MM-DD formatida bo'lishi kerak", 400);
-  }
-  const [year, month, day] = raw.split("-").map(Number);
-  const parsed = new Date(year, month - 1, day);
-  if (
-    parsed.getFullYear() !== year ||
-    parsed.getMonth() !== month - 1 ||
-    parsed.getDate() !== day
-  ) {
+  const parsed = parseDateOnlyUtc(raw);
+  if (!parsed) {
     throw new QuickBookingError("Sana YYYY-MM-DD formatida bo'lishi kerak", 400);
   }
   return parsed;
@@ -73,20 +77,6 @@ export async function createQuickBooking(input: QuickBookingInput) {
       `Bolalar soni ${room.roomType.capacityChildren} dan oshmasligi kerak`,
       400,
     );
-  }
-
-  const conflict = await prisma.bookingRoomAssignment.findFirst({
-    where: {
-      physicalRoomId: input.roomId,
-      status: "ACTIVE",
-      checkInDate: { lt: checkOutDate },
-      checkOutDate: { gt: checkInDate },
-      booking: { status: { notIn: ["CANCELLED", "NO_SHOW", "EXPIRED"] } },
-    },
-  });
-
-  if (conflict) {
-    throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
   }
 
   const quote = await ratesService.quoteHotel({
@@ -125,29 +115,24 @@ export async function createQuickBooking(input: QuickBookingInput) {
       note,
       pricingSnapshot: quote.snapshot as Prisma.InputJsonValue,
       guests: [{ firstName: input.guestName, lastName: "" }],
+      assignPhysicalRoomId: input.roomId,
     });
   } catch (err) {
-    if (err instanceof InsufficientInventoryError) {
+    if (
+      err instanceof InsufficientInventoryError ||
+      err instanceof RoomAlreadyAssignedError
+    ) {
       throw new QuickBookingError("Tanlangan sanalarda xona band", 409);
     }
     throw err;
   }
-
-  await prisma.bookingRoomAssignment.create({
-    data: {
-      bookingId: booking.id,
-      physicalRoomId: input.roomId,
-      checkInDate,
-      checkOutDate,
-      status: "ACTIVE",
-    },
-  });
 
   await prisma.hotelPayment.create({
     data: {
       bookingId: booking.id,
       hotelId: input.hotelId,
       amount: totalAmount,
+      amountTiyin: Money.fromSomNumber(totalAmount).toTiyin(),
       method: input.paymentMethod,
       status: input.paymentMethod === "CASH" ? "COMPLETED" : "PENDING",
     },

@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { fail, handleApiError, ok } from "./_utils";
+import {
+  cityContainsAny,
+  destinationSearchTerms,
+} from "@/lib/trip-builder/destinationAliases";
 
 function parseDate(value: string | null) {
   if (!value) return null;
@@ -75,11 +79,12 @@ export async function GET(req: Request) {
       return fail("checkOut checkIn dan keyin bo'lishi kerak", 400);
     }
 
+    const cityTerms = destinationSearchTerms(city);
     const hotels = await prisma.hotel.findMany({
       where: {
         status: "active",
         partner: { status: "approved", type: "hotel" },
-        ...(city ? { city: { contains: city } } : {}),
+        ...(cityTerms.length ? { OR: cityContainsAny(cityTerms) } : {}),
       },
       include: {
         partner: { select: { id: true, displayName: true, bio: true, meta: true } },

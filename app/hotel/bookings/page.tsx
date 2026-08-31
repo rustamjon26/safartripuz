@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   CalendarDays,
   ChevronLeft,
@@ -67,16 +68,16 @@ const MONTHS_SHORT = [
 ] as const;
 
 const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  HELD: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  PAID: "bg-teal-100 text-teal-800 border-teal-200",
-  CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
-  CHECKED_IN: "bg-green-100 text-green-800 border-green-200",
-  CANCELLED: "bg-red-100 text-red-800 border-red-200",
-  COMPLETED: "bg-slate-100 text-slate-700 border-slate-200",
-  REFUNDED: "bg-orange-100 text-orange-800 border-orange-200",
-  NO_SHOW: "bg-orange-100 text-orange-800 border-orange-200",
-  EXPIRED: "bg-slate-100 text-slate-500 border-slate-200",
+  PENDING: "h-badge h-badge-wait",
+  HELD: "h-badge h-badge-wait",
+  PAID: "h-badge h-badge-ok",
+  CONFIRMED: "h-badge h-badge-info",
+  CHECKED_IN: "h-badge h-badge-ok",
+  CANCELLED: "h-badge h-badge-cancel",
+  COMPLETED: "h-badge h-badge-info",
+  REFUNDED: "h-badge h-badge-wait",
+  NO_SHOW: "h-badge h-badge-cancel",
+  EXPIRED: "h-badge h-badge-cancel",
 };
 
 function formatMoney(value: number) {
@@ -120,20 +121,14 @@ async function fetchBookings(
     if (opts.endDate) params.set("end_date", opts.endDate);
   }
 
-  const res = await fetch(`/api/hotels/${hotelId}/bookings?${params.toString()}`);
+  const res = await hotelFetch(`/api/hotels/${hotelId}/bookings?${params.toString()}`);
   const data = (await res.json()) as ListBookingsResult & { error?: string };
   if (!res.ok) throw new Error(data.error || "Bronlar yuklanmadi");
   return data;
 }
 
 function StatusBadge({ status }: { status: BookingStatus }) {
-  return (
-    <span
-      className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border ${STATUS_STYLES[status]}`}
-    >
-      {status}
-    </span>
-  );
+  return <span className={STATUS_STYLES[status] ?? "h-badge h-badge-info"}>{status}</span>;
 }
 
 function BookingRow({ booking }: { booking: BookingDetail }) {
@@ -275,7 +270,7 @@ export default function HotelBookingsPage() {
     let cancelled = false;
     async function init() {
       try {
-        const res = await fetch("/api/hotel/me");
+        const res = await hotelFetch("/api/hotel/me");
         const data = (await res.json()) as { hotel?: { id: string } };
         if (!res.ok || !data.hotel?.id) throw new Error("Mehmonxona topilmadi");
         if (!cancelled) setHotelId(data.hotel.id);

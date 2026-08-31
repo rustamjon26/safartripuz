@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
+import { mockPaymentsEnabled } from "@/lib/payments/mockGate";
+import { isPaymentCaptured } from "@/src/modules/payment";
 
 function appBaseUrl() {
   return (
@@ -27,6 +29,14 @@ export async function POST(
     const url = new URL(req.url);
     const shouldRedirect = url.searchParams.get("redirect") === "1";
 
+    // PSP-less completion is a dev/demo tool. Never in production by default.
+    if (!mockPaymentsEnabled()) {
+      return NextResponse.json(
+        { error: "Mock to'lov o'chirilgan" },
+        { status: 403 },
+      );
+    }
+
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
       include: { travelPlan: { select: { id: true, userId: true, totalAmount: true } } },
@@ -40,7 +50,17 @@ export async function POST(
       return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
     }
 
-    if (payment.status === "SUCCESS") {
+    // Only MOCK-provider payments may be self-completed. MANUAL payments are
+    // confirmed by admins via /api/admin/payments/[id]/confirm after checking
+    // the actual bank transfer.
+    if (payment.provider !== "MOCK") {
+      return NextResponse.json(
+        { error: "Bu to'lov turini faqat operator tasdiqlaydi" },
+        { status: 403 },
+      );
+    }
+
+    if (isPaymentCaptured(payment.status)) {
       if (shouldRedirect) {
         return successRedirect(paymentId, true);
       }
@@ -73,9 +93,6 @@ export async function POST(
     );
   } catch (error) {
     console.error("[POST /api/payments/webhook/mock/[paymentId]] error:", error);
-    return NextResponse.json(
-      { error: "Server xatosi", details: error instanceof Error ? error.message : String(error) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Server xatosi" }, { status: 500 });
   }
 }

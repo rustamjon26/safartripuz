@@ -14,7 +14,12 @@ type Role =
   | "hotel_manager"
   | "guide"
   | "restaurant_manager"
-  | "home_stay_partner";
+  | "home_stay_partner"
+  | "support"
+  | "cleaner"
+  | "receptionist"
+  | "waiter"
+  | "hotel_staff";
 
 type UserRow = {
   id: string;
@@ -35,6 +40,11 @@ const ROLE_SELECT_OPTIONS: { value: Role; label: string }[] = [
   { value: "hotel_manager", label: "Mehmonxona" },
   { value: "home_stay_partner", label: "Uy Mehmonxona" },
   { value: "guide", label: "Gid" },
+  { value: "support", label: "Support" },
+  { value: "cleaner", label: "Cleaner" },
+  { value: "receptionist", label: "Receptionist" },
+  { value: "waiter", label: "Waiter" },
+  { value: "hotel_staff", label: "Hotel Staff" },
   { value: "admin", label: "Admin" },
   { value: "super_admin", label: "Super Admin" },
 ];
@@ -49,7 +59,46 @@ const ROLE_LABELS: Record<Role, string> = {
   guide: "Gid",
   restaurant_manager: "Restoran",
   home_stay_partner: "Uy Mehmonxona",
+  support: "Support",
+  cleaner: "Cleaner",
+  receptionist: "Receptionist",
+  waiter: "Waiter",
+  hotel_staff: "Hotel Staff",
 };
+
+/**
+ * Holat = current User.role channel (not Partner.type).
+ * Never fall back to partnerProfile — after taxi→support the Partner row
+ * can still say "taxi" and mislead admins.
+ */
+function holatLabel(u: UserRow): { text: string; className: string } {
+  switch (u.role) {
+    case "home_stay_partner":
+      return { text: "Uy Mehmonxona", className: "text-purple-600" };
+    case "taxi":
+    case "taxi_partner":
+      return { text: "Taxi", className: "text-teal-600" };
+    case "hotel_manager":
+      return { text: "Hotel", className: "text-teal-600" };
+    case "guide":
+      return { text: "Guide", className: "text-teal-600" };
+    case "restaurant_manager":
+      return { text: "Restoran", className: "text-teal-600" };
+    case "support":
+      return { text: "Support", className: "text-sky-600" };
+    case "admin":
+    case "super_admin":
+      return { text: "Admin", className: "text-slate-700" };
+    case "cleaner":
+    case "receptionist":
+    case "waiter":
+    case "hotel_staff":
+      return { text: "Xodim", className: "text-slate-500" };
+    case "user":
+    default:
+      return { text: "Oddiy", className: "text-slate-300" };
+  }
+}
 
 export default function AdminUsersPage() {
   const [q, setQ] = useState("");
@@ -72,7 +121,39 @@ export default function AdminUsersPage() {
     phone: "",
     role: "user" as Role,
     password: "",
+    hotelId: "",
   });
+  const [hotelOptions, setHotelOptions] = useState<
+    Array<{ id: string; name: string; city: string | null; status: string }>
+  >([]);
+
+  const needsHotelLink =
+    newUser.role === "cleaner" ||
+    newUser.role === "receptionist" ||
+    newUser.role === "waiter" ||
+    newUser.role === "hotel_staff";
+
+  useEffect(() => {
+    if (!isAddingUser || !needsHotelLink || hotelOptions.length > 0) return;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/hotels/options", {
+          credentials: "include",
+        });
+        const data = (await res.json()) as {
+          hotels?: Array<{
+            id: string;
+            name: string;
+            city: string | null;
+            status: string;
+          }>;
+        };
+        if (res.ok) setHotelOptions(data.hotels ?? []);
+      } catch {
+        // ignore — link can be done later on user detail
+      }
+    })();
+  }, [isAddingUser, needsHotelLink, hotelOptions.length]);
 
   const query = useMemo(() => q.trim(), [q]);
 
@@ -105,19 +186,38 @@ export default function AdminUsersPage() {
   }, [query]);
 
   async function handleAddUser() {
+    if (needsHotelLink && !newUser.hotelId) {
+      toast.error("Xodim uchun mehmonxona tanlang");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify({
+          ...newUser,
+          hotelId: needsHotelLink ? newUser.hotelId || null : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Xatolik");
 
-      toast.success("Yangi foydalanuvchi qo'shildi");
+      toast.success(
+        needsHotelLink && data.hotelStaff
+          ? "Xodim yaratildi va mehmonxonaga ulandi"
+          : "Yangi foydalanuvchi qo'shildi",
+      );
       setIsAddingUser(false);
-      setNewUser({ first_name: "", last_name: "", email: "", phone: "", role: "user", password: "" });
+      setNewUser({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        role: "user",
+        password: "",
+        hotelId: "",
+      });
       void load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");
@@ -289,17 +389,14 @@ export default function AdminUsersPage() {
                        </div>
                     </td>
                     <td className="py-4 text-xs font-bold">
-                        {u.partnerProfile ? (
-                          u.role === "home_stay_partner" ? (
-                            <span className="text-purple-600 uppercase text-[10px]">Uy Mehmonxona</span>
-                          ) : (
-                            <span className="text-teal-600 uppercase text-[10px]">{u.partnerProfile.type}</span>
-                          )
-                        ) : u.role === "home_stay_partner" ? (
-                          <span className="text-purple-400 uppercase text-[10px]">Uy Mehmonxona</span>
-                        ) : (
-                          <span className="text-slate-300 uppercase text-[10px]">Oddiy</span>
-                        )}
+                      {(() => {
+                        const holat = holatLabel(u);
+                        return (
+                          <span className={`${holat.className} uppercase text-[10px]`}>
+                            {holat.text}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-4">
                         <div className="text-xs font-black text-slate-900 border border-slate-100 bg-slate-50 px-3 py-2 rounded-xl inline-block min-w-[140px]">
@@ -410,6 +507,31 @@ export default function AdminUsersPage() {
                       />
                    </div>
                  )}
+                 {isAddingUser && needsHotelLink ? (
+                   <div className="sm:col-span-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-1">
+                       Mehmonxona (Staff)
+                     </label>
+                     <select
+                       className="adm-input"
+                       value={newUser.hotelId}
+                       onChange={(e) =>
+                         setNewUser({ ...newUser, hotelId: e.target.value })
+                       }
+                     >
+                       <option value="">Tanlang…</option>
+                       {hotelOptions.map((h) => (
+                         <option key={h.id} value={h.id}>
+                           {h.name}
+                           {h.city ? ` · ${h.city}` : ""} ({h.status})
+                         </option>
+                       ))}
+                     </select>
+                     <p className="text-[11px] font-bold text-slate-400 mt-1 px-1">
+                       `/staff` ilovasi uchun majburiy
+                     </p>
+                   </div>
+                 ) : null}
               </div>
 
               <div className="flex gap-3 mt-8">

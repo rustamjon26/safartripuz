@@ -2,43 +2,95 @@
 
 Living list — not a commitment to order. Update when items land or change.
 
-## Planner
+## Done recently
 
-### Same-tier zigzag (name beats distance) — confirmed 2026-07-31
+### P0 accounting refactor (Steps 2–4) — closed 2026-08-02 Contabo
 
-Prod day 3: **Aqsaroy → Hazrati Xizr → Ruxobod** (all `SECONDARY`).
+Deployed `main` @ `a6d1fe1`. Migrations applied: `add_ledger_booking_type`, `add_payout_owner_type` (plus prior `0_init` / `site_prominence`). Post-deploy `reconcile-ledger.ts`: **clean: YES**, all drift counts 0, no POLICY notes.
 
-| Leg | Approx haversine |
-|-----|------------------|
-| Aqsaroy → Ruxobod | ~350 m |
-| Aqsaroy → Hazrati Xizr | ~2 km |
+| Step | What |
+|------|------|
+| 2 | Dual-write PE + ledger; cancel funnel; integer commission; fail-loud partner |
+| 2 follow-up | Explicit `payoutOwnerType` PLATFORM \| PARTNER |
+| 3 | Read-only `reconcile-ledger.ts` |
+| 4 | Hybrid reads (Ledger balances / PE line items) + `LedgerTransaction.bookingType` |
 
-Intended order after Aqsaroy: **Ruxobod** (nearer, same prominence). Actual: **Hazrati Xizr**.
+### Same-tier zigzag (name beats distance) — fixed (PR #15)
 
-**Cause:** `orderCandidatesForSlot` (slots 2+) sorts with `compareByProminence`, which already tie-breaks by **name**. So within a tier, `"Hazrati…".localeCompare("Ruxobod…")` wins and **distance never runs**.
+Slots 2+ sort: `prominenceRank → distanceKm → name`. Prod regression was Aqsaroy → Hazrati Xizr instead of nearer Ruxobod.
 
-**Fix (when scheduled):** sort by `prominenceRank` only, then `distanceKm`, then name — do not reuse `compareByProminence` for intra-day slot 2+.
+### Region-aware `MAX_INTRA_DAY_LEG_KM` — merged `main` @ `7fdf52e` (PR #20)
 
-### Far / day-trip sites never get a day-start
+`getMaxIntraDayLegKm(regionCode)` in `tripai/domain/maxIntraDayLegKm.ts`. No schema change (`Site.regionCode` already existed). Confirmed: `samarqand: 12`, `buxoro: 8`, `xiva: 3`. No Contabo migrate needed.
 
-Assumption that a far `SECONDARY` (e.g. Imom al-Buxoriy) would open a later day failed in prod: day-starts stay `PRIMARY`-first; slots 2+ are capped by `MAX_INTRA_DAY_LEG_KM` (~12 km, Samarqand-tuned). Result: Imom is **unreachable** in a 3×3 plan.
+## Planner (open)
 
-**Directions:**
+### ~~Far / day-trip sites never get a day-start~~ — fixed (domain)
 
-- Mark day-trips (`isDayTrip` editorial flag and/or auto by distance from region centroid / PRIMARY cluster).
-- Reserve a day-start (or a whole day) for them — especially on **4+ day** plans.
-- Pair with per-`regionCode` leg budget (below).
+Auto day-trip = farther than `getMaxIntraDayLegKm(regionCode)` from every PRIMARY; optional `ScheduleCandidateInput.isDayTrip` override. Reserves later day-starts: **1** on 3-day plans, up to `dayCount - 2` on 4+. No schema migration. See `dayTrip.ts` + `scheduleDays`.
+
+Still open (optional follow-ups):
+
+- Persist editorial `isDayTrip` on `Site` (Prisma) for seed/admin.
+- Whole-day reservation (not just day-start) when a day-trip has nearby companions.
 
 ### Other planner follow-ups
 
 - `NO_DATA` reasons (`NO_CANDIDATES` / `TOO_FAR`) and split `dataCoverage` (geography vs thin catalog).
-- `MAX_INTRA_DAY_LEG_KM` → map by `regionCode` (first job when Buxoro/Xiva go live; Tashkent spread ~25 km).
+- ~~`MAX_INTRA_DAY_LEG_KM` → map by `regionCode`~~ — done (`getMaxIntraDayLegKm`); confirmed `samarqand: 12` / `buxoro: 8` / `xiva: 3`; `toshkent: 12` explicit (same as default until city-core span measured); other unmapped → 12 + `console.warn`.
 
 ## Knowledge / catalog
 
-- Three unresolved restaurants need Maps links: Plov Centre, Bibi-Xonim, Lyabi-Hauz.
-- Restaurant + `BOSHQA` publish policy — manual decision for now.
+- When seeding Bukhara Sites: publish verified lat/lng for a historic-core reference Site (Ark or Kalyan) **and** Chor-Bakr — not the ad-hoc pair once used for the leg-budget estimate.
+- ~~Three unresolved restaurants (Maps links)~~ — resolved 2026-08-02 into `tourism_data.json` as DRAFT rows with Google `cid` `sourceUrl`; Contabo seed `created=3`:
+  - Plov Centre → `Samarqand Osh Markazi N1` (`cid=14268127267228355785`)
+  - Bibi-Xonim → `Bibixonim Choyxona` / Bibikhanum Teahouse (`cid=5531354908977729096`) — not the mosque
+  - Lyabi-Hauz → `Lyabi House` Buxoro (`cid=16248639576405358982`) — not UNESCO square / not Tashkent namesake
+  Maps browser pull 2026-08-02: **Osh Markazi** + **Bibixonim Choyxona** hours/price filled in seed (publishable after re-seed). **Lyabi House** still DRAFT — Maps lists hotel, no restaurant weekly hours (do not invent).
+- ~~Restaurant + `BOSHQA` publish policy~~ — `evaluatePublishEligibility` / `knowledgeService.publishSite`: dining needs planner-grade `parseDining`; **BOSHQA** same base gates as landmarks, no dining JSON, no auto-publish. Seed still never writes `PUBLISHED`.
 
-## Ops
+## Ops — still OPEN (do not mark closed yet)
 
 - Drop `_prisma_migrations_backup` after 1–2 weeks of clean `migrate deploy` on Contabo.
+- ~~CI workflow generate→typecheck→build→migrate→vitest~~ — audited 2026-08-02: no `continue-on-error`; build gate in workflow since `981116c`. Job check name: **`test`**. Lint still intentionally out (still red locally).
+- ~~Branch protection / required `test`~~ — **DONE 2026-08-02.** Repo made **public**; ruleset `main` **Active** with required status check **`test`**, PR required, non-fast-forward. Verified via `gh api …/rules/branches/main`.
+- ~~Contabo `restore-test.sh` end-to-end~~ — **PASS** 2026-08-02 (manual fresh dump, age_hours=0, scratch==prod).
+- ~~Cron nightly backup~~ — **PASS 2026-08-03 02:15** Contabo: CRON ran (`safartrip` → `backup.sh`); log `[backup] OK size=18493 …/safartrip-2026-08-03.sql.gz`. No syslog `FAILED`. (Prior manual OK 2026-08-02 also kept.)
+- ~~After `pm2 stop all`, remember to restart outbox + expire-holds~~ — fixed in `deploy-safe.sh`.
+- ~~eslint linting `standalone/`~~ — ignored in `eslint.config.mjs`.
+- Post-deploy smoke (human, Contabo):  
+  `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`
+
+## Channel / OTA sync — NOT IMPLEMENTED
+
+`ChannelSyncJob` is a real table with real indexes, a `channel` module and a
+`/api/hotel/channel/sync` route, which together look like working
+infrastructure. They are not.
+
+**What exists:** enqueue a job, list jobs, and process one inline when the caller
+passes `runNow: true`. `channelService.syncNow` / `onOtaConnected` run in the API
+request.
+
+**What does not:** anything that drains the queue. A job created with
+`status: QUEUED` and a future `scheduledAt` is never picked up — there is no PM2
+worker, no cron, no relay consumer. `scheduledAt`, `attempts`, `startedAt` and
+`finishedAt` are written but nothing acts on them.
+
+**Deliberately not stubbed.** `.cursor/rules/architecture-modular-monolith.mdc`
+lists channel as *"planned: leave room; do not implement yet"*, and a stub worker
+that claims and fails jobs would be worse than none — retry counts would climb
+against an adapter that does not exist.
+
+**Before this is switched on:**
+- a PM2 cron entry alongside `safartrip-expire-holds`, claiming with a conditional
+  `UPDATE … WHERE status = 'QUEUED'` like the other workers
+- real OTA adapters (`ChannelReservationInbox` ingest already stops short of
+  creating bookings — see `channel.service.ts`)
+- backoff on `attempts`, and a dead-letter state
+- `/api/health` coverage, the way outbox and expire-holds have
+
+## Next pick
+
+1. **Ship:** Admin Knowledge UI merged (#32 @ `11c611c`) — Contabo `deploy-safe` + smoke `/admin/knowledge` if not deployed yet.
+2. **Knowledge content:** replace Lyabi House hotel DRAFT with a real dining venue when verified; Bukhara Ark/Kalyan + Chor-Bakr published coords.
+3. **Planner (optional):** `Site.isDayTrip` column; whole-day day-trip reservation; `NO_DATA` reason split.

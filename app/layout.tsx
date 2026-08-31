@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Playfair_Display, Nunito } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Playfair_Display, Nunito, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
@@ -13,6 +13,12 @@ const nunito = Nunito({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-nunito",
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sora",
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://safartrip.uz";
@@ -95,8 +101,26 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
+  },
+  /**
+   * public/manifest.json shipped with icons, screenshots and display:standalone
+   * but nothing ever linked it, so the PWA install prompt never appeared.
+   */
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "default",
   },
   category: "travel",
+};
+
+/** theme_color in the manifest; browsers read it from here for the chrome. */
+export const viewport: Viewport = {
+  themeColor: "#0D2137",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -105,7 +129,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uz" className={`${playfair.variable} ${nunito.variable}`}>
+    <html lang="uz" className={`${playfair.variable} ${nunito.variable} ${sora.variable}`}>
       <body>
         {children}
         <Toaster richColors position="top-center" />

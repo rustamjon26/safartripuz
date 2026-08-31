@@ -1,8 +1,15 @@
 import { Money } from "@/src/shared/money";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
-import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../../domain/errors";
+import {
+  isPaymeErrorResponse,
+  PAYME_ERRORS,
+  paymeRpcError,
+  paymeRpcSuccess,
+} from "../../domain/errors";
+import { buildPaymeReceiptDetail } from "../../domain/payme-receipt";
 import { paymentRepository } from "../../repository/payment.repository";
+import { isPaymentCaptured } from "../../domain/payment-status";
 import { paymentService } from "../../service/payment.service";
 
 type Params = {
@@ -27,8 +34,13 @@ async function findPaymentByPaymeId(paymeTransId: string | undefined) {
   );
 }
 
-function expectedTiyin(paymentAmount: unknown): bigint {
-  return Money.fromSomNumber(Number(paymentAmount)).toTiyin();
+/** Prefer the tiyin SoT column; fall back to Decimal som via exact string. */
+function expectedTiyin(payment: {
+  amount: { toString(): string };
+  amountTiyin: bigint | null;
+}): bigint {
+  if (payment.amountTiyin != null) return payment.amountTiyin;
+  return Money.fromSomNumber(payment.amount.toString()).toTiyin();
 }
 
 export async function handleOrderIdMethod(
@@ -45,12 +57,14 @@ export async function handleOrderIdMethod(
   if (cached) return cached;
 
   const respond = async (response: object) => {
-    // Cache mutating / idempotent success paths
+    // Cache mutating / idempotent success paths. Never an error envelope — a
+    // memoized transient failure would be replayed to every Payme retry.
     if (
-      method === "PerformTransaction" ||
-      method === "CreateTransaction" ||
-      method === "CancelTransaction" ||
-      method === "SetFiscalData"
+      !isPaymeErrorResponse(response) &&
+      (method === "PerformTransaction" ||
+        method === "CreateTransaction" ||
+        method === "CancelTransaction" ||
+        method === "SetFiscalData")
     ) {
       await paymentService.storeProcessedResponse({
         provider: "PAYME",
@@ -67,13 +81,21 @@ export async function handleOrderIdMethod(
     if (!payment || payment.provider !== "PAYME") {
       return paymeRpcError(rpcId, PAYME_ERRORS.INVALID_ACCOUNT, "order_id");
     }
-    if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment.amount)) {
+    const amountTiyin = expectedTiyin(payment);
+    if (params.amount == null || BigInt(params.amount) !== amountTiyin) {
       return paymeRpcError(rpcId, PAYME_ERRORS.WRONG_AMOUNT);
     }
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.ORDER_ALREADY_PAID);
     }
-    return paymeRpcSuccess(rpcId, { allow: true });
+    // Fiscal detail required for Soliq turnover (Shohjahon / Merchant API).
+    return paymeRpcSuccess(rpcId, {
+      allow: true,
+      detail: buildPaymeReceiptDetail({
+        title: "SafarTrip sayohat to'lovi",
+        priceTiyin: Number(amountTiyin),
+      }),
+    });
   }
 
   if (method === "CreateTransaction") {
@@ -81,17 +103,17 @@ export async function handleOrderIdMethod(
     if (!payment || payment.provider !== "PAYME") {
       return paymeRpcError(rpcId, PAYME_ERRORS.INVALID_ACCOUNT, "order_id");
     }
-    if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment.amount)) {
+    if (params.amount == null || BigInt(params.amount) !== expectedTiyin(payment)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.WRONG_AMOUNT);
     }
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.ORDER_ALREADY_PAID);
     }
 
     await paymentService.createIntent({
       provider: "PAYME",
       idempotencyKey: `payme:create:${payment.id}:${paymeTransId}`,
-      amountTiyin: expectedTiyin(payment.amount),
+      amountTiyin: expectedTiyin(payment),
       travelPlanId: payment.travelPlanId,
       legacyPaymentId: payment.id,
       metadata: { paymeId: paymeTransId },
@@ -121,7 +143,7 @@ export async function handleOrderIdMethod(
 
     setMoneyPathContext({ paymentId: payment.id });
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return respond(
         paymeRpcSuccess(rpcId, {
           perform_time: payment.paidAt?.getTime() ?? Date.now(),
@@ -131,23 +153,31 @@ export async function handleOrderIdMethod(
       );
     }
 
+    const response = paymeRpcSuccess(rpcId, {
+      perform_time: Date.now(),
+      transaction: payment.externalRef ?? String(paymeTransId),
+      state: 2,
+    });
+
     await paymentRepository.runTransaction(async (tx) => {
-      // Ledger + outbox (Didox/receipts) inside completeSuccessfulPaymentInTx
+      // Ledger + outbox (Didox/receipts) inside completeSuccessfulPaymentInTx.
+      // The payment row lock inside serializes concurrent PerformTransaction.
       await completeSuccessfulPaymentInTx(tx, {
         paymentId: payment.id,
         travelPlanId: payment.travelPlanId,
         actorId: payment.travelPlan.userId,
         previousPaymentStatus: payment.status,
       });
+
+      // ProcessedEvent commits atomically with the business effects — a crash
+      // between "work done" and "dedup recorded" can no longer double-apply.
+      await paymentService.storeProcessedResponse(
+        { provider: "PAYME", providerEventId, rawBody, response },
+        tx,
+      );
     });
 
-    return respond(
-      paymeRpcSuccess(rpcId, {
-        perform_time: Date.now(),
-        transaction: payment.externalRef ?? String(paymeTransId),
-        state: 2,
-      }),
-    );
+    return response;
   }
 
   if (method === "CancelTransaction") {
@@ -158,7 +188,7 @@ export async function handleOrderIdMethod(
       return paymeRpcError(rpcId, PAYME_ERRORS.TRANSACTION_NOT_FOUND);
     }
 
-    if (payment.status === "SUCCESS") {
+    if (isPaymentCaptured(payment.status)) {
       return paymeRpcError(rpcId, PAYME_ERRORS.UNABLE_TO_CANCEL);
     }
 
@@ -183,8 +213,13 @@ export async function handleOrderIdMethod(
       return paymeRpcError(rpcId, PAYME_ERRORS.TRANSACTION_NOT_FOUND);
     }
 
-    const state =
-      payment.status === "SUCCESS" ? 2 : payment.status === "CANCELLED" ? -1 : 1;
+    // Payme only cares that the money was captured; PENDING_REVIEW is our own
+    // bookkeeping gap, so the transaction must still report as performed.
+    const state = isPaymentCaptured(payment.status)
+      ? 2
+      : payment.status === "CANCELLED"
+        ? -1
+        : 1;
 
     return paymeRpcSuccess(rpcId, {
       create_time: payment.createdAt.getTime(),
@@ -209,7 +244,7 @@ export async function handleOrderIdMethod(
     await paymentService.createIntent({
       provider: "PAYME",
       idempotencyKey: `payme:fiscal:${payment.id}:${paymeTransId ?? "x"}`,
-      amountTiyin: expectedTiyin(payment.amount),
+      amountTiyin: expectedTiyin(payment),
       legacyPaymentId: payment.id,
       travelPlanId: payment.travelPlanId,
       metadata: { fiscal: params.fiscal ?? params },

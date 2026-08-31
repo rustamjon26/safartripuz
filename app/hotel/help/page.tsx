@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/context/LanguageContext";
-import { BookOpen, ArrowLeft, ShieldCheck, Mail, Phone, HelpCircle } from "lucide-react";
+import { BookOpen, ArrowLeft, ShieldCheck, Mail, Phone, HelpCircle, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function HotelHelpPage() {
@@ -30,8 +30,23 @@ export default function HotelHelpPage() {
         </h1>
         
         <p className="text-lg text-slate-500 font-medium leading-relaxed mb-10 max-w-2xl">
-          SafarTrip Hotel PMS tizimidan foydalanish bo'yicha to'liq yo'riqnomalar va video darsliklar yaqin orada shu sahifada paydo bo'ladi. Hozircha quyidagi aloqa vositalari orqali yordam olishingiz mumkin.
+          SafarTrip Hotel PMS tizimidan foydalanish bo&apos;yicha to&apos;liq yo&apos;riqnomalar va video darsliklar yaqin orada shu sahifada paydo bo&apos;ladi. Hozircha Support chat yoki quyidagi aloqa vositalari orqali yordam olishingiz mumkin.
         </p>
+
+        <Link
+          href="/support-chat"
+          className="mb-8 flex items-center gap-5 p-6 rounded-2xl bg-[var(--primary)] text-white hover:bg-[var(--secondary)] transition-colors group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <MessageCircle size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-black mb-1">Support chat</h3>
+            <p className="text-white/80 text-sm font-bold">
+              SafarTrip jamoasi bilan to&apos;g&apos;ridan-to&apos;g&apos;ri yozishma
+            </p>
+          </div>
+        </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex items-start gap-5 p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-colors group">
@@ -39,7 +54,7 @@ export default function HotelHelpPage() {
               <Phone size={24} />
             </div>
             <div>
-              <h3 className="font-black text-slate-800 mb-1">Mijozlarni Qo'llab-quvvatlash</h3>
+              <h3 className="font-black text-slate-800 mb-1">Mijozlarni Qo&apos;llab-quvvatlash</h3>
               <p className="text-slate-500 text-sm font-bold">+998 90 123 45 67</p>
             </div>
           </div>

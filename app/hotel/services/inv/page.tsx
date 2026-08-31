@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Package, Search, Plus, Loader2, RefreshCw, X, Verified,
   MoveDown, MoveUp, AlertTriangle, History, ArrowRight
@@ -29,7 +30,7 @@ export default function InventoryPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/inventory");
+      const res = await hotelFetch("/api/hotel/inventory");
       const data = await res.json();
       if (res.ok) setItems(data.items || []);
     } catch { toast.error(t("common.error")); }
@@ -41,7 +42,7 @@ export default function InventoryPage() {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/hotel/inventory", {
+      const res = await hotelFetch("/api/hotel/inventory", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
@@ -53,7 +54,7 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!activeItem) return;
     try {
-      const res = await fetch(`/api/hotel/inventory/${activeItem.id}/transaction`, {
+      const res = await hotelFetch(`/api/hotel/inventory/${activeItem.id}/transaction`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(transForm)
       });

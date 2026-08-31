@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
@@ -7,14 +8,14 @@ import { fail, handleApiError, ok } from "../host/_utils";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
 
-type CreateBookingInput = {
-  listingId?: string;
-  checkIn?: string;
-  checkOut?: string;
-  guestCount?: number;
-  guestNote?: string;
-  totalPrice?: number;
-};
+const createBookingSchema = z.object({
+  listingId: z.string().min(1),
+  checkIn: z.string().min(1),
+  checkOut: z.string().min(1),
+  guestCount: z.number().int().min(1).max(50),
+  guestNote: z.string().trim().max(2000).optional(),
+  totalPrice: z.number().positive().finite().optional(),
+});
 
 function calcNights(checkIn: Date, checkOut: Date) {
   const diff = checkOut.getTime() - checkIn.getTime();
@@ -64,11 +65,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
-    const body = (await req.json()) as CreateBookingInput;
-
-    if (!body.listingId || !body.checkIn || !body.checkOut || !body.guestCount) {
+    const parsed = createBookingSchema.safeParse(await req.json());
+    if (!parsed.success) {
       return fail("listingId, checkIn, checkOut, guestCount are required", 400);
     }
+    const body = parsed.data;
 
     const checkIn = new Date(body.checkIn);
     const checkOut = new Date(body.checkOut);

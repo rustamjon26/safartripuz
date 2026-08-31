@@ -1,19 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Menu, Palmtree, X } from 'lucide-react';
-import { loginWithNext } from '@/lib/authLinks';
-import styles from './Navbar.module.css';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
+import { loginWithNext } from "@/lib/authLinks";
+import styles from "./Navbar.module.css";
 
 function useHash() {
-  const [hash, setHash] = useState('');
+  const [hash, setHash] = useState("");
   useEffect(() => {
-    const read = () => setHash(typeof window !== 'undefined' ? window.location.hash : '');
+    const read = () =>
+      setHash(typeof window !== "undefined" ? window.location.hash : "");
     read();
-    window.addEventListener('hashchange', read);
-    return () => window.removeEventListener('hashchange', read);
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
   }, []);
   return hash;
 }
@@ -30,7 +31,7 @@ export default function Navbar() {
   } | null>(null);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
+    fetch("/api/auth/me", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => data && setUser(data.user))
       .catch(() => {});
@@ -41,17 +42,17 @@ export default function Navbar() {
       setIsScrolled(window.scrollY > 50);
     };
     handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
     if (!isMenuOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsMenuOpen(false);
+      if (e.key === "Escape") setIsMenuOpen(false);
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [isMenuOpen]);
 
   const navClass = `${styles.navbar} ${isScrolled ? styles.solid : styles.transparent}`;
@@ -59,12 +60,12 @@ export default function Navbar() {
   const linkClass = useCallback(
     (key: string) => {
       let active = false;
-      if (key.startsWith('#')) {
-        active = pathname === '/' && hash === key;
+      if (key.startsWith("#")) {
+        active = pathname === "/" && hash === key;
       } else {
-        active = pathname === key.split('?')[0];
+        active = pathname === key.split("?")[0];
       }
-      return `${styles.link} ${active ? styles.linkActive : ''}`;
+      return `${styles.link} ${active ? styles.linkActive : ""}`;
     },
     [hash, pathname],
   );
@@ -72,12 +73,12 @@ export default function Navbar() {
   const mobileLinkClass = useCallback(
     (key: string) => {
       let active = false;
-      if (key.startsWith('#')) {
-        active = pathname === '/' && hash === key;
+      if (key.startsWith("#")) {
+        active = pathname === "/" && hash === key;
       } else {
-        active = pathname === key.split('?')[0];
+        active = pathname === key.split("?")[0];
       }
-      return `${styles.mobileLink} ${active ? styles.mobileLinkActive : ''}`;
+      return `${styles.mobileLink} ${active ? styles.mobileLinkActive : ""}`;
     },
     [hash, pathname],
   );
@@ -86,40 +87,45 @@ export default function Navbar() {
     <>
       <nav className={navClass}>
         <Link href="/" className={styles.logo}>
-          <Palmtree size={28} />
-          SafarTrip.uz
+          SafarTrip
         </Link>
 
         <div className={styles.navLinks}>
-          <Link href="/#destinations" className={linkClass('#destinations')}>
-            Destinatsiyalar
+          <Link href="/#destinations" className={linkClass("#destinations")}>
+            Manzillar
           </Link>
-          <Link href="/#packages" className={linkClass('#packages')}>
-            Paketlar
+          <Link href="/tours" className={linkClass("/tours")}>
+            Tajribalar
           </Link>
-          <Link href="/#guides" className={linkClass('#guides')}>
-            Gidlar
+          <Link href="/hotels" className={linkClass("/hotels")}>
+            Mehmonxonalar
           </Link>
-          <Link href="/user/bookings" className={linkClass('/user/bookings')}>
-            Bronlarim
+          <Link href="/taxi" className={linkClass("/taxi")}>
+            Transport
           </Link>
         </div>
 
         <div className={styles.actions}>
+          <Link href="/partner/hotel" className={styles.partnerLink}>
+            Hamkor kabineti
+          </Link>
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">
+              <span className="font-ui text-sm font-semibold">
                 {user.first_name} {user.last_name}
               </span>
               <button
                 type="button"
                 onClick={() => {
-                  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
+                  fetch("/api/auth/logout", {
+                    method: "POST",
+                    credentials: "include",
+                  }).then(() => {
                     setUser(null);
-                    window.location.href = '/';
+                    window.location.href = "/";
                   });
                 }}
-                className="text-sm text-gray-500 hover:text-red-500"
+                className="font-ui text-sm text-gray-500 hover:text-red-500"
               >
                 Chiqish
               </button>
@@ -129,15 +135,15 @@ export default function Navbar() {
               Kirish
             </Link>
           )}
-          <Link href={loginWithNext('/trip-builder')} className={styles.ctaBtn}>
-            Safar tuzing
+          <Link href={loginWithNext("/trip-builder")} className={styles.ctaBtn}>
+            Safar tuzish
           </Link>
         </div>
 
         <button
           type="button"
           className={styles.menuBtn}
-          aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-label={isMenuOpen ? "Menyuni yopish" : "Menyuni ochish"}
           aria-expanded={isMenuOpen}
           onClick={() => setIsMenuOpen((v) => !v)}
         >
@@ -150,19 +156,16 @@ export default function Navbar() {
           <button
             type="button"
             className={styles.mobileBackdrop}
-            aria-label="Close menu"
+            aria-label="Menyuni yopish"
             onClick={() => setIsMenuOpen(false)}
           />
           <div className={styles.mobilePanel}>
             <div className={styles.mobileHeader}>
-              <div className={styles.mobileBrand}>
-                <Palmtree size={22} />
-                SafarTrip.uz
-              </div>
+              <div className={styles.mobileBrand}>SafarTrip</div>
               <button
                 type="button"
                 className={styles.mobileClose}
-                aria-label="Close menu"
+                aria-label="Yopish"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <X size={22} />
@@ -172,61 +175,74 @@ export default function Navbar() {
             <div className={styles.mobileLinks}>
               <Link
                 href="/#destinations"
-                className={mobileLinkClass('#destinations')}
+                className={mobileLinkClass("#destinations")}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Destinatsiyalar
+                Manzillar
               </Link>
               <Link
-                href="/#packages"
-                className={mobileLinkClass('#packages')}
+                href="/tours"
+                className={mobileLinkClass("/tours")}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Paketlar
+                Tajribalar
               </Link>
               <Link
-                href="/#guides"
-                className={mobileLinkClass('#guides')}
+                href="/hotels"
+                className={mobileLinkClass("/hotels")}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Gidlar
+                Mehmonxonalar
               </Link>
               <Link
-                href="/user/bookings"
-                className={mobileLinkClass('/user/bookings')}
+                href="/taxi"
+                className={mobileLinkClass("/taxi")}
                 onClick={() => setIsMenuOpen(false)}
               >
-                Bronlarim
+                Transport
+              </Link>
+              <Link
+                href="/partner/hotel"
+                className={mobileLinkClass("/partner/hotel")}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Hamkor kabineti
               </Link>
             </div>
 
             <div className={styles.mobileActions}>
               {user ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">
-                    {user.first_name} {user.last_name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
-                        setUser(null);
-                        setIsMenuOpen(false);
-                        window.location.href = '/';
-                      });
-                    }}
-                    className="text-sm text-gray-500 hover:text-red-500"
-                  >
-                    Chiqish
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetch("/api/auth/logout", {
+                      method: "POST",
+                      credentials: "include",
+                    }).then(() => {
+                      setUser(null);
+                      setIsMenuOpen(false);
+                      window.location.href = "/";
+                    });
+                  }}
+                  className={styles.mobileLogin}
+                >
+                  Chiqish
+                </button>
               ) : (
-                <Link href="/login" className={styles.mobileLogin} onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  href="/login"
+                  className={styles.mobileLogin}
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Kirish
                 </Link>
               )}
-              <Link href={loginWithNext('/trip-builder')} className={styles.mobileCta} onClick={() => setIsMenuOpen(false)}>
-                Safar tuzing
+              <Link
+                href={loginWithNext("/trip-builder")}
+                className={styles.mobileCta}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Safar tuzish
               </Link>
             </div>
           </div>

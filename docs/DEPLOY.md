@@ -19,6 +19,19 @@ Production host: Contabo VPS, app path `/var/www/safar`, PM2 app name `safartrip
 2. You are deploying that exact SHA (`git rev-parse HEAD` matches the CI run).
 3. All server commands that touch the app tree run as **`safartrip`**, never as root. Root-owned `.next` breaks PM2 running as `safartrip`.
 
+## Branch protection (manual — GitHub UI)
+
+Workflow job name is **`test`** (check run name: `test`). A green Actions run alone does **not** block merges unless this is required.
+
+**Status (2026-08-02):** repo is **public**; ruleset **`main`** is **Active** with required check **`test`**, PR required, force-push blocked. (Private + Free still cannot use rulesets — Pro or public required.)
+
+Re-create / edit via **Settings → Rules → Rulesets** (or classic Branches UI):
+
+1. Target branch pattern: `main`; enforcement **Active**.
+2. Enable **Require a pull request before merging** (recommended).
+3. Enable **Require status checks to pass** → add check **`test`** (workflow `CI`, job `test`). Do **not** rename that job in `.github/workflows/ci.yml` — renames silently unhook this setting.
+4. Save.
+
 ```bash
 # Wrong
 sudo npm run build
@@ -63,22 +76,84 @@ Or in one shot (same ordering, including stop PM2/MySQL around build):
 
 ```bash
 cd /var/www/safar
-sudo -u safartrip -H bash -lc 'cd /var/www/safar && bash scripts/deploy-safe.sh'
-# deploy-safe stops MySQL via systemctl; may need a root helper for systemctl if
-# safartrip cannot stop the service — run the MySQL stop/start as root around the script if needed.
+
+# Preferred: always deploy as safartrip (PM2 lives in ~safartrip/.pm2).
+sudo -u safartrip -H bash -lc 'cd /var/www/safar && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
+
+# As root: script chown's the tree, kills /root/.pm2, then re-execs as safartrip.
+# Do NOT leave a root PM2 running — it steals :3000 from safartrip.
+bash scripts/deploy-safe.sh
 ```
 
-`STOP_MYSQL_FOR_BUILD=0` skips the MySQL stop if you must keep the DB up (not recommended on 8 GB during cutover).
+If a previous root deploy left the tree / port broken:
+
+```bash
+# 1) Kill every listener on :3000 and both PM2 daemons
+fuser -k 3000/tcp || true
+pm2 kill 2>/dev/null || true
+sudo -u safartrip -H bash -lc 'pm2 kill' 2>/dev/null || true
+
+# 2) Return the tree to safartrip, sync main, redeploy
+chown -R safartrip:safartrip /var/www/safar
+sudo -u safartrip -H bash -lc 'cd /var/www/safar && git fetch origin && git reset --hard origin/main && STOP_MYSQL_FOR_BUILD=0 bash scripts/deploy-safe.sh'
+```
+
+`STOP_MYSQL_FOR_BUILD=0` keeps MySQL up during build (safer when not root; use on 8 GB only if RAM allows).
 
 ## Verify
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health
-# expect 200 or 204
+curl -sS http://127.0.0.1:3000/api/health | jq
+# 200 = ok or degraded, 503 = unhealthy
+
+# Post-deploy check (deploy-safe.sh does this): serve this build's static chunk.
+# Do not scrape /trip-builder HTML — anonymous users are redirected to /login.
+CHUNK=$(ls -1 /var/www/safar/.next/static/chunks/app/trip-builder/page-*.js | head -1 | xargs -n1 basename)
+curl -sS -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:3000/_next/static/chunks/app/trip-builder/${CHUNK}"
+# expect: 200
 
 sudo -u safartrip -H bash -lc 'pm2 status'
 sudo -u safartrip -H bash -lc 'pm2 logs safartrip --lines 80'
 ```
+
+`/api/health` reports per-component status, not just DB connectivity:
+
+| Component | Unhealthy when |
+| --- | --- |
+| `database` | `SELECT 1` fails |
+| `env` | a fatal env problem (see `src/shared/env.ts`); unconfigured integrations are `degraded` |
+| `outbox` | oldest due PENDING event unprocessed for 5 min (1 min ⇒ degraded); FAILED rows ⇒ degraded |
+| `outbox-relay` | no heartbeat for 15 min (5 min ⇒ degraded) |
+| `expiry-cron` | no heartbeat for 15 min (5 min ⇒ degraded) |
+
+Heartbeats are `SystemSetting` rows keyed `worker_heartbeat:<worker>`, written by
+the workers after a successful run. A host that has never run the cron reports
+`degraded` with `no run recorded yet` rather than failing.
+
+### Image optimization
+
+`images.unoptimized` was hardcoded `true` after `/_next/image` served broken
+hero/favicon images on the VPS. It is now on by default and controlled by an env
+var, because only half of that cause is verifiable in CI:
+
+- **sharp** — settled. It is a direct dependency and reaches the runtime through
+  both `copy:standalone` and the PM2 entry (`tsx server.ts`, run from the repo
+  root). Verified locally against a production build: `/hero-bg.png` is 982 KB,
+  `/_next/image?url=%2Fhero-bg.png&w=640&q=75` returns 73 KB of WebP.
+- **nginx** — must proxy `/_next/image` to the app like any other route. If it
+  rewrites or short-circuits it, images 404 or 502.
+
+Check it after the first deploy that includes this:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code} %{content_type} %{size_download}\n" \
+  -H 'Accept: image/avif,image/webp,*/*' \
+  'https://safartrip.uz/_next/image?url=%2Fhero-bg.png&w=640&q=75'
+# expect: 200 image/webp <much smaller than the original>
+```
+
+If it fails, roll back without a redeploy — add `NEXT_IMAGE_UNOPTIMIZED=true` to
+`.env` and `pm2 restart safartrip --update-env` — then fix the nginx location.
 
 Check `.next` ownership is `safartrip`, not `root`:
 
@@ -105,7 +180,7 @@ Click and Payme credentials are **not** primary `.env` secrets for checkout.
 They live in the database:
 
 - Table/key: `SystemSetting` value for **`payment_providers`**
-- Loaded by `lib/payments/providerConfig.ts` (`getClickConfig` / `getPaymeConfig`)
+- Loaded by `src/modules/payment/domain/provider-config.ts` (`getClickConfig` / `getPaymeConfig`)
 - Admin UI: **Admin → Settings → Payments** (`/admin/settings/payments`)
 
 After cutover on a fresh Contabo DB:
@@ -117,6 +192,8 @@ After cutover on a fresh Contabo DB:
 5. Run a **small test transaction** end-to-end before announcing the site is live.
 
 Also confirm runtime env still has `DATABASE_URL`, JWT secrets, and `NEXT_PUBLIC_APP_URL` / `APP_URL` for redirects — those stay in `.env`, not in `payment_providers`.
+
+**Payme Merchant / kassa handoff** (Endpoint URL, `order_id` account, fiscal MXIK): see [`docs/PAYME_MERCHANT.md`](./PAYME_MERCHANT.md).
 
 ## Related scripts
 

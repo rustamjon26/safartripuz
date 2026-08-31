@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { createRequestId } from "@/src/shared/observability/requestId";
-
-/** JWT ichidagi `role` — to'liq ro'yxat `lib/auth.ts` dagi AppRole bilan mos kelishi kerak */
-type Role = string;
+import { type AppRole, isAppRole } from "@/src/shared/roles";
 
 function getSecret() {
   const v = process.env.JWT_ACCESS_SECRET;
@@ -11,12 +9,30 @@ function getSecret() {
   return new TextEncoder().encode(v);
 }
 
-async function getRoleFromAccessToken(token: string): Promise<Role | null> {
+/**
+ * Role comes from the JWT claim, not the database — this file runs on the Edge
+ * runtime (legacy `middleware.ts` convention; Next 16's `proxy.ts` would be
+ * Node.js), where Prisma is not reachable. Do not add a DB lookup here.
+ *
+ * Blocking and demotion are therefore enforced where the DB *is* reachable:
+ *   - every protected API call, via `requireUser()` (reads role + isBlocked)
+ *   - `POST /api/auth/refresh`, which refuses to mint a token for a blocked
+ *     user and bakes the current DB role into the new one
+ *
+ * What is left is a shell that renders for at most one access-token lifetime
+ * (15m, see `signAccessToken`) after a block — the APIs behind it already fail.
+ *
+ * A JWT carrying a role the platform no longer knows is treated as no session.
+ *
+ * TODO(instant-revocation): to close that window, add a `tokenVersion` claim
+ * bumped on block/role change. It needs a store the Edge can read (migrating to
+ * `proxy.ts` for the Node.js runtime, or a signed/KV lookup), so it is a
+ * separate piece of work rather than a tweak here.
+ */
+async function getRoleFromAccessToken(token: string): Promise<AppRole | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    const role = payload.role;
-    if (typeof role !== "string") return null;
-    return role;
+    return isAppRole(payload.role) ? payload.role : null;
   } catch {
     return null;
   }
@@ -44,7 +60,8 @@ export async function middleware(req: NextRequest) {
 
   const protectedAreas: Array<{
     prefix: string;
-    allow: Role[];
+    /** Omit to allow any signed-in role — used by the customer-facing areas. */
+    allow?: AppRole[];
     redirectTo: string;
     wrongRoleRedirect?: string;
   }> = [
@@ -72,6 +89,48 @@ export async function middleware(req: NextRequest) {
       wrongRoleRedirect: "/dashboard",
     },
     {
+      prefix: "/support",
+      allow: ["support", "admin", "super_admin"],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
+    {
+      /** Universal support inbox — hotel / homestay / taxi / guide / customer */
+      prefix: "/support-chat",
+      allow: [
+        "user",
+        "taxi",
+        "taxi_partner",
+        "hotel_manager",
+        "home_stay_partner",
+        "hotel_staff",
+        "cleaner",
+        "receptionist",
+        "waiter",
+        "guide",
+        "guide_partner",
+        "restaurant_manager",
+        "support",
+        "admin",
+        "super_admin",
+      ],
+      redirectTo: "/login",
+    },
+    {
+      prefix: "/staff",
+      allow: [
+        "cleaner",
+        "receptionist",
+        "waiter",
+        "hotel_staff",
+        "hotel_manager",
+        "admin",
+        "super_admin",
+      ],
+      redirectTo: "/login",
+      wrongRoleRedirect: "/dashboard",
+    },
+    {
       prefix: "/homestay-partner",
       allow: ["home_stay_partner", "admin", "super_admin"],
       redirectTo: "/login",
@@ -87,6 +146,14 @@ export async function middleware(req: NextRequest) {
       allow: ["user", "admin", "super_admin"],
       redirectTo: "/login",
     },
+    /**
+     * Customer areas: any signed-in role, but never an anonymous visitor.
+     * Redirecting here rather than inside the page is what stops protected
+     * content from flashing before the client-side auth check resolves.
+     */
+    { prefix: "/bookings", redirectTo: "/login" },
+    { prefix: "/profile", redirectTo: "/login" },
+    { prefix: "/trip-builder", redirectTo: "/login" },
   ];
 
   const area = protectedAreas.find((a) => isPathMatch(pathname, a.prefix));
@@ -115,7 +182,7 @@ export async function middleware(req: NextRequest) {
     return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
-  if (!area.allow.includes(role)) {
+  if (area.allow && !area.allow.includes(role)) {
     if (area.wrongRoleRedirect) {
       return attachRequestId(
         NextResponse.redirect(new URL(area.wrongRoleRedirect, req.url)),
@@ -139,10 +206,20 @@ export const config = {
     "/hotel/:path*",
     "/taxi-partner/:path*",
     "/guide-partner/:path*",
+    "/support/:path*",
+    "/support-chat",
+    "/support-chat/:path*",
+    "/staff/:path*",
     "/homestay-partner/:path*",
     "/restaurant/:path*",
     "/user",
     "/user/:path*",
+    "/bookings",
+    "/bookings/:path*",
+    "/profile",
+    "/profile/:path*",
+    "/trip-builder",
+    "/trip-builder/:path*",
     "/api/payments/:path*",
     "/api/payme",
     "/api/payme/:path*",

@@ -1,48 +1,75 @@
 @import "tailwindcss/theme";
 @import "tailwindcss/utilities";
 
-:root {
-  /* Colors - Zomin & Jizzax Theme */
-  --primary: #0D2137;       /* Navy */
-  --secondary: #1A4B7A;     /* Blue */
-  --accent: #0E7490;        /* Teal */
-  --accent-hover: #0B5C73;  /* Teal Hover */
-  --success: #16A34A;       /* Green */
-  --warning: #D97706;       /* Amber */
-  --danger: #DC2626;        /* Danger */
-  
-  /* Backgrounds */
-  --bg-sand: #F5F0E8;       /* Warm BG */
-  --bg-light-blue: #EFF6FF; /* Cold BG */
-  --surface: #FFFFFF;       /* White */
-  --bg-main: #FFFFFF;
-  
-  /* Typography Colors */
-  --text-main: #1E293B;     /* Dark */
-  --text-muted: #64748B;    /* Mid */
-  --border-color: #E2E8F0;  /* Slate 200 equivalent */
+/**
+ * Bottom safe-area padding for fixed bottom navigation.
+ *
+ * Seven fixed bottom bars used `pb-safe` without it ever being defined, so on a
+ * notched iPhone the last row of nav icons sat under the home indicator. The
+ * rest of the codebase writes this longhand as
+ * `calc(<n> + env(safe-area-inset-bottom))`.
+ *
+ * `max()` rather than a sum: a utility cannot read the `py-*` already on the
+ * element, and every call site pairs this with `py-2` or `py-3`. The floor keeps
+ * the padding those classes intended on a device with no inset, and the inset
+ * (~34px) already exceeds it where there is one — so this never renders less
+ * padding than before.
+ *
+ * Tailwind v4 has no config file; custom utilities are declared here.
+ */
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
 
-  /* Spacing Base */
+:root {
+  /* Silk Road Modernity — public landing + brand */
+  --primary: #0D2137;       /* Navy / primary-container */
+  --primary-ink: #000917;   /* Deep navy ink */
+  --secondary: #006781;     /* Teal action (HMS + public) */
+  --secondary-soft: #8FDFFF;
+  --accent: #006781;        /* Align HMS / public CTAs */
+  --accent-hover: #005A71;
+  --amber-cta: #FFB95F;     /* tertiary-fixed guest/public CTA */
+  --amber-cta-ink: #2A1700;
+  --success: #10B981;
+  --warning: #D97706;
+  --danger: #F43F5E;
+
+  /* Backgrounds */
+  --bg-sand: #F5F0E8;
+  --bg-light-blue: #F0F3FF; /* surface-container-low */
+  --surface: #F9F9FF;
+  --surface-white: #FFFFFF;
+  --bg-main: #F9F9FF;
+
+  /* Typography Colors */
+  --text-main: #111C2D;     /* on-surface */
+  --text-muted: #44474D;    /* on-surface-variant */
+  --border-color: #C4C6CD;  /* outline-variant */
+
+  /* Spacing Base (8px grid) */
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
   --space-4: 32px;
   --space-6: 48px;
   --space-8: 64px;
+  --space-10: 80px;
   --space-12: 96px;
 
   /* Layout */
-  --radius-sm: 8px;
-  --radius-md: 10px;        /* Standard button radius */
-  --radius-lg: 16px;
-  --radius-pill: 50px;      /* Navbar CTA radius */
-  
-  --shadow-sm: 0 4px 6px -1px rgba(0,0,0,0.05);
-  --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.1);
-  --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.1);
-  
-  --container-width: 1360px;
-  --transition: all 0.25s ease;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+
+  --shadow-sm: 0 4px 6px -1px rgba(13, 33, 55, 0.05);
+  --shadow-md: 0 10px 30px -8px rgba(13, 33, 55, 0.12);
+  --shadow-lg: 0 20px 40px -12px rgba(13, 33, 55, 0.18);
+
+  --container-width: 1280px;
+  --transition: all 0.2s ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -54,10 +81,16 @@
   }
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+/*
+ * Keep the universal reset inside @layer base so Tailwind utilities like
+ * `space-y-*` (which set margin) are not wiped by this zero-specificity rule.
+ */
+@layer base {
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
 }
 
 html, body {
@@ -68,7 +101,7 @@ html, body {
   scroll-behavior: smooth;
 }
 
-/* Typography elements map to variables configured in layout.tsx */
+/* Typography — Playfair (story) · Nunito (body) · Sora (UI) */
 h1, .font-display {
   font-family: var(--font-playfair), serif;
 }
@@ -76,6 +109,10 @@ h1, .font-display {
 h2, h3, h4, h5, h6 {
   font-family: var(--font-playfair), serif;
   color: var(--primary);
+}
+
+.font-ui {
+  font-family: var(--font-sora), var(--font-nunito), sans-serif;
 }
 
 body, p, a, span, button, input {

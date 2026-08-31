@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { z } from "zod";
 import { PaymentProvider } from "@prisma/client";
+import { Money } from "@/src/shared/money";
 import {
   appBaseUrl,
   getClickConfig,
   getPaymeConfig,
   getPaymentProvidersConfig,
-} from "@/lib/payments/providerConfig";
+} from "@/src/modules/payment";
 
 const schema = z.object({
   planId: z.string(),
@@ -59,12 +60,14 @@ export async function POST(req: Request) {
     }
 
     // Har qanday to'lov provayderi uchun avval bazaga To'lov yozuvini yaratamiz
+    const planTiyin = Money.fromSomNumber(plan.totalAmount.toString()).toTiyin();
     const payment = await prisma.payment.create({
       data: {
         travelPlanId: plan.id,
         provider,
         status: "INITIATED",
         amount: plan.totalAmount,
+        amountTiyin: planTiyin,
         currency: "UZS",
       }
     });
@@ -78,7 +81,8 @@ export async function POST(req: Request) {
     let paymentUrl = "";
     if (provider === "CLICK") {
       const clickConfig = getClickConfig(providers);
-      const amount = Number(plan.totalAmount);
+      // Click expects som — exact 2dp from tiyin, no float noise.
+      const amount = Money.fromTiyin(planTiyin).toSomNumber();
       paymentUrl =
         `https://my.click.uz/services/pay` +
         `?service_id=${clickConfig.serviceId}` +
@@ -89,11 +93,24 @@ export async function POST(req: Request) {
         `&return_url=${encodeURIComponent(returnUrl)}`;
     } else if (provider === "PAYME") {
       const paymeConfig = getPaymeConfig(providers);
-      const amountTiyin = Math.round(Number(plan.totalAmount) * 100);
-      const b64 = Buffer.from(
-        `m=${paymeConfig.merchantId};ac.order_id=${payment.id};a=${amountTiyin}`,
-      ).toString("base64");
-      paymentUrl = `https://checkout.paycom.uz/${b64}`;
+      // Payme expects tiyin (integer) — straight from the tiyin SoT.
+      const amountTiyin = planTiyin;
+      // Account field MUST match the Merchant API webhook account key (order_id).
+      const parts = [
+        `m=${paymeConfig.merchantId}`,
+        `ac.order_id=${payment.id}`,
+        `a=${amountTiyin}`,
+      ];
+      if (returnUrl.startsWith("http")) {
+        parts.push(`c=${returnUrl}`);
+      }
+      const b64 = Buffer.from(parts.join(";")).toString("base64");
+      const checkoutHost =
+        process.env.PAYME_IS_TEST === "true" ||
+        process.env.NEXT_PUBLIC_PAYME_IS_TEST === "true"
+          ? "https://test.paycom.uz"
+          : "https://checkout.paycom.uz";
+      paymentUrl = `${checkoutHost}/${b64}`;
     } else if (provider === "UZUM") {
        paymentUrl = `https://uzumbank.uz/pay?merchant=${genericConfig.merchantId}&amount=${plan.totalAmount}&order=${payment.id}`;
     } else if (provider === "MANUAL") {

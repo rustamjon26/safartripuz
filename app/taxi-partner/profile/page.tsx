@@ -66,38 +66,73 @@ export default function TaxiProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200/80 pb-3">
-        <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight">Profile</h1>
-        <p className="text-[13px] font-semibold text-slate-500 mt-1">Driver ma'lumotlari</p>
+      <div>
+        <h1 className="text-[26px] sm:text-[30px] font-display font-bold text-[#0d2137] tracking-tight">
+          Sozlamalar / Profil
+        </h1>
+        <p className="text-[13px] font-medium text-[#64748B] mt-1.5">
+          Haydovchi ma&apos;lumotlari va litsenziya
+        </p>
       </div>
 
       {loading ? (
-        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
       ) : (
         <>
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-amber-500">
                 {stars.map((filled, idx) => (
                   <Star key={idx} size={16} fill={filled ? "currentColor" : "none"} />
                 ))}
               </div>
-              <p className="font-black text-slate-800">{rating.toFixed(1)}</p>
+              <p className="font-bold text-[#111c2d]">{rating.toFixed(1)}</p>
+              <span
+                className={
+                  profile?.isOnline ? "tp-badge tp-badge-ok ml-auto" : "tp-badge tp-badge-muted ml-auto"
+                }
+              >
+                {profile?.isOnline ? "Onlayn" : "Offline"}
+              </span>
             </div>
-            <p className="text-sm text-slate-600 mt-2">Jami triplar: <b>{profile?.totalTrips ?? 0}</b></p>
+            <p className="text-sm text-[#64748B] mt-2">
+              Jami safarlar: <b className="text-[#0d2137]">{profile?.totalTrips ?? 0}</b>
+            </p>
           </div>
 
-          <form onSubmit={save} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+          <form
+            onSubmit={(e) => void save(e)}
+            className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm space-y-4"
+          >
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">License number</label>
-              <input className="h-input" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} required />
+              <label className="text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1 block">
+                Litsenziya raqami
+              </label>
+              <input
+                className="tp-input"
+                value={licenseNumber}
+                onChange={(e) => setLicenseNumber(e.target.value)}
+                required
+              />
             </div>
             <div>
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1 block">License expiry</label>
-              <input className="h-input" type="date" value={licenseExpiry} onChange={(e) => setLicenseExpiry(e.target.value)} required />
+              <label className="text-[10px] font-[family-name:var(--font-sora)] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1 block">
+                Litsenziya muddati
+              </label>
+              <input
+                className="tp-input"
+                type="date"
+                value={licenseExpiry}
+                onChange={(e) => setLicenseExpiry(e.target.value)}
+                required
+              />
             </div>
-            <button disabled={saving} className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-sm font-bold">
-              {saving ? "Saving..." : "Save profile"}
+            <button disabled={saving} className="tp-btn tp-btn-primary">
+              {saving ? "Saqlanmoqda..." : "Profilni saqlash"}
             </button>
           </form>
         </>

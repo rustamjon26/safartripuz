@@ -6,13 +6,16 @@ import { toast } from "sonner";
 import { Loader2, Copy, CheckCircle2, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+/** Mirrors GET /api/payments/manual-info. */
+type ManualPaymentInfo = { cardNumber?: string; cardHolder?: string };
+
 export default function ManualPaymentPage({ params }: { params: Promise<{ paymentId: string }> }) {
   const router = useRouter();
   const { paymentId } = use(params);
   
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<ManualPaymentInfo | null>(null);
 
   useEffect(() => {
     async function loadConfig() {
@@ -37,20 +40,12 @@ export default function ManualPaymentPage({ params }: { params: Promise<{ paymen
 
   async function handleConfirm() {
     setConfirming(true);
-    try {
-      const res = await fetch(`/api/payments/webhook/mock/${paymentId}`, {
-         method: "POST"
-      });
-      // Currently using mock webhook for manual confirmation 
-      // which sets status to SUCCESS instantly. Depending on real business logic, it could go to PENDING.
-      if (!res.ok) throw new Error("Xatolik roy berdi");
-      
-      toast.success("To'lov tasdiqlashga yuborildi! Tez orada faollashadi.");
-      router.push("/payments");
-    } catch (err: any) {
-      toast.error(err.message);
-      setConfirming(false);
-    }
+    // Manual transfer stays PENDING until an operator verifies the bank
+    // transfer and confirms via the admin panel. No self-completion.
+    toast.success(
+      "To'lov tekshiruvga yuborildi! Operatorlarimiz 5-10 daqiqada tasdiqlashadi.",
+    );
+    router.push("/payments");
   }
 
   function copyToClipboard(text: string) {

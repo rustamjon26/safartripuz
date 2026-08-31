@@ -1,28 +1,25 @@
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { emitToOrder } from "@/lib/socket";
 import { TAXI_ERRORS } from "@/lib/taxi/errors";
 import {
-  calcCommissionTiyin,
+  calcPlatformCommissionTiyin,
+  commissionService,
   DEFAULT_COMMISSION_RATES,
-  getCommissionRates,
-} from "@/lib/getCommissionRates";
+} from "@/src/modules/commission";
+import { ledgerService } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
 import { Money } from "@/src/shared/money";
 import { fail, handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../../_utils";
 
-type UpdateOrderInput = {
-  status?:
-    | "ACCEPTED"
-    | "ARRIVED"
-    | "IN_PROGRESS"
-    | "COMPLETED"
-    | "CANCELLED";
-  vehicleId?: string;
-  finalPrice?: number;
-  distanceKm?: number;
-  note?: string;
-  cancellationReason?: string;
-};
+const updateOrderSchema = z.object({
+  status: z.enum(["ACCEPTED", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  vehicleId: z.string().min(1).optional(),
+  finalPrice: z.number().positive().finite().max(1_000_000_000).optional(),
+  distanceKm: z.number().nonnegative().finite().max(100_000).optional(),
+  note: z.string().trim().max(2000).optional(),
+  cancellationReason: z.string().trim().max(500).optional(),
+});
 
 const allowedTransitions: Record<
   string,
@@ -91,8 +88,9 @@ export async function PATCH(
       return onboardingResponse();
     }
     const { id } = await params;
-    const body = (await req.json()) as UpdateOrderInput;
-    if (!body.status) return fail("status majburiy", 400);
+    const parsedBody = updateOrderSchema.safeParse(await req.json());
+    if (!parsedBody.success) return fail("status majburiy / body noto'g'ri", 400);
+    const body = parsedBody.data;
 
     const existing = await prisma.taxiOrder.findUnique({
       where: { id },
@@ -163,12 +161,11 @@ export async function PATCH(
       });
 
       if (targetStatus === "COMPLETED") {
-        const rates = await getCommissionRates(tx);
-        const grossTiyin = Money.fromSomNumber(Number(body.finalPrice)).toTiyin();
-        const { commissionFee, netAmount } = calcCommissionTiyin(
-          grossTiyin,
-          rates.TAXI ?? DEFAULT_COMMISSION_RATES.TAXI,
-        );
+        const rates = await commissionService.getRates(tx);
+        const taxiRate = rates.TAXI ?? DEFAULT_COMMISSION_RATES.TAXI;
+        const grossTiyin = Money.fromSomNumber(body.finalPrice ?? 0).toTiyin();
+        const { platformTotal: commissionFee, partnerNet: netAmount } =
+          calcPlatformCommissionTiyin(grossTiyin, taxiRate);
 
         await tx.driverEarning.create({
           data: {
@@ -180,6 +177,21 @@ export async function PATCH(
             status: "PENDING",
           },
         });
+
+        // General-ledger dual-write — taxi joins the same double-entry SoT as
+        // hotel/homestay/guide (idempotent per order).
+        await ledgerService.record(
+          {
+            idempotencyKey: `taxi:order:${updated.id}:completed`,
+            bookingId: updated.id,
+            bookingType: "TAXI",
+            grossTiyin,
+            partnerUserId: actor.id,
+            payoutOwnerType: "PARTNER",
+            ratePercent: taxiRate,
+          },
+          tx,
+        );
 
         await tx.driverProfile.update({
           where: { driverId: actor.id },

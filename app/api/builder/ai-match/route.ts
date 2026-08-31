@@ -11,12 +11,12 @@ import {
 } from "@/src/modules/tripai";
 
 const bodySchema = z.object({
-  prompt: z.string().trim().min(5).max(2000),
+  prompt: z.string().max(2000).optional().default(""),
 });
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!checkRateLimit(`ai-match:${ip}`, 10, 60_000)) {
+  if (!(await checkRateLimit(`ai-match:${ip}`, 10, 60_000))) {
     return NextResponse.json(
       { message: "Juda ko'p urinish. 1 daqiqadan so'ng qayta urining." },
       { status: 429 },
@@ -40,11 +40,22 @@ export async function POST(req: NextRequest) {
     const body = bodySchema.safeParse(json);
     if (!body.success) {
       return NextResponse.json(
-        { message: "Iltimos, safar haqida batafsilroq yozing." },
+        { message: "JSON format noto'g'ri" },
         { status: 400 },
       );
     }
-    const prompt = body.data.prompt;
+    const prompt = body.data.prompt.trim();
+
+    if (prompt.length < 2) {
+      return NextResponse.json(
+        {
+          success: true,
+          needsClarification: true,
+          message: "Xabar yozing — qayerga va necha kunga sayohat qilmoqchisiz?",
+        },
+        { status: 200 },
+      );
+    }
 
     if (!loadTripaiLlmConfig()) {
       console.error("AI match: TRIPAI_LLM_* is not configured");
@@ -83,13 +94,17 @@ export async function POST(req: NextRequest) {
     const parsed = parseAiMatchIntent(rawLlm, availableCities, prompt);
 
     if (!parsed.destination) {
+      // Conversational clarify — 200 so the client can show a chat bubble (not toast.error).
       return NextResponse.json(
         {
+          success: true,
+          needsClarification: true,
           message:
-            parsed.message ||
-            "Shaharni aniqlay olmadim. Samarqand, Buxoro yoki Xiva kabi shahar nomini yozing.",
+            typeof parsed.message === "string" && parsed.message.trim()
+              ? parsed.message.trim()
+              : "Shaharni aniqlay olmadim. Samarqand, Buxoro, Xiva yoki boshqa manzil nomini yozing.",
         },
-        { status: 404 },
+        { status: 200 },
       );
     }
 

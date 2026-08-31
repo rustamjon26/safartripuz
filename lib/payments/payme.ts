@@ -1,5 +1,9 @@
 /**
  * Travel-plan Payme helpers — error codes aligned via payment module.
+ *
+ * Auth lives in `@/src/modules/payment` (`validatePaymeAuth`); the copy that
+ * used to sit here rejected the case-insensitive `Basic` scheme that RFC 7235
+ * allows.
  */
 import { PAYME_ERRORS as CORE } from "@/src/modules/payment/domain/errors";
 
@@ -13,12 +17,6 @@ export interface PaymeRpcRequest {
     reason?: number;
   };
   id: number;
-}
-
-export function verifyPaymeAuth(authHeader: string, merchantKey: string): boolean {
-  if (!merchantKey) return false;
-  const expected = Buffer.from(`Paycom:${merchantKey}`).toString("base64");
-  return authHeader === `Basic ${expected}`;
 }
 
 /** Legacy key names used by older callers — codes match harden plan. */

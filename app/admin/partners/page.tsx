@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { 
-  Users, UserPlus, Search, Filter, Loader2, ShieldCheck, 
+import {   Users, UserPlus, Search, Filter, Loader2, ShieldCheck, 
   CheckCircle, XCircle, Clock, MapPin, Mail, Phone, 
   MoreVertical, Calendar, Info, Globe, ChevronLeft, ChevronRight,
   User, Briefcase, Building2, Compass, Trash2, Edit2, X, Lock,
   Fingerprint, KeyRound, UserRound, Smartphone
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Partner = {
   id: string;
@@ -62,26 +63,32 @@ const EMPTY_FORM: FormData = {
   newUser: { first_name: "", last_name: "", email: "", phone: "", password: "" }
 };
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: any }> = {
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
   approved: { label: "Aktiv", cls: "bg-emerald-50 text-emerald-600 ring-emerald-100", icon: CheckCircle },
   pending: { label: "Kutilmoqda", cls: "bg-amber-50 text-amber-600 ring-amber-100", icon: Clock },
   rejected: { label: "Rad etilgan", cls: "bg-rose-50 text-rose-600 ring-rose-100", icon: XCircle },
 };
 
-const TYPE_CONFIG: Record<string, { label: string; icon: any; cls: string }> = {
+const TYPE_CONFIG: Record<string, { label: string; icon: LucideIcon; cls: string }> = {
   agency: { label: "Agentlik", icon: Briefcase, cls: "bg-blue-50 text-blue-600" },
   hotel: { label: "Mehmonxona", icon: Building2, cls: "bg-teal-50 text-teal-600" },
   guide: { label: "Gid", icon: Compass, cls: "bg-purple-50 text-purple-600" },
 };
 
 export default function AdminPartnersPage() {
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<Partner[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("q");
+    if (fromUrl != null) setQ(fromUrl);
+  }, [searchParams]);
 
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Partner | null>(null);
@@ -171,8 +178,8 @@ export default function AdminPartnersPage() {
       const url = editItem ? `/api/admin/partners/${editItem.id}` : "/api/admin/partners";
       const method = editItem ? "PATCH" : "POST";
       
-      const payload: any = { ...form };
-      if (!form.isNewUser) delete payload.newUser;
+      const { newUser, ...rest } = form;
+      const payload = form.isNewUser ? { ...rest, newUser } : rest;
 
       const res = await fetch(url, {
         method,
@@ -220,41 +227,71 @@ export default function AdminPartnersPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header — Stitch Hamkorlar Boshqaruvi */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hamkorlar Boshqaruvi</h1>
-          <p className="text-sm font-bold text-slate-400 mt-1">SafarTrip hamkorlari: Agentliklar, Mehmonxonalar va Gidlar</p>
+          <h1 className="text-[28px] sm:text-[32px] font-display font-bold text-[#0d2137] tracking-tight">
+            Hamkorlar Boshqaruvi
+          </h1>
+          <p className="text-[13px] font-medium text-[#64748B] mt-1.5">
+            Platforma hamkorlari katalogi va operatsion monitoringi
+          </p>
         </div>
-        <button className="adm-btn adm-btn-primary shadow-lg shadow-slate-900/20" onClick={openCreate}>
-           <UserPlus size={16} />
-           Yangi Hamkor
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0d2137] text-white text-[13px] font-[family-name:var(--font-sora)] font-semibold hover:bg-[#16324f] transition-colors"
+          onClick={openCreate}
+        >
+          <UserPlus size={16} />
+          Yangi Hamkor
         </button>
       </div>
 
       {/* Stats Summary */}
-      <div className="adm-kpi-grid">
-         <div className="adm-kpi-card">
-            <div className="adm-kpi-icon teal"><Briefcase size={28} /></div>
-            <div className="adm-kpi-content">
-               <div className="adm-kpi-label">Agentliklar</div>
-               <div className="adm-kpi-value">{items.filter(i => i.type === 'agency').length} ta</div>
-            </div>
-         </div>
-         <div className="adm-kpi-card">
-            <div className="adm-kpi-icon blue"><Building2 size={28} /></div>
-            <div className="adm-kpi-content">
-               <div className="adm-kpi-label">Hotellar</div>
-               <div className="adm-kpi-value">{items.filter(i => i.type === 'hotel').length} ta</div>
-            </div>
-         </div>
-         <div className="adm-kpi-card">
-            <div className="adm-kpi-icon orange"><Compass size={28} /></div>
-            <div className="adm-kpi-content">
-               <div className="adm-kpi-label">Gidlar</div>
-               <div className="adm-kpi-value">{items.filter(i => i.type === 'guide').length} ta</div>
-            </div>
-         </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5">
+          <div className="flex items-start justify-between">
+            <span className="w-10 h-10 rounded-xl bg-[#eff6ff] text-[#2563eb] flex items-center justify-center">
+              <Briefcase size={18} />
+            </span>
+            <span className="text-[11px] font-semibold text-amber-600">
+              {items.filter((i) => i.status === "pending").length} navbat
+            </span>
+          </div>
+          <p className="mt-4 text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wider text-[#94A3B8]">
+            Tasdiqlash navbati
+          </p>
+          <p className="text-[26px] font-display font-bold text-[#111c2d] leading-none mt-1">
+            {items.filter((i) => i.status === "pending").length}
+          </p>
+        </div>
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5">
+          <div className="flex items-start justify-between">
+            <span className="w-10 h-10 rounded-xl bg-[#f0fdfa] text-[#0d9488] flex items-center justify-center">
+              <Building2 size={18} />
+            </span>
+          </div>
+          <p className="mt-4 text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wider text-[#94A3B8]">
+            Mehmonxonalar
+          </p>
+          <p className="text-[26px] font-display font-bold text-[#111c2d] leading-none mt-1">
+            {items.filter((i) => i.type === "hotel").length}
+          </p>
+        </div>
+        <div className="bg-[#0d2137] rounded-2xl p-5 text-white">
+          <div className="flex items-start justify-between">
+            <span className="w-10 h-10 rounded-xl bg-white/10 text-[#f5d1b0] flex items-center justify-center">
+              <Compass size={18} />
+            </span>
+            <span className="text-[11px] font-semibold text-[#f5d1b0]">{total} jami</span>
+          </div>
+          <p className="mt-4 text-[11px] font-[family-name:var(--font-sora)] font-semibold uppercase tracking-wider text-white/45">
+            Agentlik + Gid
+          </p>
+          <p className="text-[26px] font-display font-bold leading-none mt-1">
+            {items.filter((i) => i.type === "agency" || i.type === "guide").length}
+          </p>
+        </div>
       </div>
 
       {/* Toolbar */}

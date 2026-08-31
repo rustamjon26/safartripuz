@@ -43,9 +43,14 @@ export default function TaxiHome() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/taxi/services");
-      const data = (await res.json()) as { success?: boolean; data?: { data?: TaxiService[] }; message?: string };
-      if (!res.ok) throw new Error(data.message || "Load error");
+      const res = await fetch("/api/taxi/services?mine=1");
+      const data = (await res.json()) as {
+        success?: boolean;
+        data?: { data?: TaxiService[] };
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.error || data.message || "Load error");
       setItems(data.data?.data ?? []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");

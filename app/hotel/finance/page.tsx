@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 import {
   Receipt, Wallet, Search, CreditCard, Banknote, DollarSign,
-  Loader2, RefreshCw, X, Verified, MoveDownRight, MoveUpRight, ArrowRight, Printer
+  Loader2, RefreshCw, X, Verified, MoveDownRight, MoveUpRight, ArrowRight, Printer, FileText
 } from "lucide-react";
+import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import type { HotelFinanceAnalytics } from "@/lib/hotel/getHotelFinanceAnalytics";
 
 interface FolioItem { id: string; category: string; description: string; amount: number; isPaid: boolean; createdAt: string; }
 interface Payment { id: string; method: string; amount: number; createdAt: string; }
@@ -17,9 +20,21 @@ interface Booking {
   folioItems: FolioItem[]; payments: Payment[];
 }
 
+const EMPTY_ANALYTICS: HotelFinanceAnalytics = {
+  kpis: [],
+  revenueSeries: [],
+  topRooms: [],
+  paymentHistory: [],
+};
+
+function formatSom(n: number): string {
+  return Math.round(n).toLocaleString("uz-UZ");
+}
+
 export default function FinancePage() {
   const { t } = useLanguage();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [analytics, setAnalytics] = useState<HotelFinanceAnalytics>(EMPTY_ANALYTICS);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
@@ -31,17 +46,28 @@ export default function FinancePage() {
   const [category, setCategory] = useState("MINIBAR");
   const [desc, setDesc] = useState("");
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/hotel/finance");
-      const data = await res.json();
-      if (res.ok) setBookings(data.bookings);
-    } catch { toast.error(t("common.error")); }
-    setLoading(false);
-  }
+      const res = await hotelFetch("/api/hotel/finance");
+      const data = (await res.json()) as {
+        bookings?: Booking[];
+        analytics?: HotelFinanceAnalytics;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(data.message ?? t("common.error"));
+      setBookings(Array.isArray(data.bookings) ? data.bookings : []);
+      setAnalytics(data.analytics ?? EMPTY_ANALYTICS);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const filtered = bookings.filter(b => b.guestName.toLowerCase().includes(q.toLowerCase()) && b.status !== "CANCELLED");
 
@@ -50,13 +76,13 @@ export default function FinancePage() {
      if(!activeBooking) return;
      try {
         if(actionType === "PAYMENT") {
-           const res = await fetch("/api/hotel/finance/payment", {
+           const res = await hotelFetch("/api/hotel/finance/payment", {
               method: "POST", headers: { "Content-Type" : "application/json" },
               body: JSON.stringify({ bookingId: activeBooking.id, amount: Number(amount), method })
            });
            if(res.ok) { toast.success(t("finance.toasts.payment_success")); setActiveBooking(null); void load(); }
         } else {
-           const res = await fetch("/api/hotel/finance/folio", {
+           const res = await hotelFetch("/api/hotel/finance/folio", {
               method: "POST", headers: { "Content-Type" : "application/json" },
               body: JSON.stringify({ bookingId: activeBooking.id, amount: Number(amount), category, description: desc })
            });
@@ -65,26 +91,175 @@ export default function FinancePage() {
      } catch { toast.error(t("housekeeping.toasts.update_error")); }
   }
 
+  const maxRev = Math.max(
+    ...analytics.revenueSeries.map((d) => Math.max(d.current, d.previous)),
+    1,
+  );
+
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
           <h1 className="text-2xl font-black text-[var(--primary)] font-display tracking-tight flex items-center gap-2">
-             <Receipt size={24} className="text-[var(--accent)]"/> {t("finance.title")}
+             <Receipt size={24} className="text-[var(--accent)]"/> Moliya va hisobotlar
           </h1>
           <p className="text-[13px] font-semibold text-slate-500 mt-1">
-            {t("finance.subtitle")}
+            Mehmonxonangizning moliyaviy o‘sishini kuzatib boring. {t("finance.subtitle")}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+           <Link
+             href="/hotel/invoices/new"
+             className="flex items-center gap-2 px-3.5 py-2.5 bg-[#0d2137] text-white rounded-lg text-[12px] font-bold hover:bg-[#16324f]"
+           >
+              <FileText size={16} /> Invoys yaratish
+           </Link>
            <button onClick={() => void load()} className="flex items-center gap-2 p-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> {t("common.refresh")}
            </button>
         </div>
       </div>
 
-      {/* Overview KPI */}
+      {/* Live analytics from hotel bookings / payments */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {(analytics.kpis.length ? analytics.kpis : [
+          { id: "revenue", label: "Umumiy tushum", value: 0, unit: "so‘m (30 kun)", hint: "—", tone: "flat" as const },
+          { id: "adr", label: "O‘rtacha kunlik narx (ADR)", value: 0, unit: "so‘m / xona-kecha", hint: "—", tone: "flat" as const },
+          { id: "revpar", label: "RevPAR", value: 0, unit: "so‘m / xona-kun", hint: "—", tone: "flat" as const },
+          { id: "collected", label: "Yig‘ilgan to‘lov", value: 0, unit: "so‘m (30 kun)", hint: "—", tone: "flat" as const },
+        ]).map((kpi) => (
+          <div key={kpi.id} className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+            <div className="text-[11px] font-black text-slate-400 uppercase tracking-wider">{kpi.label}</div>
+            <div className="mt-2 font-display text-[26px] font-bold text-[#0d2137] leading-none">
+              {loading ? "…" : formatSom(kpi.value)}
+            </div>
+            <div className="mt-1 text-[12px] font-semibold text-slate-400">{kpi.unit}</div>
+            <div className={`mt-2 text-[12px] font-bold ${
+              kpi.tone === "down" ? "text-amber-600" : kpi.tone === "flat" ? "text-slate-400" : "text-emerald-600"
+            }`}>
+              {kpi.hint} · o‘tgan 30 kunga nisbatan
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-display text-[18px] font-bold text-[#0d2137]">Tushum dinamikasi</h2>
+              <p className="text-[12px] font-semibold text-slate-500">Haftalik yig‘ilgan to‘lov — joriy vs o‘tgan</p>
+            </div>
+            <div className="flex gap-3 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1.5 text-[#006781]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#006781]" /> Joriy
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-300" /> O‘tgan
+              </span>
+            </div>
+          </div>
+          {analytics.revenueSeries.length === 0 ? (
+            <div className="h-[160px] flex items-center justify-center text-[13px] font-semibold text-slate-400">
+              Hali to‘lovlar yo‘q
+            </div>
+          ) : (
+            <div className="flex items-end gap-3 sm:gap-5 h-[160px]">
+              {analytics.revenueSeries.map((d) => (
+                <div key={d.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                  <div className="w-full flex items-end justify-center gap-1 h-[120px]">
+                    <div
+                      className="w-3 sm:w-4 rounded-t-md bg-slate-300 min-h-[2px]"
+                      style={{ height: `${Math.max(2, (d.previous / maxRev) * 100)}%` }}
+                      title={`O‘tgan: ${formatSom(d.previous)}`}
+                    />
+                    <div
+                      className="w-3 sm:w-4 rounded-t-md bg-[#006781] min-h-[2px]"
+                      style={{ height: `${Math.max(2, (d.current / maxRev) * 100)}%` }}
+                      title={`Joriy: ${formatSom(d.current)}`}
+                    />
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400">{d.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+          <h2 className="font-display text-[18px] font-bold text-[#0d2137] mb-4">Top daromadli xonalar</h2>
+          <div className="space-y-3">
+            {analytics.topRooms.length === 0 ? (
+              <p className="text-[13px] font-semibold text-slate-400 py-6 text-center">
+                30 kun ichida bron yo‘q
+              </p>
+            ) : (
+              analytics.topRooms.map((room) => (
+                <div key={room.name} className="rounded-xl border border-[#d8e3fb] bg-[#f9f9ff] p-3">
+                  <div className="flex justify-between gap-2">
+                    <div className="text-[13px] font-bold text-[#0d2137]">{room.name}</div>
+                    <div className="text-[13px] font-black text-[#006781]">{formatSom(room.revenue)}</div>
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-1">
+                    {room.bookings} ta bron · {room.occupancy}% bandlik
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <Link href="/hotel/rooms" className="mt-4 inline-flex text-[12px] font-bold text-[#006781]">
+            Barcha xonalar →
+          </Link>
+        </div>
+      </div>
+
+      <div className="bg-white border border-[#d8e3fb] rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="font-display text-[18px] font-bold text-[#0d2137]">To‘lovlar tarixi</h2>
+          <span className="text-[11px] font-bold text-slate-400 uppercase">Jonli</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left">
+            <thead>
+              <tr className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-[#d8e3fb]">
+                <th className="py-2 pr-3">Mehmon</th>
+                <th className="py-2 px-3">Usul</th>
+                <th className="py-2 px-3">Vaqt</th>
+                <th className="py-2 px-3 text-right">Summa</th>
+                <th className="py-2 pl-3">Holat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.paymentHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-10 text-center text-[13px] font-semibold text-slate-400">
+                    Hali to‘lov qayd etilmagan
+                  </td>
+                </tr>
+              ) : (
+                analytics.paymentHistory.map((p) => (
+                  <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                    <td className="py-3 pr-3 text-[13px] font-bold text-[#0d2137]">{p.guest}</td>
+                    <td className="py-3 px-3 text-[12px] font-semibold text-slate-500">{p.method}</td>
+                    <td className="py-3 px-3 text-[12px] font-semibold text-slate-400">{p.when}</td>
+                    <td className="py-3 px-3 text-[13px] font-black text-right text-[#006781]">
+                      {formatSom(p.amount)}
+                    </td>
+                    <td className="py-3 pl-3">
+                      <span className={p.status === "success" ? "h-badge h-badge-ok" : "h-badge h-badge-wait"}>
+                        {p.status === "success" ? "Muvaffaqiyatli" : "Kutilmoqda"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Live folio KPI (existing API) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase mb-2"><Wallet size={14}/> {t("finance.stats.expected")}</div>

@@ -1,5 +1,13 @@
 import type { Booking, Hotel, PaymeTransaction } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { paymeBookingRepository } from "@/src/modules/payment";
+import {
+  buildPaymeReceiptDetail,
+  getPaymeMxikCode as sharedGetPaymeMxikCode,
+  getPaymePackageCode as sharedGetPaymePackageCode,
+  getPaymeVatPercent as sharedGetPaymeVatPercent,
+  type PaymeReceiptDetail,
+  type PaymeReceiptItem,
+} from "@/src/modules/payment/domain/payme-receipt";
 
 export const PAYME_TRANSACTION_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
@@ -38,19 +46,7 @@ export type PaymeRpcRequest = {
   id: number;
 };
 
-export type PaymeReceiptItem = {
-  title: string;
-  price: number;
-  count: number;
-  code: string;
-  package_code: string;
-  vat_percent: number;
-};
-
-export type PaymeReceiptDetail = {
-  receipt_type: number;
-  items: PaymeReceiptItem[];
-};
+export type { PaymeReceiptItem, PaymeReceiptDetail };
 
 export type BookingWithHotel = Booking & {
   hotel: Pick<Hotel, "id" | "name">;
@@ -95,12 +91,6 @@ function readEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function maskSecret(value: string | undefined): string {
-  if (!value) return "(empty)";
-  if (value.length <= 4) return "****";
-  return `${value.slice(0, 4)}****`;
-}
-
 function isPaymeTestMode(): boolean {
   const flag = readEnv("PAYME_IS_TEST")?.toLowerCase();
   return flag === "true" || flag === "1" || flag === "yes";
@@ -130,14 +120,13 @@ export function getPaymeSecretKey(): string {
 
   if (!loggedPaymeSecretSource) {
     loggedPaymeSecretSource = true;
+    // Never log previews/lengths of the secret itself — source is enough.
     console.log(
       "[Payme] Secret key config:",
       JSON.stringify({
         isTest,
         source: resolveSecretKeySource(isTest, testKey, prodKey),
-        preview: maskSecret(secretKey),
-        length: secretKey.length,
-        paymeIsTestRaw: process.env["PAYME_IS_TEST"] ?? null,
+        configured: secretKey.length > 0,
       }),
     );
   }
@@ -146,16 +135,15 @@ export function getPaymeSecretKey(): string {
 }
 
 export function getPaymeMxikCode(): string {
-  return readEnv("PAYME_MXIK_CODE") ?? "00702001001000001";
+  return sharedGetPaymeMxikCode();
 }
 
 export function getPaymePackageCode(): string {
-  return readEnv("PAYME_PACKAGE_CODE") ?? "123456";
+  return sharedGetPaymePackageCode();
 }
 
 export function getPaymeVatPercent(): number {
-  const parsed = Number(readEnv("PAYME_VAT_PERCENT") ?? "12");
-  return Number.isFinite(parsed) ? parsed : 12;
+  return sharedGetPaymeVatPercent();
 }
 
 export function isValidTiyinAmount(amount: unknown): amount is number {
@@ -185,10 +173,7 @@ export function getBookingIdFromAccount(
 export async function findBookingById(bookingId: string | undefined): Promise<BookingWithHotel | null> {
   if (!bookingId) return null;
 
-  return prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: bookingHotelInclude,
-  });
+  return paymeBookingRepository.findBookingById(bookingId);
 }
 
 export async function findPaymeTransactionByPaymeId(
@@ -197,26 +182,22 @@ export async function findPaymeTransactionByPaymeId(
   const normalizedPaymeId = normalizePaymeTransactionId(paymeId);
   if (!normalizedPaymeId) return null;
 
-  return prisma.paymeTransaction.findUnique({
-    where: { paymeId: normalizedPaymeId },
-    include: paymeTransactionInclude,
-  });
+  return paymeBookingRepository.findTransactionByPaymeId(normalizedPaymeId);
+}
+
+/** One PaymeTransaction per booking (unique bookingId). */
+export async function findPaymeTransactionByBookingId(
+  bookingId: string | undefined,
+): Promise<PaymeTransactionWithBooking | null> {
+  if (!bookingId) return null;
+  return paymeBookingRepository.findTransactionByBookingId(bookingId);
 }
 
 export function buildReceiptDetail(booking: BookingWithHotel): PaymeReceiptDetail {
-  return {
-    receipt_type: 0,
-    items: [
-      {
-        title: `Hotel booking - ${booking.hotel.name}`,
-        price: booking.amount,
-        count: 1,
-        code: getPaymeMxikCode(),
-        package_code: getPaymePackageCode(),
-        vat_percent: getPaymeVatPercent(),
-      },
-    ],
-  };
+  return buildPaymeReceiptDetail({
+    title: `Hotel booking - ${booking.hotel.name}`,
+    priceTiyin: booking.amount,
+  });
 }
 
 export function serializePaymeTransaction(
@@ -300,17 +281,8 @@ export async function autoCancelExpiredTransaction(
 
   const cancelTime = BigInt(Date.now());
 
-  return prisma.paymeTransaction.update({
-    where: { id: transaction.id },
-    data: {
-      state: -1,
-      reason: 4,
-      cancelTime,
-    },
-    include: {
-      booking: {
-        include: bookingHotelInclude,
-      },
-    },
+  return paymeBookingRepository.markTransactionCancelled(transaction.id, {
+    reason: 4,
+    cancelTime,
   });
 }

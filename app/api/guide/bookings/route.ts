@@ -1,19 +1,27 @@
 import { Prisma, type GuideBookingStatus } from "@prisma/client";
+import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { checkGuideSlot } from "@/lib/guide/checkAvailability";
+import {
+  assertGuideSlotFreeInTx,
+  checkGuideSlot,
+  GuideSlotTakenError,
+} from "@/lib/guide/checkAvailability";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
+import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { fail, handleApiError, ok } from "../_utils";
 
-type CreateBookingInput = {
-  listingId?: string;
-  date?: string;
-  startTime?: string;
-  endTime?: string;
-  groupSize?: number;
-  customerNote?: string;
-  travelPlanId?: string;
-};
+const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
+
+const createBookingSchema = z.object({
+  listingId: z.string().min(1),
+  date: z.string().min(1),
+  startTime: timeSchema,
+  endTime: timeSchema,
+  groupSize: z.number().int().min(1).max(200),
+  customerNote: z.string().trim().max(2000).optional(),
+  travelPlanId: z.string().min(1).optional(),
+});
 
 export async function GET(req: Request) {
   try {
@@ -81,10 +89,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
-    const body = (await req.json()) as CreateBookingInput;
-    if (!body.listingId || !body.date || !body.startTime || !body.endTime || !body.groupSize) {
+    const parsed = createBookingSchema.safeParse(await req.json());
+    if (!parsed.success) {
       return fail("listingId, date, startTime, endTime, groupSize are required", 400);
     }
+    const body = parsed.data;
 
     const date = new Date(body.date);
     if (Number.isNaN(date.getTime())) return fail("Invalid date", 400);
@@ -115,7 +124,16 @@ export async function POST(req: Request) {
       calculatedAt: new Date().toISOString(),
     };
 
-    const created = await prisma.$transaction(async (tx) => {
+    const created = await inventoryService.withSerializableRetry(async (tx) => {
+      // checkGuideSlot ran outside any transaction; re-assert under a row lock
+      // so two concurrent requests cannot claim the same slot.
+      await assertGuideSlotFreeInTx(tx, {
+        listingId: body.listingId,
+        date,
+        startTime: body.startTime,
+        endTime: body.endTime,
+      });
+
       let travelPlanId = body.travelPlanId ?? null;
       let shouldIncrementPlanTotal = false;
       if (travelPlanId) {
@@ -165,6 +183,7 @@ export async function POST(req: Request) {
           totalPrice: availability.totalPrice,
           priceSnapshot,
           status: "PENDING",
+          holdExpiresAt: new Date(Date.now() + HOLD_TTL_MS),
           guestNote: body.customerNote ?? null,
         },
       });
@@ -203,6 +222,9 @@ export async function POST(req: Request) {
 
     return ok(created, 201);
   } catch (error) {
+    if (error instanceof GuideSlotTakenError) {
+      return fail(GUIDE_ERRORS.SLOT_UNAVAILABLE, 409);
+    }
     if (error instanceof Error && error.message === "TRAVEL_PLAN_NOT_FOUND") {
       return fail("Travel plan topilmadi", 404);
     }

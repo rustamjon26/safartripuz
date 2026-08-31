@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { getCommissionRates } from "@/lib/getCommissionRates";
-import { createPartnerEarningIfMissing } from "@/lib/payments/completeSuccessfulPaymentTx";
+import { commissionService } from "@/src/modules/commission";
+import { createPartnerEarningIfMissing } from "@/src/modules/booking";
 import { MissingPartnerError, ledgerService } from "@/src/modules/ledger";
 import { PAYME_ERRORS, paymeRpcError, paymeRpcSuccess } from "../utils/errors";
 import {
@@ -87,7 +87,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
         data: { status: "PAID", payoutOwnerType },
       });
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       const grossTiyin = BigInt(expired.amount);
 
       if (payoutOwnerType === "PLATFORM") {
@@ -95,6 +95,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
           {
             idempotencyKey: `payme:${paymeId}`,
             bookingId: expired.bookingId,
+            bookingType: "HOTEL",
             grossTiyin,
             payoutOwnerType: "PLATFORM",
           },
@@ -119,6 +120,7 @@ export async function performTransaction(id: number, params: PaymeRpcParams) {
           {
             idempotencyKey: `payme:${paymeId}`,
             bookingId: expired.bookingId,
+            bookingType: "HOTEL",
             grossTiyin,
             partnerUserId,
             payoutOwnerType: "PARTNER",

@@ -7,7 +7,7 @@ import type {
   HotelBooking,
   Prisma,
 } from "@prisma/client";
-import { getCommissionRates } from "@/lib/getCommissionRates";
+import { commissionService } from "@/src/modules/commission";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { MissingPartnerError } from "@/src/modules/ledger";
 import { OutboxEventType, outboxService } from "@/src/modules/outbox";
@@ -17,6 +17,8 @@ import {
   holdsInventory,
   IllegalTransitionError,
   isPaidStatus,
+  requiresPaymentEvidence,
+  UnpaidConfirmationError,
   type BookingStatus,
 } from "../domain/booking.state";
 import {
@@ -36,6 +38,43 @@ import { reversePartnerEarningInTx } from "./partner-earning";
 
 function asStatus(s: PrismaBookingStatus | string): BookingStatus {
   return s as BookingStatus;
+}
+
+export class RoomAlreadyAssignedError extends Error {
+  constructor(message = "Tanlangan sanalarda xona band") {
+    super(message);
+    this.name = "RoomAlreadyAssignedError";
+  }
+}
+
+/**
+ * Gross actually collected for a homestay/guide booking, in tiyin.
+ *
+ * Payment confirmation is what moves these bookings out of PENDING, so a
+ * PENDING row was never paid. Refund accounting must stay at zero for those —
+ * otherwise cancelling an abandoned checkout claws money out of the ledger
+ * that never came in.
+ */
+async function resolveNonHotelPaidTiyin(
+  tx: Tx,
+  booking: {
+    status: string;
+    totalPrice: Prisma.Decimal;
+    travelPlanId: string | null;
+  },
+): Promise<bigint> {
+  if (booking.status !== "PENDING") {
+    return Money.fromSomNumber(booking.totalPrice.toString()).toTiyin();
+  }
+  if (!booking.travelPlanId) return 0n;
+
+  const paid = await tx.payment.findFirst({
+    where: { travelPlanId: booking.travelPlanId, status: "SUCCESS" },
+    select: { id: true },
+  });
+  return paid
+    ? Money.fromSomNumber(booking.totalPrice.toString()).toTiyin()
+    : 0n;
 }
 
 export type TransitionCtx = {
@@ -62,7 +101,10 @@ export type CreateHeldHotelBookingInput = {
   pricingSnapshot?: Prisma.InputJsonValue;
   /** Snapshot at book time; resolved from RoomType when omitted. */
   cancellationPolicyId?: string | null;
-  /** Guest user id for outbox booking.confirmed (optional for walk-in). */
+  /**
+   * Booking owner. Persisted as HotelBooking.userId and used as the
+   * authorization key by guest-facing APIs. Null for walk-in/reception.
+   */
   guestUserId?: string | null;
   guests?: Prisma.BookingGuestCreateWithoutBookingInput[];
 };
@@ -163,13 +205,22 @@ export class BookingService {
       }
 
       const fromStatus = asStatus(booking.status);
-      assertTransition(fromStatus, asStatus(toStatus));
+      const nextStatus = asStatus(toStatus);
+
+      // Guarded edges are settled here, against the locked row, so no call site
+      // can confirm an unpaid booking by convention or by passing a flag.
+      const paymentConfirmed = requiresPaymentEvidence(fromStatus, nextStatus)
+        ? await bookingRepository.hasRecordedPayment(booking, tx)
+        : false;
+      assertTransition(fromStatus, nextStatus, { paymentConfirmed });
 
       const shouldRestore =
         ctx.restoreInventory === true ||
         toStatus === "EXPIRED" ||
         toStatus === "CANCELLED" ||
-        toStatus === "REFUNDED";
+        toStatus === "REFUNDED" ||
+        // Guest never arrived — remaining nights go back on sale.
+        toStatus === "NO_SHOW";
 
       const holdingBefore = holdsInventory(fromStatus);
 
@@ -182,7 +233,8 @@ export class BookingService {
         toStatus === "EXPIRED" ||
         toStatus === "CANCELLED" ||
         toStatus === "REFUNDED" ||
-        toStatus === "COMPLETED"
+        toStatus === "COMPLETED" ||
+        toStatus === "NO_SHOW"
       ) {
         holdExpiresAtPatch.holdExpiresAt = null;
       }
@@ -216,7 +268,8 @@ export class BookingService {
         holdingBefore &&
         (toStatus === "EXPIRED" ||
           toStatus === "CANCELLED" ||
-          toStatus === "REFUNDED") &&
+          toStatus === "REFUNDED" ||
+          toStatus === "NO_SHOW") &&
         booking.roomTypeId
       ) {
         await inventoryService.releaseRoomNightsInTx(
@@ -292,6 +345,9 @@ export class BookingService {
           holdExpiresAt,
           source: input.source ?? "SAFARTRIP",
           note: input.note ?? null,
+          ...(input.guestUserId
+            ? { user: { connect: { id: input.guestUserId } } }
+            : {}),
           ...(input.pricingSnapshot !== undefined
             ? { pricingSnapshot: input.pricingSnapshot }
             : {}),
@@ -327,6 +383,8 @@ export class BookingService {
     input: CreateHeldHotelBookingInput & {
       paidAmount?: number;
       status?: "CONFIRMED";
+      /** Pin the stay to one physical room, checked under the same lock. */
+      assignPhysicalRoomId?: string;
     },
   ): Promise<HotelBooking> {
     return inventoryService.withSerializableRetry(async (tx) => {
@@ -365,6 +423,9 @@ export class BookingService {
           holdExpiresAt: null,
           source: input.source ?? "RECEPTION",
           note: input.note ?? null,
+          ...(input.guestUserId
+            ? { user: { connect: { id: input.guestUserId } } }
+            : {}),
           ...(input.pricingSnapshot !== undefined
             ? { pricingSnapshot: input.pricingSnapshot }
             : {}),
@@ -375,6 +436,37 @@ export class BookingService {
         } as Prisma.HotelBookingCreateInput,
         tx,
       );
+
+      if (input.assignPhysicalRoomId) {
+        // Room-type inventory alone allows two bookings when the type has
+        // several rooms; the physical room row is what serializes assignment.
+        await tx.$queryRawUnsafe(
+          `SELECT id FROM PhysicalRoom WHERE id = ? FOR UPDATE`,
+          input.assignPhysicalRoomId,
+        );
+
+        const clash = await tx.bookingRoomAssignment.findFirst({
+          where: {
+            physicalRoomId: input.assignPhysicalRoomId,
+            status: "ACTIVE",
+            checkInDate: { lt: input.checkOutDate },
+            checkOutDate: { gt: input.checkInDate },
+            booking: { status: { notIn: ["CANCELLED", "NO_SHOW", "EXPIRED"] } },
+          },
+          select: { id: true },
+        });
+        if (clash) throw new RoomAlreadyAssignedError();
+
+        await tx.bookingRoomAssignment.create({
+          data: {
+            bookingId: booking.id,
+            physicalRoomId: input.assignPhysicalRoomId,
+            checkInDate: input.checkInDate,
+            checkOutDate: input.checkOutDate,
+            status: "ACTIVE",
+          },
+        });
+      }
 
       await bookingEventRepository.create(
         {
@@ -430,7 +522,9 @@ export class BookingService {
   /**
    * Idempotent hold expiry for hotel + homestay. Safe to run concurrently.
    */
-  async expireHolds(limit = 100): Promise<{ hotel: number; homestay: number }> {
+  async expireHolds(
+    limit = 100,
+  ): Promise<{ hotel: number; homestay: number; guide: number }> {
     const hotelHolds = await bookingRepository.findExpiredHolds(limit);
     let hotel = 0;
 
@@ -506,7 +600,51 @@ export class BookingService {
       }
     }
 
-    return { hotel, homestay };
+    const guideHolds = await bookingRepository.findExpiredGuideHolds(limit);
+    let guide = 0;
+
+    for (const hold of guideHolds) {
+      try {
+        const ok = await inventoryService.withSerializableRetry(async (tx) => {
+          const result = await tx.$executeRawUnsafe(
+            `UPDATE GuideBooking
+             SET status = 'CANCELLED', holdExpiresAt = NULL, updatedAt = NOW(3),
+                 cancelledBy = 'SYSTEM', cancellationReason = 'HOLD_EXPIRED'
+             WHERE id = ? AND status = 'PENDING' AND holdExpiresAt IS NOT NULL AND holdExpiresAt < NOW(3)`,
+            hold.id,
+          );
+          if (Number(result) === 0) return false;
+
+          // Release the slot this booking reserved at creation time.
+          await tx.guideBlockedSlot.deleteMany({
+            where: {
+              listingId: hold.listingId,
+              guideId: hold.guideId,
+              date: hold.date,
+              startTime: hold.startTime,
+              endTime: hold.endTime,
+              note: `BOOKED:${hold.id}`,
+            },
+          });
+
+          await tx.guideBookingLog.create({
+            data: {
+              bookingId: hold.id,
+              actorRole: "system",
+              fromStatus: "PENDING",
+              toStatus: "CANCELLED",
+              note: "HOLD_EXPIRED",
+            },
+          });
+          return true;
+        });
+        if (ok) guide += 1;
+      } catch (err) {
+        console.error("[expireHolds] guide failed", hold.id, err);
+      }
+    }
+
+    return { hotel, homestay, guide };
   }
 
   async cancelAndRelease(
@@ -515,6 +653,33 @@ export class BookingService {
   ): Promise<HotelBooking> {
     const { booking } = await this.cancelWithPolicy(bookingId, ctx);
     return booking;
+  }
+
+  /**
+   * Gate for confirming a homestay booking outside the payment flow.
+   *
+   * Homestay has no shared state machine, so unlike hotel this cannot live in
+   * `transition`. The answer still comes from the database rather than the
+   * caller: a PENDING homestay booking is an unpaid hold, and confirming it
+   * would leave a stay marked CONFIRMED with no ledger entry behind it.
+   */
+  async assertHomestayPaymentRecorded(
+    bookingId: string,
+    outerTx?: Tx,
+  ): Promise<void> {
+    const booking = await bookingRepository.findHomestayStatusAndPlan(
+      bookingId,
+      outerTx,
+    );
+    if (!booking) throw new Error(`Homestay booking not found: ${bookingId}`);
+
+    const paid = await bookingRepository.hasHomestayRecordedPayment(
+      booking,
+      outerTx,
+    );
+    if (!paid) {
+      throw new UnpaidConfirmationError(asStatus(booking.status), "CONFIRMED");
+    }
   }
 
   /**
@@ -590,7 +755,7 @@ export class BookingService {
             `Hotel partner missing for cancel accounting on booking ${bookingId}`,
           );
         }
-        const rates = await getCommissionRates(tx);
+        const rates = await commissionService.getRates(tx);
         await postCancelAccountingInTx(tx, {
           bookingType: "HOTEL",
           bookingId,
@@ -630,9 +795,7 @@ export class BookingService {
       const refund = computeGuestCancelRefund({
         checkInAt: booking.checkIn,
         bookedAt: booking.createdAt,
-        grossPaidTiyin: Money.fromSomNumber(
-          booking.totalPrice.toString(),
-        ).toTiyin(),
+        grossPaidTiyin: await resolveNonHotelPaidTiyin(tx, booking),
       });
 
       const next = await tx.homeStayBooking.update({
@@ -659,7 +822,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "HOMESTAY",
         bookingId: booking.id,
@@ -740,9 +903,7 @@ export class BookingService {
       const refund = computeGuestCancelRefund({
         checkInAt,
         bookedAt: booking.createdAt,
-        grossPaidTiyin: Money.fromSomNumber(
-          booking.totalPrice.toString(),
-        ).toTiyin(),
+        grossPaidTiyin: await resolveNonHotelPaidTiyin(tx, booking),
       });
 
       const next = await tx.guideBooking.update({
@@ -767,7 +928,7 @@ export class BookingService {
         );
       }
 
-      const rates = await getCommissionRates(tx);
+      const rates = await commissionService.getRates(tx);
       await postCancelAccountingInTx(tx, {
         bookingType: "GUIDE",
         bookingId: booking.id,

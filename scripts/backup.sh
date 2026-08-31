@@ -1,15 +1,24 @@
 #!/bin/bash
 # Daily MySQL backup for SafarTrip. Exit non-zero on ANY failure.
-# Env: DATABASE_URL or MYSQL_* ; BACKUP_DIR ; BACKUP_OFFSITE_CMD (REQUIRED)
+# Env: DATABASE_URL or MYSQL_* ; BACKUP_DIR ; BACKUP_OFFSITE_SCRIPT or BACKUP_OFFSITE_CMD (one REQUIRED)
 # Retention: 7 daily + 4 weekly (Sunday) kept under BACKUP_DIR.
 #
 # Records DUMP_TS (MySQL NOW(6) BEFORE mysqldump) in a sidecar so restore-test
 # can compare counts at the consistent --single-transaction snapshot boundary
 # without racing live traffic after the dump starts.
 #
-# BACKUP_OFFSITE_CMD must copy OUT_DAILY (and ideally OUT_META) off the VPS.
-# Example:
-#   export BACKUP_OFFSITE_CMD='scp "$OUT_DAILY" "$OUT_META" backup@otherhost:/backups/'
+# The off-site copy is mandatory. Two ways to configure it:
+#
+#   BACKUP_OFFSITE_SCRIPT (preferred) — an executable invoked as
+#       "$BACKUP_OFFSITE_SCRIPT" "$OUT_DAILY" "$OUT_META"
+#     No shell parsing, so paths with spaces and metacharacters are safe.
+#       export BACKUP_OFFSITE_SCRIPT=/etc/safartrip/offsite.sh
+#
+#   BACKUP_OFFSITE_CMD (legacy) — a command string. Still supported, but it now
+#     runs in a child shell rather than through `eval` in this one, so it cannot
+#     disturb this script's `set -euo pipefail`, traps or variables. The paths
+#     arrive both as $OUT_DAILY/$OUT_META and as "$1"/"$2".
+#       export BACKUP_OFFSITE_CMD='scp "$1" "$2" backup@otherhost:/backups/'
 set -euo pipefail
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/safartrip}"
@@ -34,7 +43,10 @@ fi
 
 : "${MYSQL_USER:?Set MYSQL_USER or DATABASE_URL}"
 : "${MYSQL_DATABASE:?Set MYSQL_DATABASE or DATABASE_URL}"
-: "${BACKUP_OFFSITE_CMD:?Set BACKUP_OFFSITE_CMD — off-site copy is mandatory (scp/rclone/b2). Local-only backup is not enough.}"
+if [[ -z "${BACKUP_OFFSITE_SCRIPT:-}" && -z "${BACKUP_OFFSITE_CMD:-}" ]]; then
+  echo "[backup] Set BACKUP_OFFSITE_SCRIPT or BACKUP_OFFSITE_CMD — off-site copy is mandatory (scp/rclone/b2). Local-only backup is not enough." >&2
+  exit 1
+fi
 MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
 
@@ -93,9 +105,16 @@ ls -1t "$BACKUP_DIR/weekly"/safartrip-week-*.sql.gz 2>/dev/null | tail -n +5 | w
   rm -f "$f" "${f%.sql.gz}.meta"
 done
 
-echo "[backup] off-site (required): $BACKUP_OFFSITE_CMD"
-# shellcheck disable=SC2086
-eval $BACKUP_OFFSITE_CMD
+if [[ -n "${BACKUP_OFFSITE_SCRIPT:-}" ]]; then
+  echo "[backup] off-site (required): $BACKUP_OFFSITE_SCRIPT"
+  # Argv, not a shell string: nothing here is re-parsed.
+  "$BACKUP_OFFSITE_SCRIPT" "$OUT_DAILY" "$OUT_META"
+else
+  echo "[backup] off-site (required, legacy CMD): $BACKUP_OFFSITE_CMD"
+  # Child shell rather than `eval` in this one, so a failure or a stray `set`
+  # in the operator's string cannot alter this script's error handling.
+  bash -c "$BACKUP_OFFSITE_CMD" backup-offsite "$OUT_DAILY" "$OUT_META"
+fi
 echo "[backup] off-site OK"
 
 echo "[backup] OK size=${SIZE} path=${OUT_DAILY} meta=${OUT_META}"

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { ConfirmModal } from "@/components/admin/ConfirmModal";
+import { AdminUserHotelStaffCard } from "@/components/admin/users/AdminUserHotelStaffCard";
 import type { AdminUserDetail } from "@/lib/admin/getAdminUserDetail";
 import { formatDateTime } from "@/lib/formatDate";
 
@@ -39,8 +40,14 @@ const ROLE_LABELS: Record<Role, string> = {
   taxi_partner: "Taxi Partner",
   hotel_manager: "Hotel Manager",
   guide: "Guide",
+  guide_partner: "Guide Partner",
   restaurant_manager: "Restaurant",
   home_stay_partner: "Home Stay",
+  support: "Support",
+  cleaner: "Cleaner",
+  receptionist: "Receptionist",
+  waiter: "Waiter",
+  hotel_staff: "Hotel Staff",
 };
 
 const ROLE_BADGE: Record<Role, string> = {
@@ -51,8 +58,14 @@ const ROLE_BADGE: Record<Role, string> = {
   taxi_partner: "bg-orange-50 text-orange-700 ring-orange-100",
   hotel_manager: "bg-teal-50 text-teal-700 ring-teal-100",
   guide: "bg-purple-50 text-purple-700 ring-purple-100",
+  guide_partner: "bg-purple-50 text-purple-700 ring-purple-100",
   restaurant_manager: "bg-amber-50 text-amber-700 ring-amber-100",
   home_stay_partner: "bg-blue-50 text-blue-700 ring-blue-100",
+  support: "bg-cyan-50 text-cyan-700 ring-cyan-100",
+  cleaner: "bg-lime-50 text-lime-700 ring-lime-100",
+  receptionist: "bg-sky-50 text-sky-700 ring-sky-100",
+  waiter: "bg-orange-50 text-orange-800 ring-orange-100",
+  hotel_staff: "bg-teal-50 text-teal-800 ring-teal-100",
 };
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
@@ -61,6 +74,11 @@ const ROLE_OPTIONS: Array<{ value: Role; label: string }> = [
   { value: "taxi_partner", label: "Taxi Partner" },
   { value: "guide", label: "Guide" },
   { value: "home_stay_partner", label: "Home Stay" },
+  { value: "support", label: "Support" },
+  { value: "cleaner", label: "Cleaner" },
+  { value: "receptionist", label: "Receptionist" },
+  { value: "waiter", label: "Waiter" },
+  { value: "hotel_staff", label: "Hotel Staff" },
   { value: "admin", label: "Admin" },
 ];
 
@@ -339,6 +357,11 @@ export function AdminUserDetailClient({ data: initial }: Props) {
             </div>
 
             <RoleContextCard data={data} />
+
+            <AdminUserHotelStaffCard
+              userId={data.user.id}
+              userRole={data.user.role}
+            />
 
             <div className="adm-card border-none shadow-xl shadow-slate-200/50">
               <div className="adm-card-header bg-white border-b border-slate-50 px-6 py-4 flex items-center justify-between">
