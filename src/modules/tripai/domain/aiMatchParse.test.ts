@@ -79,4 +79,15 @@ describe("parseAiMatchIntent", () => {
     );
     expect(intent.destination).toBe("Samarqand");
   });
+
+  it("does not surface API xato as the guest-facing message", () => {
+    const intent = parseAiMatchIntent(
+      '{"destination":"","message":"API xato"}',
+      cities,
+      "Tarixiy shaharlar",
+    );
+    expect(intent.destination).toBe("");
+    expect(intent.message.toLowerCase()).not.toContain("api xato");
+    expect(intent.message).toMatch(/Samarqand/);
+  });
 });

@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import {
   buildAiMatchPrompt,
   chatCompletions,
+  CITY_CLARIFY_MESSAGE,
   loadTripaiLlmConfig,
   parseAiMatchIntent,
 } from "@/src/modules/tripai";
@@ -57,14 +58,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!loadTripaiLlmConfig()) {
-      console.error("AI match: TRIPAI_LLM_* is not configured");
-      return NextResponse.json(
-        { message: "AI hozir javob bera olmayapti. Keyinroq urinib ko'ring." },
-        { status: 503 },
-      );
-    }
-
     const hotelCities = await prisma.hotel.findMany({
       where: { status: "active" },
       select: { city: true },
@@ -78,20 +71,23 @@ export async function POST(req: NextRequest) {
       ),
     ];
 
-    const rawLlm = await chatCompletions(
-      [{ role: "user", content: buildAiMatchPrompt(prompt, availableCities) }],
-      { temperature: 0.2, maxTokens: 800, timeoutMs: 25_000 },
-    );
-
-    if (!rawLlm) {
-      console.error("AI match: LLM returned empty response");
-      return NextResponse.json(
-        { message: "AI javob bera olmadi. Keyinroq urinib ko'ring." },
-        { status: 502 },
-      );
+    const llmReady = Boolean(loadTripaiLlmConfig());
+    if (!llmReady) {
+      console.error("AI match: TRIPAI_LLM_* is not configured");
     }
 
-    const parsed = parseAiMatchIntent(rawLlm, availableCities, prompt);
+    const rawLlm = llmReady
+      ? await chatCompletions(
+          [{ role: "user", content: buildAiMatchPrompt(prompt, availableCities) }],
+          { temperature: 0.2, maxTokens: 800, timeoutMs: 25_000 },
+        )
+      : null;
+
+    if (llmReady && !rawLlm) {
+      console.error("AI match: LLM returned empty response");
+    }
+
+    const parsed = parseAiMatchIntent(rawLlm ?? "", availableCities, prompt);
 
     if (!parsed.destination) {
       // Conversational clarify — 200 so the client can show a chat bubble (not toast.error).
@@ -102,7 +98,7 @@ export async function POST(req: NextRequest) {
           message:
             typeof parsed.message === "string" && parsed.message.trim()
               ? parsed.message.trim()
-              : "Shaharni aniqlay olmadim. Samarqand, Buxoro, Xiva yoki boshqa manzil nomini yozing.",
+              : CITY_CLARIFY_MESSAGE,
         },
         { status: 200 },
       );

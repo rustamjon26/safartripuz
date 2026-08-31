@@ -123,6 +123,14 @@ function newChatId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function guestSafeAiText(raw: string): string {
+  const text = raw.trim();
+  if (!text || /api\s*xato|^xato$/i.test(text)) {
+    return "Qaysi shaharga boramiz? Samarqand, Buxoro yoki Xiva deb yozing — men mehmonxona, transfer va gidni yig'aman.";
+  }
+  return text;
+}
+
 function destKey(title: string) {
   return title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -406,14 +414,16 @@ export default function TripBuilderPage() {
       }
 
       if (json.needsClarification && json.message) {
-        pushAiChat({ role: "assistant", text: json.message });
+        pushAiChat({ role: "assistant", text: guestSafeAiText(json.message) });
         return;
       }
 
       if (!res.ok || !json.success || !json.data) {
         pushAiChat({
           role: "assistant",
-          text: json.message || "Kechirasiz, hozir javob bera olmadim. Qayta yozib ko‘ring.",
+          text: guestSafeAiText(
+            json.message || "Kechirasiz, hozir javob bera olmadim. Qayta yozib ko‘ring.",
+          ),
         });
         return;
       }
