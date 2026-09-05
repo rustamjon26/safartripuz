@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ServiceCard, { ServiceCardSkeleton } from "@/components/ui/ServiceCard";
 import { MapPin, Calendar, Users, Search, Building2 } from "lucide-react";
-import { loginWithNext } from "@/lib/authLinks";
 
 type HotelRow = {
   id: string;
@@ -27,12 +26,12 @@ function HotelsSearchInner() {
   const city = searchParams.get("city") ?? "";
   const checkIn = searchParams.get("checkIn") ?? "";
   const checkOut = searchParams.get("checkOut") ?? "";
-  const guests = searchParams.get("guests") ?? "2";
+  const guests = searchParams.get("guests") ?? "";
 
   const [cityInput, setCityInput] = useState(city);
   const [checkInInput, setCheckInInput] = useState(checkIn);
   const [checkOutInput, setCheckOutInput] = useState(checkOut);
-  const [guestsInput, setGuestsInput] = useState(guests);
+  const [guestsInput, setGuestsInput] = useState(guests || "2");
 
   const [items, setItems] = useState<HotelRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +96,11 @@ function HotelsSearchInner() {
   const nights = nightsFor();
 
   return (
-    <DashboardShell title="Mehmonxonalar" subtitle="O'zbekiston bo'ylab eng yaxshi mehmonxonalar">
+    <DashboardShell
+      title="Mehmonxonalar"
+      subtitle="O'zbekiston bo'ylab eng yaxshi mehmonxonalar"
+      requireAuth={false}
+    >
       {/* Search bar */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -176,10 +179,10 @@ function HotelsSearchInner() {
           {items.map((h) => (
             <ServiceCard
               key={h.id}
-              onClick={() =>
-                router.push(
-                  loginWithNext(`/trip-builder?dest=${encodeURIComponent(h.city || city || "zomin")}`),
-                )
+              href={
+                checkIn && checkOut
+                  ? `/hotels/${h.id}?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}`
+                  : `/hotels/${h.id}`
               }
               title={h.name}
               image={h.imageUrl}
@@ -191,7 +194,7 @@ function HotelsSearchInner() {
               rating={h.rating}
               ratingCount={h.reviewCount}
               starCount={h.stars}
-              actionLabel="Tanlash →"
+              actionLabel="Ko'rish →"
             />
           ))}
         </div>
@@ -204,7 +207,7 @@ export default function HotelsSearchPage() {
   return (
     <Suspense
       fallback={
-        <DashboardShell title="Mehmonxonalar">
+        <DashboardShell title="Mehmonxonalar" requireAuth={false}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <ServiceCardSkeleton key={i} />

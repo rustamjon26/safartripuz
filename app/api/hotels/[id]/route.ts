@@ -34,7 +34,7 @@ export async function GET(
       where: {
         id,
         status: "active",
-        partner: { status: "approved", type: "hotel" },
+        partner: { status: { in: ["approved", "pending"] }, type: "hotel" },
       },
       include: {
         partner: { select: { displayName: true, bio: true, meta: true } },

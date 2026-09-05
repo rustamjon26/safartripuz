@@ -47,7 +47,7 @@ type FormData = {
 
 const EMPTY_FORM: FormData = {
   partnerId: "", name: "", city: "", address: "", 
-  contactEmail: "", contactPhone: "", totalRooms: "10", status: "draft"
+  contactEmail: "", contactPhone: "", totalRooms: "10", status: "active"
 };
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
@@ -195,7 +195,11 @@ export default function AdminHotelsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
-      toast.success(editItem ? "Mehmonxona yangilandi!" : "Yangi mehmonxona yaratildi!");
+      toast.success(
+        editItem
+          ? "Mehmonxona yangilandi!"
+          : "Mehmonxona yaratildi. User panelda chiqishi uchun xona turi qo'shing.",
+      );
       setShowModal(false);
       void load();
     } catch (e) {

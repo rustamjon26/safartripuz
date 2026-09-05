@@ -94,7 +94,7 @@ export default function HomeStaySearchPage() {
   const activeAmenities = useMemo(() => query.amenities, [query.amenities]);
 
   return (
-    <DashboardShell title="Uy Mehmonxonalar" subtitle="Qulay va arzon uy mehmonxonalar">
+    <DashboardShell title="Uy Mehmonxonalar" subtitle="Qulay va arzon uy mehmonxonalar" requireAuth={false}>
       {/* Search bar */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">

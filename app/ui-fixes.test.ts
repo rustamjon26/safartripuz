@@ -65,3 +65,17 @@ describe("/bookings sign-in redirect", () => {
     expect(source).toContain('from "@/lib/authLinks"');
   });
 });
+
+describe("guest hotel catalog", () => {
+  it("opens a public hotel page instead of forcing /login", () => {
+    const source = read("app/hotels/page.tsx");
+    expect(source).not.toContain("loginWithNext");
+    expect(source).toContain("`/hotels/${h.id}`");
+    expect(source).toContain("requireAuth={false}");
+  });
+
+  it("lists active hotels even when they have no room type yet", () => {
+    const source = read("app/api/hotels/route.ts");
+    expect(source).not.toContain("if (!cheapest) continue");
+  });
+});

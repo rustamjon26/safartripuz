@@ -364,6 +364,13 @@ export function AdminHotelDetailClient({ data: initial }: Props) {
             hotelName={data.hotel.name}
           />
 
+          {data.roomTypes.length === 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-800">
+              Xona turi yo&apos;q — sayohatchi panelida mehmonxona chiqishi mumkin, lekin bron qilish
+              uchun avval hotel panelida kamida bitta xona turi qo&apos;shing.
+            </div>
+          ) : null}
+
           {/* Room types */}
           <div className="adm-card p-6 bg-white border-none shadow-xl shadow-slate-200/50">
             <h2 className="text-lg font-black text-slate-900 mb-4">Xona turlari</h2>

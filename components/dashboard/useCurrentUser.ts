@@ -35,10 +35,12 @@ export function meOutcomeFor(status: number | null): MeOutcome {
   return "unreachable";
 }
 
-export function useCurrentUser() {
+export function useCurrentUser(options?: { redirectOn401?: boolean }) {
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
+  const redirectOn401Ref = useRef(options?.redirectOn401 !== false);
+  redirectOn401Ref.current = options?.redirectOn401 !== false;
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   /**
@@ -51,7 +53,7 @@ export function useCurrentUser() {
 
   const fetchMe = useCallback(
     async (opts?: { redirectOn401?: boolean }): Promise<CurrentUser | null> => {
-      const redirectOn401 = opts?.redirectOn401 !== false;
+      const redirectOn401 = opts?.redirectOn401 ?? redirectOn401Ref.current;
 
       let res: Response | null = null;
       try {
