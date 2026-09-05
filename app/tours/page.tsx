@@ -90,7 +90,7 @@ export default function ToursPage() {
   }
 
   return (
-    <DashboardShell title="Tayyor Sayohatlar" subtitle="Mutaxassislarimiz tomonidan yig'ilgan eksklyuziv turlar">
+    <DashboardShell title="Tayyor Sayohatlar" subtitle="Mutaxassislarimiz tomonidan yig'ilgan eksklyuziv turlar" requireAuth={false}>
       
       {/* Filters */}
       {!loading && tours.length > 0 && (

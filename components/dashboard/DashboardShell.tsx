@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import BottomNav from "@/components/layout/BottomNav";
 import NotificationPopover from "./NotificationPopover";
 import { accountHomeForRole, profileHomeForRole } from "@/lib/auth/accountHome";
+import { loginWithNext } from "@/lib/authLinks";
 import "@/app/dashboard.css";
 
 type Notification = {
@@ -101,12 +102,21 @@ interface DashboardShellProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** Catalog pages stay public — only send anonymous users to /login when true. */
+  requireAuth?: boolean;
 }
 
-export default function DashboardShell({ children, title, subtitle }: DashboardShellProps) {
+export default function DashboardShell({
+  children,
+  title,
+  subtitle,
+  requireAuth = true,
+}: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, networkError, retry } = useCurrentUser();
+  const { user, loading, networkError, retry } = useCurrentUser({
+    redirectOn401: requireAuth,
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotif, setShowNotif] = useState(false);
@@ -163,16 +173,18 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
     router.push("/login");
   }
 
-  const visibleNavItems = NAV_ITEMS.filter(
-    (item) =>
-      !item.roles ||
-      !user?.role ||
-      item.roles.includes(user.role.toLowerCase()),
-  );
+  const visibleNavItems = user
+    ? NAV_ITEMS.filter(
+        (item) =>
+          !item.roles ||
+          !user.role ||
+          item.roles.includes(user.role.toLowerCase()),
+      )
+    : [];
 
   const showServices =
-    user?.role?.toLowerCase() === "user" ||
-    !user?.role ||
+    !user ||
+    user.role?.toLowerCase() === "user" ||
     visibleNavItems.some((i) => i.href === "/bookings");
 
   const initials = user
@@ -212,7 +224,7 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
 
   // Unreachable server, not an expired session — offer a retry instead of
   // dropping the user at /login and losing where they were.
-  if (networkError && !user) {
+  if (networkError && !user && requireAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dashboard-root px-6">
         <div className="flex flex-col items-center gap-3 text-center">
@@ -303,32 +315,44 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
       </nav>
 
       <div className="px-3 py-4 border-t border-gray-200">
-        <Link
-          href={profileHref}
-          onClick={() => setSidebarOpen(false)}
-          title="Mening profilim"
-          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-gray-900 text-sm truncate">
-              {user?.first_name} {user?.last_name}
-            </div>
-            <div className="text-xs text-gray-500 truncate">
-              {roleBadge[user?.role?.toLowerCase() ?? ""] ?? user?.role ?? "—"}
-            </div>
-          </div>
-        </Link>
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-        >
-          <LogOut size={16} />
-          Chiqish
-        </button>
+        {user ? (
+          <>
+            <Link
+              href={profileHref}
+              onClick={() => setSidebarOpen(false)}
+              title="Mening profilim"
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 mb-2 hover:border-amber-300 hover:bg-amber-50/40 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shrink-0">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-gray-900 text-sm truncate">
+                  {user.first_name} {user.last_name}
+                </div>
+                <div className="text-xs text-gray-500 truncate">
+                  {roleBadge[user.role?.toLowerCase() ?? ""] ?? user.role ?? "—"}
+                </div>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut size={16} />
+              Chiqish
+            </button>
+          </>
+        ) : (
+          <Link
+            href={loginWithNext(pathname || "/hotels")}
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center justify-center w-full px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-orange-500 transition-colors"
+          >
+            Kirish
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -418,14 +442,23 @@ export default function DashboardShell({ children, title, subtitle }: DashboardS
                 />
               ) : null}
 
-              <Link
-                href={panelHref}
-                title="Asosiy panel"
-                aria-label="Asosiy panel"
-                className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
-              >
-                {initials}
-              </Link>
+              {user ? (
+                <Link
+                  href={panelHref}
+                  title="Asosiy panel"
+                  aria-label="Asosiy panel"
+                  className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center text-sm font-black shadow-md shadow-amber-500/20 hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                >
+                  {initials}
+                </Link>
+              ) : (
+                <Link
+                  href={loginWithNext(pathname || "/")}
+                  className="hidden sm:inline-flex items-center px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-orange-500 transition-colors"
+                >
+                  Kirish
+                </Link>
+              )}
             </div>
           </div>
 

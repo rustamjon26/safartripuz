@@ -169,7 +169,7 @@ export async function middleware(req: NextRequest) {
   if (!token) {
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
-    url.searchParams.set("next", pathname);
+    url.searchParams.set("next", `${pathname}${req.nextUrl.search}`);
     return attachRequestId(NextResponse.redirect(url), requestId);
   }
 
@@ -178,7 +178,7 @@ export async function middleware(req: NextRequest) {
   if (!role) {
     const url = req.nextUrl.clone();
     url.pathname = area.redirectTo;
-    url.searchParams.set("next", pathname);
+    url.searchParams.set("next", `${pathname}${req.nextUrl.search}`);
     return attachRequestId(NextResponse.redirect(url), requestId);
   }
 

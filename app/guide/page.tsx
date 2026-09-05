@@ -95,7 +95,7 @@ export default function GuideSearchPage() {
   const activeLanguages = useMemo(() => query.languages, [query.languages]);
 
   return (
-    <DashboardShell title="Gidlar" subtitle="Tajribali mahalliy gidlar bilan sayohat qiling">
+    <DashboardShell title="Gidlar" subtitle="Tajribali mahalliy gidlar bilan sayohat qiling" requireAuth={false}>
       {/* Search bar */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">

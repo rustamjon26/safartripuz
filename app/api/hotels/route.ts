@@ -83,7 +83,7 @@ export async function GET(req: Request) {
     const hotels = await prisma.hotel.findMany({
       where: {
         status: "active",
-        partner: { status: "approved", type: "hotel" },
+        partner: { status: { in: ["approved", "pending"] }, type: "hotel" },
         ...(cityTerms.length ? { OR: cityContainsAny(cityTerms) } : {}),
       },
       include: {
@@ -111,16 +111,17 @@ export async function GET(req: Request) {
       if (maxStars > 0 && stars > maxStars) continue;
 
       const cheapest = h.roomTypes[0];
-      if (!cheapest) continue;
-      const nightly = Number(cheapest.basePrice);
-      if (minPrice > 0 && nightly < minPrice) continue;
-      if (maxPrice > 0 && nightly > maxPrice) continue;
+      const nightly = cheapest ? Number(cheapest.basePrice) : 0;
+      if (cheapest && minPrice > 0 && nightly < minPrice) continue;
+      if (cheapest && maxPrice > 0 && nightly > maxPrice) continue;
 
       const capacity = h.roomTypes.reduce(
         (m, rt) => Math.max(m, rt.capacityAdults + rt.capacityChildren),
         0,
       );
-      if (guests > 0 && capacity < guests) continue;
+      // Guest-count is a booking constraint, not a catalog one — only
+      // hide a hotel when the guest actually picked dates + party size.
+      if (guests > 0 && checkIn && checkOut && capacity < guests) continue;
 
       let hasAvailability = true;
       if (checkIn && checkOut) {

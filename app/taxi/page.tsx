@@ -183,7 +183,7 @@ export default function TaxiBookingPage() {
   }
 
   return (
-    <DashboardShell title="Taxi Xizmati" subtitle="Tez, qulay va xavfsiz sayohat">
+    <DashboardShell title="Taxi Xizmati" subtitle="Tez, qulay va xavfsiz sayohat" requireAuth={false}>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           <div className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-2xl p-6">

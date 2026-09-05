@@ -71,4 +71,9 @@ describe("DashboardShell", () => {
     expect(source).toContain("networkError");
     expect(source).toContain("Qayta urinish");
   });
+
+  it("lets catalog pages stay public", () => {
+    expect(source).toContain("requireAuth");
+    expect(source).toContain("redirectOn401: requireAuth");
+  });
 });

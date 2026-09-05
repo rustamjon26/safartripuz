@@ -104,13 +104,13 @@ const DEST_VISUAL: Record<string, { icon: React.ElementType; gradient: string }>
 
 const AI_EXAMPLES = [
   "Zomin tog'lariga",
-  "Toshkent bo'ylab 2 kun",
+  "Urgutga 2 kun",
   "Tarixiy shaharlar",
-  "Oilaviy dam olish",
+  "Farg'ona vodiysi",
 ];
 
 const AI_WELCOME =
-  "Assalomu alaykum! Men SafarTrip intellektual yordamchisiman.\n\nQaerga borishni xohlaysiz? Men sizga mukammal sayohat tuzishda yordam beraman. O'zbekistonning eng go'zal go'shalarini birgalikda kashf etamiz.";
+  "Salom, do'stim! Men SafarTrip AI — O'zbekiston bo'ylab yo'ldoshiman.\n\nViloyat, tuman yoki shahar ayt: Urgut, Xiva, Zomin, Farg'ona, Samarqand… birga marshrut tuzamiz.";
 
 type AiChatMessage = {
   id: string;
@@ -126,7 +126,7 @@ function newChatId(): string {
 function guestSafeAiText(raw: string): string {
   const text = raw.trim();
   if (!text || /api\s*xato|^xato$/i.test(text)) {
-    return "Qaysi shaharga boramiz? Samarqand, Buxoro yoki Xiva deb yozing — men mehmonxona, transfer va gidni yig'aman.";
+    return "Qayerga ketamiz? Viloyat, tuman yoki shahar ayt — birga yo'l tuzamiz.";
   }
   return text;
 }
@@ -378,10 +378,14 @@ export default function TripBuilderPage() {
     setTripAiError("");
 
     try {
+      const history = aiChat
+        .filter((m) => m.id !== "welcome")
+        .slice(-8)
+        .map((m) => ({ role: m.role, text: m.text }));
       const res = await fetch("/api/builder/ai-match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text }),
+        body: JSON.stringify({ prompt: text, history }),
       });
       const json = (await res.json()) as {
         success?: boolean;
