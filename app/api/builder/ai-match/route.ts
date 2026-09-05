@@ -11,8 +11,14 @@ import {
   parseAiMatchIntent,
 } from "@/src/modules/tripai";
 
+const historyTurnSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string().max(2000),
+});
+
 const bodySchema = z.object({
   prompt: z.string().max(2000).optional().default(""),
+  history: z.array(historyTurnSchema).max(12).optional().default([]),
 });
 
 export async function POST(req: NextRequest) {
@@ -46,6 +52,10 @@ export async function POST(req: NextRequest) {
       );
     }
     const prompt = body.data.prompt.trim();
+    const history = body.data.history
+      .filter((t) => t.text.trim().length > 0)
+      .slice(-8)
+      .map((t) => ({ role: t.role, content: t.text.trim() }));
 
     if (prompt.length < 2) {
       return NextResponse.json(
@@ -78,8 +88,13 @@ export async function POST(req: NextRequest) {
 
     const rawLlm = llmReady
       ? await chatCompletions(
-          [{ role: "user", content: buildAiMatchPrompt(prompt, availableCities) }],
-          { temperature: 0.2, maxTokens: 800, timeoutMs: 25_000 },
+          [
+            {
+              role: "user",
+              content: buildAiMatchPrompt(prompt, availableCities, history),
+            },
+          ],
+          { temperature: 0.45, maxTokens: 1200, timeoutMs: 25_000 },
         )
       : null;
 

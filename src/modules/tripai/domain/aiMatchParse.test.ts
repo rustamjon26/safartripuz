@@ -39,6 +39,42 @@ describe("resolveDestination", () => {
       "Xiva",
     );
   });
+
+  it("maps tuman aliases like Urgut onto the catalog city", () => {
+    expect(resolveDestination("", cities, "Urgutga 2 kun")).toBe("Samarqand");
+  });
+
+  it("maps Xorazm / Urganch onto Xiva", () => {
+    expect(resolveDestination("", cities, "Xorazm viloyati")).toBe("Xiva");
+    expect(resolveDestination("", cities, "Urganchdan")).toBe("Xiva");
+  });
+
+  it("maps Chirchiq onto Toshkent", () => {
+    expect(resolveDestination("", cities, "Chirchiqda dam olamiz")).toBe(
+      "Toshkent",
+    );
+  });
+
+  it("maps Chimyon and Chorvoq onto Toshkent", () => {
+    expect(resolveDestination("", cities, "Chimyonga 2 kun")).toBe("Toshkent");
+    expect(resolveDestination("", cities, "Chorvoqda dam")).toBe("Toshkent");
+  });
+
+  it("does not auto-pick a Silk Road city for a broad theme", () => {
+    expect(
+      resolveDestination("Samarqand", cities, "Tarixiy shaharlar"),
+    ).toBe("");
+  });
+
+  it("keeps an explicit city when the theme is combined with a place", () => {
+    expect(
+      resolveDestination("", cities, "Samarqand tarixiy shaharlar"),
+    ).toBe("Samarqand");
+  });
+
+  it("does not invent a catalog city for Farg'ona when it is not listed", () => {
+    expect(resolveDestination("", cities, "Farg'ona vodiysi")).toBe("");
+  });
 });
 
 describe("parseAiMatchIntent", () => {
@@ -89,5 +125,16 @@ describe("parseAiMatchIntent", () => {
     expect(intent.destination).toBe("");
     expect(intent.message.toLowerCase()).not.toContain("api xato");
     expect(intent.message).toMatch(/Samarqand/);
+  });
+
+  it("maps Urgut even when the LLM returns no JSON", () => {
+    const intent = parseAiMatchIntent("", cities, "Urgutga 2 kun");
+    expect(intent.destination).toBe("Samarqand");
+  });
+
+  it("recognizes Farg'ona and asks instead of inventing hotels", () => {
+    const intent = parseAiMatchIntent("", cities, "Farg'ona vodiysi");
+    expect(intent.destination).toBe("");
+    expect(intent.message).toMatch(/Farg/i);
   });
 });

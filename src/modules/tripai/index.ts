@@ -48,7 +48,7 @@ export {
   guestFacingMessage,
   CITY_CLARIFY_MESSAGE,
 } from "./domain/aiMatchParse";
-export type { AiMatchIntent } from "./domain/aiMatchParse";
+export type { AiMatchIntent, AiMatchChatTurn } from "./domain/aiMatchParse";
 export type {
   PlanResult,
   PlanMeta,
