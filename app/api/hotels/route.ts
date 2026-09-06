@@ -104,7 +104,18 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    const enriched = [];
+    const enriched: Array<{
+      id: string;
+      name: string;
+      city: string;
+      address: string | null;
+      stars: number;
+      nightlyPrice: number;
+      rating: number | null;
+      reviewCount: number;
+      imageUrl: string | null;
+      roomTypesCount: number;
+    }> = [];
     for (const h of hotels) {
       const stars = starRating(h.partner.meta);
       if (minStars > 0 && stars < minStars) continue;
@@ -138,15 +149,9 @@ export async function GET(req: Request) {
       if (!hasAvailability) continue;
 
       const cover =
-        firstImageUrl(cheapest.images) ??
+        (cheapest ? firstImageUrl(cheapest.images) : null) ??
         h.roomTypes.map((rt) => firstImageUrl(rt.images)).find(Boolean) ??
         null;
-
-      const reviewAgg = await prisma.guestFeedback.aggregate({
-        where: { hotelId: h.id },
-        _avg: { rating: true },
-        _count: { id: true },
-      });
 
       enriched.push({
         id: h.id,
@@ -155,11 +160,35 @@ export async function GET(req: Request) {
         address: h.address,
         stars,
         nightlyPrice: nightly,
-        rating: reviewAgg._avg.rating ?? null,
-        reviewCount: reviewAgg._count.id,
+        rating: null,
+        reviewCount: 0,
         imageUrl: cover,
         roomTypesCount: h.roomTypes.length,
       });
+    }
+
+    try {
+      const ids = enriched.map((h) => h.id);
+      if (ids.length > 0) {
+        const reviewRows = await prisma.guestFeedback.groupBy({
+          by: ["hotelId"],
+          where: { hotelId: { in: ids } },
+          _avg: { rating: true },
+          _count: { _all: true },
+        });
+        const byHotel = new Map(
+          reviewRows.map((r) => [r.hotelId, { rating: r._avg.rating, count: r._count._all }]),
+        );
+        for (const row of enriched) {
+          const rev = byHotel.get(row.id);
+          if (rev) {
+            row.rating = rev.rating;
+            row.reviewCount = rev.count;
+          }
+        }
+      }
+    } catch {
+      // Guest feedback must never hide the catalog — trip-builder works without it.
     }
 
     const total = enriched.length;

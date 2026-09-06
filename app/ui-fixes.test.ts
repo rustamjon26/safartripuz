@@ -77,5 +77,7 @@ describe("guest hotel catalog", () => {
   it("lists active hotels even when they have no room type yet", () => {
     const source = read("app/api/hotels/route.ts");
     expect(source).not.toContain("if (!cheapest) continue");
+    expect(source).toContain("cheapest ? firstImageUrl(cheapest.images)");
+    expect(source).toContain("Guest feedback must never hide the catalog");
   });
 });
