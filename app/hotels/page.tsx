@@ -20,6 +20,31 @@ type HotelRow = {
 const fieldCls =
   "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 [color-scheme:light]";
 
+type InventoryHotel = {
+  id: string;
+  title: string;
+  city: string;
+  nightlyPrice: number;
+  images?: string[];
+  rating?: number;
+};
+
+async function loadHotelsFromInventory(): Promise<HotelRow[]> {
+  const res = await fetch("/api/builder/inventory");
+  if (!res.ok) return [];
+  const json = (await res.json()) as { hotels?: InventoryHotel[] };
+  return (json.hotels ?? []).map((h) => ({
+    id: h.id,
+    name: h.title,
+    city: h.city,
+    stars: h.rating ?? 4,
+    nightlyPrice: h.nightlyPrice,
+    rating: h.rating ?? null,
+    reviewCount: 0,
+    imageUrl: h.images?.[0] ?? null,
+  }));
+}
+
 function HotelsSearchInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,11 +83,15 @@ function HotelsSearchInner() {
           success?: boolean;
           data?: { data?: HotelRow[] };
           message?: string;
+          error?: string;
         };
+        let rows = json.data?.data ?? [];
         if (!res.ok || json.success === false) {
-          throw new Error(json.message || "Xatolik");
+          rows = await loadHotelsFromInventory();
+          if (rows.length === 0) {
+            throw new Error(json.error || json.message || "Xatolik");
+          }
         }
-        const rows = json.data?.data ?? [];
         if (!cancelled) setItems(rows);
       } catch (e) {
         if (!cancelled) {
