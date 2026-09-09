@@ -7,6 +7,10 @@
  * Usage:
  *   npx tsx scripts/create-click-test-booking.ts
  *
+ * Guest is always the dedicated TEST USER clicktest@safartrip.uz
+ * (created on first run). Never attaches to a real customer.
+ * Override: CLICK_TEST_USER_ID or CLICK_TEST_USER_EMAIL (must match clicktest*@safartrip.uz).
+ *
  * Click merchant_trans_id = Payment.id (not HotelBooking.id).
  * Amount is the rates quote in SOM — the same value Prepare compares.
  *
@@ -14,7 +18,9 @@
  */
 import "../src/shared/boot";
 
+import { randomBytes } from "node:crypto";
 import type { Prisma } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { bookingService } from "../src/modules/booking";
 import {
@@ -33,6 +39,10 @@ import { Money } from "../src/shared/money";
 
 const TEST_NOTE_PREFIX = "CLICK_TEST";
 const DATE_ATTEMPTS = 14;
+/** Dedicated internal account — never a real customer mailbox. */
+const DEFAULT_TEST_EMAIL = "clicktest@safartrip.uz";
+const DEFAULT_TEST_PHONE = "+998900009809";
+const TEST_EMAIL_RE = /^clicktest(\+[a-z0-9._-]+)?@safartrip\.uz$/i;
 
 type EligibleRoomType = {
   id: string;
@@ -60,16 +70,115 @@ function ymd(date: Date): string {
   return utcDateOnly(date).toISOString().slice(0, 10);
 }
 
+type TestGuest = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  created: boolean;
+};
+
+function assertTestEmail(email: string): void {
+  if (!TEST_EMAIL_RE.test(email)) {
+    throw new Error(
+      `Refusing to attach a Click test booking to ${email}. ` +
+        `Guest must be ${DEFAULT_TEST_EMAIL} (or clicktest+tag@safartrip.uz).`,
+    );
+  }
+}
+
+async function resolveClickTestGuest(): Promise<TestGuest> {
+  const guestSelect = {
+    id: true,
+    first_name: true,
+    last_name: true,
+    email: true,
+    phone: true,
+    isBlocked: true,
+  } as const;
+
+  const explicitId = process.env.CLICK_TEST_USER_ID?.trim();
+  if (explicitId) {
+    const user = await prisma.user.findUnique({
+      where: { id: explicitId },
+      select: guestSelect,
+    });
+    if (!user) {
+      throw new Error(
+        `CLICK_TEST_USER_ID=${explicitId} not found. Refusing to fall back to a customer.`,
+      );
+    }
+    assertTestEmail(user.email);
+    if (user.isBlocked) {
+      throw new Error(
+        `Test user ${user.email} is blocked. Unblock it or unset CLICK_TEST_USER_ID.`,
+      );
+    }
+    return { ...user, created: false };
+  }
+
+  const email = (
+    process.env.CLICK_TEST_USER_EMAIL?.trim() || DEFAULT_TEST_EMAIL
+  ).toLowerCase();
+  assertTestEmail(email);
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: guestSelect,
+  });
+  if (existing) {
+    if (existing.isBlocked) {
+      throw new Error(
+        `Test user ${email} is blocked. Unblock it before running this script.`,
+      );
+    }
+    return { ...existing, created: false };
+  }
+
+  const passwordHash = await bcrypt.hash(randomBytes(32).toString("hex"), 12);
+  const phone =
+    process.env.CLICK_TEST_USER_PHONE?.trim() || DEFAULT_TEST_PHONE;
+
+  try {
+    const created = await prisma.user.create({
+      data: {
+        first_name: "Click",
+        last_name: "Test",
+        email,
+        phone,
+        password: passwordHash,
+        role: "user",
+        isBlocked: false,
+      },
+      select: guestSelect,
+    });
+    return { ...created, created: true };
+  } catch {
+    const raced = await prisma.user.findUnique({
+      where: { email },
+      select: guestSelect,
+    });
+    if (raced && !raced.isBlocked) {
+      return { ...raced, created: false };
+    }
+    const phoneTaken = await prisma.user.findUnique({
+      where: { phone },
+      select: { email: true },
+    });
+    if (phoneTaken) {
+      throw new Error(
+        `Cannot create ${email}: phone ${phone} already belongs to ${phoneTaken.email}. ` +
+          `Set CLICK_TEST_USER_PHONE to an unused number.`,
+      );
+    }
+    throw new Error(`Cannot create dedicated test user ${email}.`);
+  }
+}
+
 async function readOnlyInventoryCheck(): Promise<{
   hotel: EligibleHotel;
   roomType: EligibleRoomType;
-  guest: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string | null;
-    phone: string | null;
-  };
 }> {
   const hotels = await prisma.hotel.findMany({
     where: {
@@ -140,53 +249,14 @@ async function readOnlyInventoryCheck(): Promise<{
     }
   }
 
-  const guest =
-    (await prisma.user.findFirst({
-      where: { isBlocked: false, role: "user", email: "customer@safartrip.uz" },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        phone: true,
-      },
-    })) ??
-    (await prisma.user.findFirst({
-      where: { isBlocked: false, role: "user" },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        phone: true,
-      },
-    })) ??
-    (await prisma.user.findFirst({
-      where: { isBlocked: false },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        phone: true,
-      },
-    }));
-
-  if (!guest) {
-    throw new Error("No existing user in DB to own the test booking. Refusing to insert.");
-  }
-
   console.log("[click-test] read-only check passed");
   console.log(`  hotels eligible: ${eligible.length} (zomin-named: ${zomin.length})`);
   console.log(`  picked hotel: ${hotel.name} (${hotel.city ?? "—"}) id=${hotel.id}`);
   console.log(
     `  picked room: ${roomType.name} basePrice=${roomType.basePrice.toString()} som, physicalRooms=${roomType.physicalRoomCount}`,
   );
-  console.log(`  guest: ${guest.email ?? guest.id} (existing user, not created)`);
 
-  return { hotel, roomType, guest };
+  return { hotel, roomType };
 }
 
 async function main() {
@@ -198,7 +268,13 @@ async function main() {
     );
   }
 
-  const { hotel, roomType, guest } = await readOnlyInventoryCheck();
+  const { hotel, roomType } = await readOnlyInventoryCheck();
+  const guest = await resolveClickTestGuest();
+  assertTestEmail(guest.email);
+  console.log(
+    `  guest: ${guest.email}  [TEST USER]  id=${guest.id}` +
+      (guest.created ? " (created now)" : " (reused)"),
+  );
 
   const today = utcDateOnly(new Date());
   const guestName =
@@ -351,6 +427,7 @@ async function main() {
 
     console.log("");
     console.log("Click test booking ready (same path as POST /api/hotels/bookings)");
+    console.log(`  guest:              ${guest.email}  [TEST USER]`);
     console.log(`  hotelBookingId:     ${booking.id}`);
     console.log(`  travelPlanId:       ${plan.id}`);
     console.log(`  merchant_trans_id:  ${stored.id}`);
