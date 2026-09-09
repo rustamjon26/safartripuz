@@ -93,7 +93,17 @@ describe("create-click-test-booking.ts", () => {
     expect(src).toContain("[TEST USER]");
     expect(src).toContain("assertTestEmail");
     expect(src).not.toMatch(/findFirst\(\s*\{\s*where:\s*\{\s*isBlocked:\s*false,\s*role:\s*"user"/);
+    expect(src).not.toMatch(/prisma\.user\.findFirst/);
     expect(src).not.toContain("customer@safartrip.uz");
+    expect(src).toContain("click-test@safartrip.uz");
+  });
+
+  it("can override Click amount via CLICK_TEST_AMOUNT_SOM without Payment-only drift", () => {
+    expect(src).toContain("CLICK_TEST_AMOUNT_SOM");
+    expect(src).toContain("parseTestAmountOverride");
+    expect(src).toContain("amountOverrideSom");
+    expect(src).toContain("totalAmount: paymentSom");
+    expect(src).toContain("HotelBooking.totalAmount");
   });
 });
 
