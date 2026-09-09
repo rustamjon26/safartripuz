@@ -1,6 +1,6 @@
 import { Money, MoneyError } from "@/src/shared/money";
-import { completeSuccessfulPaymentInTx } from "@/lib/payments/completeSuccessfulPaymentTx";
-import { getClickConfig, getPaymentProvidersConfig } from "@/lib/payments/providerConfig";
+import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
+import { getClickConfig, getPaymentProvidersConfig } from "../../domain/provider-config";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import { CLICK_ERROR_NOTES, CLICK_ERRORS } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
@@ -49,7 +49,8 @@ export async function processClickShop(input: {
 }): Promise<ClickShopResult> {
   const { body, rawBody, path, headers = {} } = input;
   const action = asClickNumber(body.action);
-  const phase = action === 0 ? "prepare" : action === 1 ? "complete" : "unknown";
+  const phase: "prepare" | "complete" | "unknown" =
+    action === 0 ? "prepare" : action === 1 ? "complete" : "unknown";
 
   const logMeta = {
     path,
@@ -159,7 +160,10 @@ export async function processClickShop(input: {
   let expected: Money;
   let incoming: Money;
   try {
-    expected = Money.fromSomNumber(String(payment.amount));
+    expected =
+      typeof payment.amountTiyin === "bigint"
+        ? Money.fromTiyin(payment.amountTiyin)
+        : Money.fromSomNumber(String(payment.amount));
     incoming = Money.fromSomNumber(String(body.amount));
   } catch (err) {
     if (err instanceof MoneyError) {

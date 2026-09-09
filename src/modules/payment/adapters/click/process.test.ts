@@ -32,7 +32,7 @@ vi.mock("@/src/shared/observability/sentry", () => ({
   setMoneyPathContext: () => undefined,
 }));
 
-vi.mock("@/lib/payments/providerConfig", () => ({
+vi.mock("../../domain/provider-config", () => ({
   getPaymentProvidersConfig: async () => ({}),
   getClickConfig: () => ({
     enabled: true,
@@ -42,7 +42,7 @@ vi.mock("@/lib/payments/providerConfig", () => ({
   }),
 }));
 
-vi.mock("@/lib/payments/completeSuccessfulPaymentTx", () => ({
+vi.mock("@/src/modules/booking", () => ({
   completeSuccessfulPaymentInTx: async () => {
     harness.fulfill.count += 1;
     const row = harness.payments.get("pay_1");

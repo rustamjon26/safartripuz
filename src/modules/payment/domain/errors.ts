@@ -147,4 +147,28 @@ export const CLICK_ERRORS = {
   TRANSACTION_COMPLETED: -7,
   TRANSACTION_EXPIRED: -8,
   ORDER_CANCELLED: -9,
+  /** Aliases matching Click's English labels (same numeric codes). */
+  INCORRECT_AMOUNT: -2,
+  USER_NOT_FOUND: -5,
+  UPDATE_FAILED: -7,
+  REQUEST_ERROR: -8,
+  TRANSACTION_CANCELLED: -9,
+} as const;
+
+export const CLICK_ERROR_NOTES = {
+  SUCCESS: "Success",
+  SIGN_FAILED: "SIGN CHECK FAILED!",
+  INCORRECT_PARAMS: "Incorrect parameter amount",
+  INCORRECT_AMOUNT: "Incorrect parameter amount",
+  ACTION_NOT_FOUND: "Action not found",
+  ALREADY_PAID: "Already paid",
+  TRANSACTION_NOT_FOUND: "User does not exist",
+  USER_NOT_FOUND: "User does not exist",
+  TRANSACTION_NOT_EXIST: "Transaction does not exist",
+  TRANSACTION_COMPLETED: "Failed to update user",
+  UPDATE_FAILED: "Failed to update user",
+  TRANSACTION_EXPIRED: "Error in request from click",
+  REQUEST_ERROR: "Error in request from click",
+  ORDER_CANCELLED: "Transaction cancelled",
+  TRANSACTION_CANCELLED: "Transaction cancelled",
 } as const;
