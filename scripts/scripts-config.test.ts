@@ -72,6 +72,23 @@ describe("backup.sh off-site copy", () => {
   });
 });
 
+describe("create-click-test-booking.ts", () => {
+  const src = read("scripts/create-click-test-booking.ts");
+
+  it("uses the live hold path, not a raw HotelBooking insert", () => {
+    expect(src).toContain("bookingService.createHeldHotelBooking");
+    expect(src).toContain("ratesService.quoteHotel");
+    expect(src).not.toMatch(/prisma\.hotelBooking\.create/);
+    expect(src).not.toMatch(/prisma\.booking\.upsert/);
+  });
+
+  it("prints merchant_trans_id as Payment.id and Prepare amount from stored Payment.amount", () => {
+    expect(src).toContain("merchant_trans_id");
+    expect(src).toContain("Money.fromSomNumber(String(stored.amount))");
+    expect(src).toContain('provider: "CLICK"');
+  });
+});
+
 describe("ChannelSyncJob", () => {
   it("is recorded as not implemented, so the table is not mistaken for a queue", () => {
     const backlog = read("docs/BACKLOG.md");

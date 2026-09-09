@@ -57,8 +57,11 @@ function clickJson(payload: Record<string, unknown>) {
   return NextResponse.json(payload);
 }
 
-export async function clickHttpHandler(req: Request) {
-  const path = "/api/payments/webhook/click";
+export async function clickHttpHandler(
+  req: Request,
+  opts?: { path?: string },
+) {
+  const path = opts?.path ?? "/api/payments/webhook/click";
   let rawBody = "";
   try {
     const parsed = await parseClickBody(req);
