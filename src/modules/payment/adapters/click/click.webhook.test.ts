@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildClickSignString,
@@ -6,6 +8,11 @@ import {
 } from "./sign";
 
 const SECRET = "test_secret";
+const repoRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
+
+function readRoute(relative: string): string {
+  return readFileSync(path.join(repoRoot, relative), "utf8");
+}
 
 describe("click.webhook signatures", () => {
   it("valid Prepare (no merchant_prepare_id in string)", () => {
@@ -87,5 +94,19 @@ describe("click.webhook signatures", () => {
     const signed = { ...body, sign_string: sign };
     expect(verifyClickSignature(signed, SECRET, "complete")).toBe(true);
     expect(verifyClickSignature(signed, SECRET, "complete")).toBe(true);
+  });
+});
+
+describe("click live routes call processClickShop", () => {
+  it("prepare, complete, and legacy webhook routes import processClickShop", () => {
+    for (const file of [
+      "app/api/payments/webhook/click/prepare/route.ts",
+      "app/api/payments/webhook/click/complete/route.ts",
+      "app/api/payments/webhook/click/route.ts",
+    ]) {
+      const src = readRoute(file);
+      expect(src).toContain("processClickShop");
+      expect(src).not.toContain("clickHttpHandler");
+    }
   });
 });

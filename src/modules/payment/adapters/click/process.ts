@@ -1,6 +1,7 @@
 import { Money, MoneyError } from "@/src/shared/money";
 import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
 import { getClickConfig, getPaymentProvidersConfig } from "../../domain/provider-config";
+import { isPaymentCaptured } from "../../domain/payment-status";
 import { setMoneyPathContext } from "@/src/shared/observability/sentry";
 import { CLICK_ERROR_NOTES, CLICK_ERRORS } from "../../domain/errors";
 import { paymentRepository } from "../../repository/payment.repository";
@@ -13,6 +14,17 @@ export type ClickShopResult = Record<string, unknown> & {
   error: number;
   error_note: string;
 };
+
+function clickFail(
+  code: keyof typeof CLICK_ERROR_NOTES,
+  extra: Record<string, unknown> = {},
+): ClickShopResult {
+  return {
+    ...extra,
+    error: CLICK_ERRORS[code],
+    error_note: CLICK_ERROR_NOTES[code],
+  };
+}
 
 function reply(
   payload: ClickShopResult,
@@ -41,6 +53,10 @@ function reply(
   return payload;
 }
 
+/**
+ * Canonical Click Shop Prepare/Complete. Routes must call this — do not
+ * reimplement signature/amount/idempotency in a parallel handler.
+ */
 export async function processClickShop(input: {
   body: ClickShopBody;
   rawBody: string;
@@ -67,40 +83,39 @@ export async function processClickShop(input: {
     verified: null,
   });
 
+  try {
+    return await runClickShop({ body, rawBody, path, headers, action, logMeta });
+  } catch (err) {
+    console.error("[click-shop] unhandled", err);
+    return reply(clickFail("UPDATE_FAILED"), logMeta);
+  }
+}
+
+async function runClickShop(input: {
+  body: ClickShopBody;
+  rawBody: string;
+  path: string;
+  headers: Record<string, string>;
+  action: number;
+  logMeta: {
+    path: string;
+    phase: "prepare" | "complete" | "unknown";
+    body: ClickShopBody;
+    signatureOk: boolean | null;
+  };
+}): Promise<ClickShopResult> {
+  const { body, rawBody, path, headers, action, logMeta } = input;
+  const phase = logMeta.phase;
+
   const providers = await getPaymentProvidersConfig();
   const config = getClickConfig(providers);
 
   if (!config.enabled) {
-    return reply(
-      {
-        error: CLICK_ERRORS.REQUEST_ERROR,
-        error_note: CLICK_ERROR_NOTES.REQUEST_ERROR,
-      },
-      logMeta,
-    );
+    return reply(clickFail("REQUEST_ERROR"), logMeta);
   }
 
   if (phase === "unknown") {
-    return reply(
-      {
-        error: CLICK_ERRORS.ACTION_NOT_FOUND,
-        error_note: CLICK_ERROR_NOTES.ACTION_NOT_FOUND,
-      },
-      logMeta,
-    );
-  }
-
-  if (phase === "complete") {
-    const prepareId = body.merchant_prepare_id;
-    if (prepareId === undefined || prepareId === null || String(prepareId) === "") {
-      return reply(
-        {
-          error: CLICK_ERRORS.REQUEST_ERROR,
-          error_note: CLICK_ERROR_NOTES.REQUEST_ERROR,
-        },
-        logMeta,
-      );
-    }
+    return reply(clickFail("ACTION_NOT_FOUND"), logMeta);
   }
 
   const isValid = verifyClickSignature(body, config.secretKey ?? "", phase);
@@ -114,23 +129,11 @@ export async function processClickShop(input: {
       verified: false,
       resultNote: "SIGN_FAILED",
     });
-    return reply(
-      {
-        error: CLICK_ERRORS.SIGN_FAILED,
-        error_note: CLICK_ERROR_NOTES.SIGN_FAILED,
-      },
-      logMeta,
-    );
+    return reply(clickFail("SIGN_FAILED"), logMeta);
   }
 
   if (config.serviceId && String(body.service_id) !== String(config.serviceId)) {
-    return reply(
-      {
-        error: CLICK_ERRORS.REQUEST_ERROR,
-        error_note: CLICK_ERROR_NOTES.REQUEST_ERROR,
-      },
-      logMeta,
-    );
+    return reply(clickFail("REQUEST_ERROR"), logMeta);
   }
 
   const paymentId = String(body.merchant_trans_id);
@@ -148,54 +151,34 @@ export async function processClickShop(input: {
   const payment = await paymentRepository.findPaymentWithTravelPlanUser(paymentId);
 
   if (!payment || payment.provider !== "CLICK") {
-    return reply(
-      {
-        error: CLICK_ERRORS.USER_NOT_FOUND,
-        error_note: CLICK_ERROR_NOTES.USER_NOT_FOUND,
-      },
-      logMeta,
-    );
+    return reply(clickFail("USER_NOT_FOUND"), logMeta);
   }
 
   let expected: Money;
   let incoming: Money;
   try {
     expected =
-      typeof payment.amountTiyin === "bigint"
+      payment.amountTiyin != null
         ? Money.fromTiyin(payment.amountTiyin)
         : Money.fromSomNumber(String(payment.amount));
     incoming = Money.fromSomNumber(String(body.amount));
   } catch (err) {
     if (err instanceof MoneyError) {
-      return reply(
-        {
-          error: CLICK_ERRORS.INCORRECT_AMOUNT,
-          error_note: CLICK_ERROR_NOTES.INCORRECT_AMOUNT,
-        },
-        logMeta,
-      );
+      return reply(clickFail("INCORRECT_AMOUNT"), logMeta);
     }
     throw err;
   }
 
   if (!expected.equals(incoming)) {
-    return reply(
-      {
-        error: CLICK_ERRORS.INCORRECT_AMOUNT,
-        error_note: CLICK_ERROR_NOTES.INCORRECT_AMOUNT,
-      },
-      logMeta,
-    );
+    return reply(clickFail("INCORRECT_AMOUNT"), logMeta);
   }
 
   if (phase === "prepare") {
-    if (payment.status === "SUCCESS") {
-      const resp: ClickShopResult = {
+    if (isPaymentCaptured(payment.status)) {
+      const resp = clickFail("ALREADY_PAID", {
         click_trans_id: body.click_trans_id,
         merchant_trans_id: paymentId,
-        error: CLICK_ERRORS.ALREADY_PAID,
-        error_note: CLICK_ERROR_NOTES.ALREADY_PAID,
-      };
+      });
       await paymentService.storeProcessedResponse({
         provider: "CLICK",
         providerEventId,
@@ -248,7 +231,10 @@ export async function processClickShop(input: {
     return reply(resp, logMeta);
   }
 
-  // Complete (action=1)
+  // Complete (action=1).
+  // Cancel is not gated on the prepare record: refusing it would strand the
+  // payment in PENDING with no way for Click to cancel. Return error 0 so
+  // Click treats the notification as processed (live handler behaviour).
   const inboundError = asClickNumber(body.error);
   if (inboundError < 0) {
     await paymentRepository.updatePaymentFields(paymentId, {
@@ -258,8 +244,8 @@ export async function processClickShop(input: {
       click_trans_id: body.click_trans_id,
       merchant_trans_id: paymentId,
       merchant_prepare_id: body.merchant_prepare_id,
-      error: CLICK_ERRORS.TRANSACTION_CANCELLED,
-      error_note: CLICK_ERROR_NOTES.TRANSACTION_CANCELLED,
+      error: CLICK_ERRORS.SUCCESS,
+      error_note: "Cancelled",
     };
     await paymentService.storeProcessedResponse({
       provider: "CLICK",
@@ -271,12 +257,10 @@ export async function processClickShop(input: {
   }
 
   if (payment.status === "CANCELLED" || payment.status === "FAILED") {
-    const resp: ClickShopResult = {
+    const resp = clickFail("TRANSACTION_CANCELLED", {
       click_trans_id: body.click_trans_id,
       merchant_trans_id: paymentId,
-      error: CLICK_ERRORS.TRANSACTION_CANCELLED,
-      error_note: CLICK_ERROR_NOTES.TRANSACTION_CANCELLED,
-    };
+    });
     await paymentService.storeProcessedResponse({
       provider: "CLICK",
       providerEventId,
@@ -286,26 +270,40 @@ export async function processClickShop(input: {
     return reply(resp, logMeta);
   }
 
-  const prepareId = String(body.merchant_prepare_id);
-  const ptx = await paymentRepository.findPaymentTransactionById(prepareId);
-  if (!ptx || ptx.legacyPaymentId !== paymentId) {
-    return reply(
-      {
-        error: CLICK_ERRORS.TRANSACTION_NOT_FOUND,
-        error_note: CLICK_ERROR_NOTES.TRANSACTION_NOT_FOUND,
-      },
-      logMeta,
-    );
-  }
-
-  if (payment.status === "SUCCESS") {
-    const resp: ClickShopResult = {
+  if (isPaymentCaptured(payment.status)) {
+    const resp = clickFail("ALREADY_PAID", {
       click_trans_id: body.click_trans_id,
       merchant_trans_id: paymentId,
-      merchant_confirm_id: ptx.id,
-      error: CLICK_ERRORS.ALREADY_PAID,
-      error_note: CLICK_ERROR_NOTES.ALREADY_PAID,
-    };
+    });
+    await paymentService.storeProcessedResponse({
+      provider: "CLICK",
+      providerEventId,
+      rawBody,
+      response: resp,
+    });
+    return reply(resp, logMeta);
+  }
+
+  const prepareId =
+    body.merchant_prepare_id != null ? String(body.merchant_prepare_id).trim() : "";
+  if (!prepareId) {
+    return reply(clickFail("TRANSACTION_NOT_EXIST"), logMeta);
+  }
+
+  const ptx = await paymentRepository.findPaymentTransactionById(prepareId);
+  if (!ptx || ptx.provider !== "CLICK" || ptx.legacyPaymentId !== paymentId) {
+    return reply(clickFail("TRANSACTION_NOT_EXIST"), logMeta);
+  }
+
+  if (ptx.externalRef && ptx.externalRef !== String(body.click_trans_id)) {
+    return reply(clickFail("TRANSACTION_NOT_EXIST"), logMeta);
+  }
+
+  if (ptx.status === "SUCCESS") {
+    const resp = clickFail("ALREADY_PAID", {
+      click_trans_id: body.click_trans_id,
+      merchant_trans_id: paymentId,
+    });
     await paymentService.storeProcessedResponse({
       provider: "CLICK",
       providerEventId,
@@ -318,15 +316,18 @@ export async function processClickShop(input: {
   const successResponse: ClickShopResult = {
     click_trans_id: body.click_trans_id,
     merchant_trans_id: paymentId,
-    merchant_confirm_id: ptx.id,
+    merchant_confirm_id: body.click_trans_id,
     error: CLICK_ERRORS.SUCCESS,
     error_note: CLICK_ERROR_NOTES.SUCCESS,
   };
 
   try {
     await paymentRepository.runTransaction(async (tx) => {
-      const fresh = await paymentRepository.findPaymentWithTravelPlanUser(paymentId, tx);
-      if (!fresh || fresh.status !== "SUCCESS") {
+      const fresh = await paymentRepository.findPaymentWithTravelPlanUser(
+        paymentId,
+        tx,
+      );
+      if (!fresh || !isPaymentCaptured(fresh.status)) {
         await completeSuccessfulPaymentInTx(tx, {
           paymentId,
           travelPlanId: payment.travelPlanId,
@@ -359,13 +360,7 @@ export async function processClickShop(input: {
     });
   } catch (err) {
     console.error("[click-shop] complete update failed", err);
-    return reply(
-      {
-        error: CLICK_ERRORS.UPDATE_FAILED,
-        error_note: CLICK_ERROR_NOTES.UPDATE_FAILED,
-      },
-      logMeta,
-    );
+    return reply(clickFail("UPDATE_FAILED"), logMeta);
   }
 
   await paymentService.logInbound({
