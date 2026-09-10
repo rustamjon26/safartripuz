@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { Money } from "@/src/shared/money";
-import { LedgerTxType } from "@/src/modules/ledger";
+import { LedgerTxType, isRetiredPaymeTestBookingId } from "@/src/modules/ledger";
 import { CAPTURED_PAYMENT_STATUSES } from "@/src/modules/payment";
 
 // TODO(taxi): DriverEarning ↔ ledger needs the same reconcile treatment later.
@@ -248,6 +248,7 @@ export function reconcileLedgerPartnerEarnings(
   // Also: ledger BOOKING_PAYMENT for unknown booking types still needs PE
   for (const [bookingId, txs] of paymentTxByBooking) {
     if (bookingById.has(bookingId)) continue;
+    if (isRetiredPaymeTestBookingId(bookingId)) continue;
     const pes = (peByBookingId.get(bookingId) ?? []).filter(
       (p) => p.bookingType !== "TAXI",
     );
@@ -426,6 +427,7 @@ export function reconcileLedgerPartnerEarnings(
   // --- 5. Orphans ---
   for (const pe of input.partnerEarnings) {
     if (pe.bookingType === "TAXI") continue;
+    if (isRetiredPaymeTestBookingId(pe.bookingId)) continue;
     if (!input.knownBookingIds.has(pe.bookingId)) {
       findings.push({
         check: "ORPHAN_ENTRY",
@@ -439,6 +441,7 @@ export function reconcileLedgerPartnerEarnings(
   }
   for (const tx of input.ledgerTxs) {
     if (!tx.bookingId) continue;
+    if (isRetiredPaymeTestBookingId(tx.bookingId)) continue;
     if (!input.knownBookingIds.has(tx.bookingId)) {
       findings.push({
         check: "ORPHAN_ENTRY",

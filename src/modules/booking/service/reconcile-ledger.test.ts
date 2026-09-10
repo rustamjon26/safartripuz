@@ -387,6 +387,21 @@ describe("reconcileLedgerPartnerEarnings", () => {
     expect(report.clean).toBe(false);
   });
 
+  it("does not flag retired Payme test booking ids as orphans", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        bookings: [],
+        partnerEarnings: [
+          pe({ id: "pe_s1", bookingId: "payme-test-s1" }),
+        ],
+        ledgerTxs: [paymentTx("payme-test-001")],
+        knownBookingIds: new Set(),
+      }),
+    );
+    expect(driftOf(report, "ORPHAN_ENTRY")).toEqual([]);
+    expect(driftOf(report, "MISSING_PARTNER_EARNING")).toEqual([]);
+  });
+
   it("flags only expected checks for a mixed fixture set", () => {
     const report = reconcileLedgerPartnerEarnings({
       since: null,
