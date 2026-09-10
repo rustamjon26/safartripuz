@@ -16,6 +16,8 @@ export {
   CAPTURED_PAYMENT_STATUSES,
   isPaymentCaptured,
   isPaymentSettled,
+  paymentReturnOutcome,
+  type PaymentReturnOutcome,
 } from "./domain/payment-status";
 export {
   buildPaymeReceiptDetail,
@@ -26,7 +28,8 @@ export {
   type PaymeReceiptItem,
 } from "./domain/payme-receipt";
 export { paymeHttpHandler, type PaymeAccountMode } from "./adapters/payme/httpHandler";
-export { clickHttpHandler } from "./adapters/click/handler";
+export { processClickShop } from "./adapters/click/process";
+export { parseClickShopHttpBody } from "./adapters/click/schema";
 export {
   verifyClickSignature,
   buildClickSignString,

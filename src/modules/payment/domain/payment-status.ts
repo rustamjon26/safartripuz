@@ -20,3 +20,17 @@ export function isPaymentCaptured(status: string | null | undefined): boolean {
 export function isPaymentSettled(status: string | null | undefined): boolean {
   return status === "SUCCESS";
 }
+
+/**
+ * Coarse return-page view. Never includes amount or booking fields —
+ * those stay off the unauthenticated Click/Payme return_url surface.
+ */
+export type PaymentReturnOutcome = "captured" | "pending" | "failed" | "not_found";
+
+export function paymentReturnOutcome(
+  status: string | null | undefined,
+): Exclude<PaymentReturnOutcome, "not_found"> {
+  if (isPaymentCaptured(status)) return "captured";
+  if (status === "FAILED" || status === "CANCELLED") return "failed";
+  return "pending";
+}

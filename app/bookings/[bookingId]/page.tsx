@@ -4,7 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, CheckCircle2, Hotel, Wallet } from "lucide-react";
 import { PaymeButton } from "@/components/PaymeButton";
+import { getOptionalUser } from "@/lib/authz";
 import { bookingRepository } from "@/src/modules/booking";
+import { BookingReturnPoller } from "./BookingReturnPoller";
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   PENDING: {
@@ -36,25 +38,26 @@ function formatUzs(amountTiyin: number): string {
 
 export default async function PaymeBookingPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ bookingId: string }>;
-  searchParams: Promise<{ status?: string }>;
 }) {
   const { bookingId } = await params;
-  const { status } = await searchParams;
 
+  const actor = await getOptionalUser();
   const booking = await bookingRepository.findPaymeBookingWithHotel(bookingId);
 
-  if (!booking) notFound();
+  if (!booking || !actor || booking.userId !== actor.id) {
+    notFound();
+  }
 
   const statusStyle = STATUS_STYLES[booking.status] ?? {
     label: booking.status,
     className: "bg-slate-50 text-slate-700 ring-slate-100",
   };
 
-  const isSuccess = status === "success" || booking.status === "PAID";
-  const isFailed = status === "failed";
+  const isSuccess = booking.status === "PAID";
+  const isPending = booking.status === "PENDING";
+  const isFailed = booking.status === "CANCELLED";
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10">
@@ -122,6 +125,13 @@ export default async function PaymeBookingPage({
             {isFailed ? (
               <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 To&apos;lov yakunlanmadi. Qayta urinib ko&apos;ring.
+              </div>
+            ) : null}
+
+            {isPending ? (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                To&apos;lov tasdiqlanmoqda. Sahifa avtomatik yangilanadi — yoki yangilab ko&apos;ring.
+                <BookingReturnPoller active />
               </div>
             ) : null}
 

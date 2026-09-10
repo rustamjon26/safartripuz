@@ -1,5 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { payloadHash } from "../domain/hash";
+import {
+  paymentReturnOutcome,
+  type PaymentReturnOutcome,
+} from "../domain/payment-status";
 import { paymentRepository, type Tx } from "../repository/payment.repository";
 
 export type InboundProcessResult<T> =
@@ -82,6 +86,24 @@ export class PaymentService {
       },
       client ?? undefined,
     );
+  }
+
+  /**
+   * Click/Payme return_url lookup. When `actorId` is set, another user's
+   * payment is indistinguishable from a missing id (no amount, no plan).
+   */
+  async getReturnView(
+    paymentId: string,
+    actorId: string | null,
+  ): Promise<{ outcome: PaymentReturnOutcome }> {
+    const payment = await paymentRepository.findPaymentWithTravelPlanUser(paymentId);
+    if (!payment || !payment.travelPlan) {
+      return { outcome: "not_found" };
+    }
+    if (actorId && payment.travelPlan.userId !== actorId) {
+      return { outcome: "not_found" };
+    }
+    return { outcome: paymentReturnOutcome(payment.status) };
   }
 
   async createIntent(input: {
