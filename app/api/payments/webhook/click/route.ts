@@ -1,5 +1,19 @@
-import { clickHttpHandler } from "@/src/modules/payment";
+import { NextResponse } from "next/server";
+import { parseClickShopHttpBody, processClickShop } from "@/src/modules/payment";
+
+const PATH = "/api/payments/webhook/click";
 
 export async function POST(req: Request) {
-  return clickHttpHandler(req);
+  const parsed = await parseClickShopHttpBody(req, PATH);
+  if (!parsed.ok) {
+    return NextResponse.json(parsed.errorBody);
+  }
+  return NextResponse.json(
+    await processClickShop({
+      body: parsed.body,
+      rawBody: parsed.rawBody,
+      path: PATH,
+      headers: parsed.headers,
+    }),
+  );
 }

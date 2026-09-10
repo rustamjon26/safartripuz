@@ -86,6 +86,19 @@ export async function requireUserWithProfile(): Promise<{
   };
 }
 
+/** Session if present; never throws UNAUTHORIZED. */
+export async function getOptionalUser(): Promise<{
+  id: string;
+  role: AppRole;
+} | null> {
+  try {
+    return await requireUser();
+  } catch (err) {
+    if (err instanceof Error && err.message === "UNAUTHORIZED") return null;
+    throw err;
+  }
+}
+
 export async function requireRole(allowed: AppRole[]) {
   const { id, role } = await requireUser();
   if (!allowed.includes(role)) throw new Error("FORBIDDEN");
