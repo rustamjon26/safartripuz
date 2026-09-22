@@ -32,6 +32,11 @@ export type RawOtaReservation = {
 
 export interface ChannelAdapter {
   readonly providerKey: OtaProviderKey;
+  /**
+   * `dry_run` adapters must not receive availability numbers. A live adapter
+   * is the only path allowed to push allotment to an OTA.
+   */
+  readonly mode: "live" | "dry_run";
   /** Validate credentials / hotel code without mutating inventory. */
   ping(ctx: {
     externalHotelId: string | null;

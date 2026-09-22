@@ -340,7 +340,9 @@ export class BookingService {
           checkOutDate: input.checkOutDate,
           roomCount: input.roomCount,
           totalAmount: input.totalAmount,
+          totalAmountTiyin: Money.fromSomNumber(input.totalAmount).toTiyin(),
           paidAmount: 0,
+          paidAmountTiyin: 0n,
           status: "HELD",
           holdExpiresAt,
           source: input.source ?? "SAFARTRIP",
@@ -418,7 +420,9 @@ export class BookingService {
           checkOutDate: input.checkOutDate,
           roomCount: input.roomCount,
           totalAmount: input.totalAmount,
+          totalAmountTiyin: Money.fromSomNumber(input.totalAmount).toTiyin(),
           paidAmount: input.paidAmount ?? 0,
+          paidAmountTiyin: Money.fromSomNumber(input.paidAmount ?? 0).toTiyin(),
           status: "CONFIRMED",
           holdExpiresAt: null,
           source: input.source ?? "RECEPTION",
@@ -1043,7 +1047,12 @@ export class BookingService {
             {
               actor,
               reason: "PAYMENT_SUCCESS",
-              extra: { paidAmount: booking.totalAmount },
+              extra: {
+                paidAmount: booking.totalAmount,
+                paidAmountTiyin:
+                  booking.totalAmountTiyin ??
+                  Money.fromSomNumber(booking.totalAmount.toString()).toTiyin(),
+              },
             },
             tx,
           );
@@ -1087,7 +1096,12 @@ export class BookingService {
           {
             actor,
             reason: "PAYMENT_SUCCESS",
-            extra: { paidAmount: booking.totalAmount },
+            extra: {
+              paidAmount: booking.totalAmount,
+              paidAmountTiyin:
+                booking.totalAmountTiyin ??
+                Money.fromSomNumber(booking.totalAmount.toString()).toTiyin(),
+            },
           },
           tx,
         );
@@ -1107,7 +1121,12 @@ export class BookingService {
           {
             actor,
             reason: "PAYMENT_SUCCESS",
-            extra: { paidAmount: booking.totalAmount },
+            extra: {
+              paidAmount: booking.totalAmount,
+              paidAmountTiyin:
+                booking.totalAmountTiyin ??
+                Money.fromSomNumber(booking.totalAmount.toString()).toTiyin(),
+            },
           },
           tx,
         );

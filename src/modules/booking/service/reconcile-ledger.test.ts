@@ -461,4 +461,65 @@ describe("reconcileLedgerPartnerEarnings", () => {
     expect(report.policyNotes[0]).toBe(LEGACY_UNCLASSIFIED_PAYOUT_NOTE);
     expect(report.clean).toBe(true);
   });
+
+  it("flags a taxi trip whose ledger gross does not match DriverEarning", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        driverEarnings: [
+          {
+            id: "de_1",
+            orderId: "order_1",
+            grossTiyin: 500_000n,
+            platformFeeTiyin: 75_000n,
+            netTiyin: 425_000n,
+            createdAt: new Date("2026-08-01"),
+          },
+        ],
+        ledgerTxs: [
+          paymentTx("bk_clean"),
+          {
+            ...paymentTx("order_1", { gross: 400_000n, platform: 60_000n, partner: 340_000n }),
+            id: "ltx_taxi",
+            bookingType: "TAXI",
+            idempotencyKey: "taxi:order:order_1:completed",
+          },
+        ],
+      }),
+    );
+    const mismatch = driftOf(report, "SUM_MISMATCH");
+    expect(mismatch.some((f) => f.bookingType === "TAXI" && f.bookingId === "order_1")).toBe(
+      true,
+    );
+  });
+
+  it("accepts a taxi trip when DriverEarning gross matches the ledger debit", () => {
+    const report = reconcileLedgerPartnerEarnings(
+      baseInput({
+        driverEarnings: [
+          {
+            id: "de_1",
+            orderId: "order_1",
+            grossTiyin: 1_000_000n,
+            platformFeeTiyin: 100_000n,
+            netTiyin: 900_000n,
+            createdAt: new Date("2026-08-01"),
+          },
+        ],
+        ledgerTxs: [
+          paymentTx("bk_clean"),
+          {
+            ...paymentTx("order_1"),
+            id: "ltx_taxi",
+            bookingType: "TAXI",
+          },
+        ],
+      }),
+    );
+    expect(driftOf(report, "SUM_MISMATCH").filter((f) => f.bookingType === "TAXI")).toHaveLength(
+      0,
+    );
+    expect(driftOf(report, "ORPHAN_ENTRY").filter((f) => f.bookingId === "order_1")).toHaveLength(
+      0,
+    );
+  });
 });

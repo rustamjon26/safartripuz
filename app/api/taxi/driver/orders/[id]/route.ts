@@ -172,8 +172,11 @@ export async function PATCH(
             driverId: actor.id,
             orderId: updated.id,
             grossAmount: Money.fromTiyin(grossTiyin).toSomNumber(),
+            grossTiyin,
             platformFee: Money.fromTiyin(commissionFee).toSomNumber(),
+            platformFeeTiyin: commissionFee,
             netAmount: Money.fromTiyin(netAmount).toSomNumber(),
+            netTiyin: netAmount,
             status: "PENDING",
           },
         });

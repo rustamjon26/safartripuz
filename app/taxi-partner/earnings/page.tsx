@@ -27,6 +27,7 @@ export default function TaxiEarningsPage() {
     return `${d.getFullYear()}-${m}`;
   });
   const [items, setItems] = useState<Earning[]>([]);
+  const [summary, setSummary] = useState({ gross: 0, fee: 0, net: 0 });
   const [q, setQ] = useState(() => searchParams.get("q") ?? "");
 
   useEffect(() => {
@@ -39,7 +40,17 @@ export default function TaxiEarningsPage() {
     try {
       const res = await fetch(`/api/taxi/driver/earnings?month=${month}`);
       const json = await res.json();
-      if (res.ok && json.success) setItems(json.data?.data || []);
+      if (res.ok && json.success) {
+        setItems(json.data?.data || []);
+        const totals = json.data?.summary as
+          | { totalGross?: number; totalFee?: number; totalNet?: number }
+          | undefined;
+        setSummary({
+          gross: totals?.totalGross ?? 0,
+          fee: totals?.totalFee ?? 0,
+          net: totals?.totalNet ?? 0,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -48,20 +59,6 @@ export default function TaxiEarningsPage() {
   useEffect(() => {
     void load();
   }, [month]);
-
-  const summary = useMemo(
-    () =>
-      items.reduce(
-        (acc, item) => {
-          acc.gross += Number(item.grossAmount);
-          acc.fee += Number(item.platformFee);
-          acc.net += Number(item.netAmount);
-          return acc;
-        },
-        { gross: 0, fee: 0, net: 0 },
-      ),
-    [items],
-  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();

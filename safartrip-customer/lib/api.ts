@@ -108,8 +108,8 @@ export async function apiFetch(path: string, options: ApiOptions = {}) {
 
 export const api = {
   get: (path: string) => apiFetch(path, { method: "GET" }),
-  post: (path: string, body?: unknown) =>
-    apiFetch(path, { method: "POST", body: body as ApiOptions["body"] }),
+  post: (path: string, body?: unknown, headers?: Record<string, string>) =>
+    apiFetch(path, { method: "POST", body: body as ApiOptions["body"], headers }),
   put: (path: string, body?: unknown) =>
     apiFetch(path, { method: "PUT", body: body as ApiOptions["body"] }),
   patch: (path: string, body?: unknown) =>

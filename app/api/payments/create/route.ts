@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/authz";
 import { z } from "zod";
 import { PaymentProvider } from "@prisma/client";
 import { Money } from "@/src/shared/money";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   appBaseUrl,
   getClickConfig,
@@ -19,6 +20,12 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`pay-create:${actor.id}`, 10, 60_000))) {
+      return NextResponse.json(
+        { error: "Juda ko'p so'rov. Birozdan keyin urinib ko'ring." },
+        { status: 429 },
+      );
+    }
     const json = await req.json();
     const parsed = schema.safeParse(json);
 

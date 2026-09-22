@@ -1,4 +1,5 @@
 import { Prisma, type GuideBookingStatus } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +10,14 @@ import {
 } from "@/lib/guide/checkAvailability";
 import { GUIDE_ERRORS } from "@/lib/guide/errors";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
+import { somToTiyin } from "@/src/shared/money";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  abandonBookingIdempotency,
+  beginBookingIdempotency,
+  completeBookingIdempotency,
+  readIdempotencyKey,
+} from "@/src/modules/booking";
 import { fail, handleApiError, ok } from "../_utils";
 
 const timeSchema = z.string().regex(/^\d{2}:\d{2}$/);
@@ -89,6 +98,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`guide-book:${actor.id}`, 8, 60_000))) {
+      return fail("Juda ko'p so'rov. Birozdan keyin urinib ko'ring.", 429);
+    }
+    const idemKey = readIdempotencyKey(req.headers.get("idempotency-key"));
     const parsed = createBookingSchema.safeParse(await req.json());
     if (!parsed.success) {
       return fail("listingId, date, startTime, endTime, groupSize are required", 400);
@@ -124,7 +137,21 @@ export async function POST(req: Request) {
       calculatedAt: new Date().toISOString(),
     };
 
-    const created = await inventoryService.withSerializableRetry(async (tx) => {
+    let idemClaimed = false;
+    if (idemKey) {
+      const gate = await beginBookingIdempotency("guide-create", actor.id, idemKey);
+      if (gate.kind === "replay") {
+        return NextResponse.json(gate.body, { status: gate.statusCode });
+      }
+      if (gate.kind === "busy") {
+        return fail("So'rov bajarilmoqda. Biroz kuting.", 409);
+      }
+      idemClaimed = true;
+    }
+
+    let created;
+    try {
+      created = await inventoryService.withSerializableRetry(async (tx) => {
       // checkGuideSlot ran outside any transaction; re-assert under a row lock
       // so two concurrent requests cannot claim the same slot.
       await assertGuideSlotFreeInTx(tx, {
@@ -160,6 +187,7 @@ export async function POST(req: Request) {
                   pax: body.groupSize as number,
                   status: "PENDING_PAYMENT",
                   totalAmount: availability.totalPrice,
+                  totalAmountTiyin: somToTiyin(availability.totalPrice),
                   note: "Auto-created from Guide booking",
                 },
                 select: { id: true },
@@ -180,7 +208,9 @@ export async function POST(req: Request) {
           hours: availability.hours,
           groupSize: body.groupSize!,
           hourlyRate: Number(availability.listing!.pricePerHour),
+          hourlyRateTiyin: somToTiyin(availability.listing!.pricePerHour.toString()),
           totalPrice: availability.totalPrice,
+          totalPriceTiyin: somToTiyin(availability.totalPrice),
           priceSnapshot,
           status: "PENDING",
           holdExpiresAt: new Date(Date.now() + HOLD_TTL_MS),
@@ -213,14 +243,27 @@ export async function POST(req: Request) {
       if (shouldIncrementPlanTotal && travelPlanId) {
         await tx.travelPlan.update({
           where: { id: travelPlanId },
-          data: { totalAmount: { increment: availability.totalPrice } },
+          data: {
+            totalAmount: { increment: availability.totalPrice },
+            totalAmountTiyin: { increment: somToTiyin(availability.totalPrice) },
+          },
         });
       }
 
       return booking;
     });
+    } catch (error) {
+      if (idemClaimed && idemKey) {
+        await abandonBookingIdempotency("guide-create", actor.id, idemKey);
+      }
+      throw error;
+    }
 
-    return ok(created, 201);
+    const payload = { success: true, data: created };
+    if (idemKey) {
+      await completeBookingIdempotency("guide-create", actor.id, idemKey, 201, payload);
+    }
+    return NextResponse.json(payload, { status: 201 });
   } catch (error) {
     if (error instanceof GuideSlotTakenError) {
       return fail(GUIDE_ERRORS.SLOT_UNAVAILABLE, 409);

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const bodySchema = z.object({
   /** Required when the account already has a password. */
@@ -20,6 +21,12 @@ function hasPasswordHash(password: string | null | undefined): boolean {
 export async function PATCH(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`password:${actor.id}`, 5, 10 * 60_000))) {
+      return NextResponse.json(
+        { message: "Juda ko'p urinish. 10 daqiqadan so'ng qayta urining." },
+        { status: 429 },
+      );
+    }
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(

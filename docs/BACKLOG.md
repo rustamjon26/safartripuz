@@ -61,33 +61,21 @@ Still open (optional follow-ups):
 - Post-deploy smoke (human, Contabo):  
   `pm2 logs safartrip-outbox --lines 200 --nostream | grep -iE 'error|fail'`
 
-## Channel / OTA sync — NOT IMPLEMENTED
+## Channel / OTA sync — queue drains, adapters are dry-run
 
-`ChannelSyncJob` is a real table with real indexes, a `channel` module and a
-`/api/hotel/channel/sync` route, which together look like working
-infrastructure. They are not.
+`safartrip-channel-sync` (PM2 cron, `scripts/channel-sync-drain.ts`) claims
+`QUEUED` jobs and runs them. Booking.com, Expedia and Airbnb adapters are still
+`mode: "dry_run"`: the job finishes as `SUCCEEDED` with `dryRun: true` and does
+**not** push allotment. The hotel integrations screen labels that result `SINOV`.
 
-**What exists:** enqueue a job, list jobs, and process one inline when the caller
-passes `runNow: true`. `channelService.syncNow` / `onOtaConnected` run in the API
-request.
+A live adapter is the only path that reads inventory and calls `pushAri`.
+`ChannelReservationInbox` still does not create a `HotelBooking` — that waits
+on a certified OpenTravel adapter and an explicit OTA price exception.
 
-**What does not:** anything that drains the queue. A job created with
-`status: QUEUED` and a future `scheduledAt` is never picked up — there is no PM2
-worker, no cron, no relay consumer. `scheduledAt`, `attempts`, `startedAt` and
-`finishedAt` are written but nothing acts on them.
-
-**Deliberately not stubbed.** `.cursor/rules/architecture-modular-monolith.mdc`
-lists channel as *"planned: leave room; do not implement yet"*, and a stub worker
-that claims and fails jobs would be worse than none — retry counts would climb
-against an adapter that does not exist.
-
-**Before this is switched on:**
-- a PM2 cron entry alongside `safartrip-expire-holds`, claiming with a conditional
-  `UPDATE … WHERE status = 'QUEUED'` like the other workers
-- real OTA adapters (`ChannelReservationInbox` ingest already stops short of
-  creating bookings — see `channel.service.ts`)
-- backoff on `attempts`, and a dead-letter state
-- `/api/health` coverage, the way outbox and expire-holds have
+Still open before a real channel goes live:
+- partner HTTP inside the adapter (not the service)
+- backoff / dead-letter when a live push fails
+- creating a booking from an ingested reservation
 
 ## Next pick
 

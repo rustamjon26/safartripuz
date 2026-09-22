@@ -401,6 +401,7 @@ async function main() {
         pax: guests,
         status: "PENDING_PAYMENT",
         totalAmount: paymentSom,
+        totalAmountTiyin: amountTiyin,
         note: TEST_NOTE_PREFIX,
       },
     });

@@ -15,6 +15,7 @@ export const enqueueSyncSchema = z.object({
   kind: z
     .enum(["ARI_PUSH", "RESERVATION_PULL", "FULL_REFRESH", "MAPPING_PULL"])
     .default("FULL_REFRESH"),
+  runNow: z.boolean().optional(),
 });
 
 export const ingestReservationSchema = z.object({

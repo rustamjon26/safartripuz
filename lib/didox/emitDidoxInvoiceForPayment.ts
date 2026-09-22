@@ -34,7 +34,13 @@ function buildProductName(input: {
 }
 
 export async function emitDidoxInvoiceForPayment(paymentId: string): Promise<void> {
-  if (!process.env.DIDOX_PARTNER_TOKEN) return;
+  if (!process.env.DIDOX_PARTNER_TOKEN) {
+    console.warn(
+      "[Didox] DIDOX_PARTNER_TOKEN is not set — skipping factura for payment",
+      paymentId,
+    );
+    return;
+  }
 
   try {
     const payment = await prisma.payment.findUnique({

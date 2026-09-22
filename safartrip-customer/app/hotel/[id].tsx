@@ -78,6 +78,11 @@ export default function HotelDetailScreen() {
   const [picker, setPicker] = useState<"in" | "out" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const mountedRef = useRef(true);
+  const bookingKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `hotel-${Date.now()}`,
+  );
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -134,7 +139,7 @@ export default function HotelDetailScreen() {
         checkOut: toIso(checkOut),
         guests: g,
         roomCount: 1,
-      })) as {
+      }, { "Idempotency-Key": bookingKey.current })) as {
         data: {
           bookingId: string;
           planId: string;

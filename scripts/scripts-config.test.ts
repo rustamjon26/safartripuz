@@ -108,15 +108,13 @@ describe("create-click-test-booking.ts", () => {
 });
 
 describe("ChannelSyncJob", () => {
-  it("is recorded as not implemented, so the table is not mistaken for a queue", () => {
+  it("is drained by a cron, and the backlog still says adapters are dry-run", () => {
     const backlog = read("docs/BACKLOG.md");
-    expect(backlog).toContain("Channel / OTA sync — NOT IMPLEMENTED");
-    expect(backlog).toContain("ChannelSyncJob");
-  });
-
-  it("really has no worker draining it", () => {
-    // If this fails, a worker was added — update the backlog entry.
+    expect(backlog).toContain("Channel / OTA sync");
+    expect(backlog).toContain("dry-run");
+    expect(backlog).toContain("safartrip-channel-sync");
     const pm2 = read("ecosystem.config.js");
-    expect(pm2).not.toContain("channel");
+    expect(pm2).toContain("safartrip-channel-sync");
+    expect(pm2).toContain("scripts/channel-sync-drain.ts");
   });
 });

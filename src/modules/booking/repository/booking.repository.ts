@@ -1,4 +1,5 @@
 import type { BookingEventActor, BookingStatus, HotelBooking, Prisma } from "@prisma/client";
+import { Prisma as PrismaNs } from "@prisma/client";
 import { prisma } from "@/src/shared/db/prisma";
 
 export type Tx = Prisma.TransactionClient;
@@ -223,6 +224,45 @@ export class BookingRepository {
         endTime: true,
         status: true,
       },
+    });
+  }
+
+  async findIdempotencyKey(scope: string, actorId: string, key: string) {
+    return prisma.bookingIdempotencyKey.findUnique({
+      where: { scope_actorId_key: { scope, actorId, key } },
+    });
+  }
+
+  async deleteIdempotencyKey(scope: string, actorId: string, key: string): Promise<void> {
+    await prisma.bookingIdempotencyKey.deleteMany({
+      where: { scope, actorId, key },
+    });
+  }
+
+  async insertIdempotencyKey(scope: string, actorId: string, key: string): Promise<boolean> {
+    try {
+      await prisma.bookingIdempotencyKey.create({
+        data: { scope, actorId, key },
+      });
+      return true;
+    } catch (err) {
+      if (err instanceof PrismaNs.PrismaClientKnownRequestError && err.code === "P2002") {
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  async completeIdempotencyKey(
+    scope: string,
+    actorId: string,
+    key: string,
+    statusCode: number,
+    responseJson: Prisma.InputJsonValue,
+  ): Promise<void> {
+    await prisma.bookingIdempotencyKey.update({
+      where: { scope_actorId_key: { scope, actorId, key } },
+      data: { statusCode, responseJson },
     });
   }
 }

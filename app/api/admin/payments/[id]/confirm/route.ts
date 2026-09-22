@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { completeSuccessfulPaymentInTx } from "@/src/modules/booking";
@@ -9,8 +10,10 @@ export async function PATCH(req: Request, ctx: Ctx) {
   try {
     const actor = await requireRole(["admin", "super_admin"]);
     const { id } = await ctx.params;
-    const body = (await req.json().catch(() => ({}))) as { action?: string };
-    if (body.action !== "approve") {
+    const parsed = z.object({ action: z.literal("approve") }).safeParse(
+      await req.json().catch(() => null),
+    );
+    if (!parsed.success) {
       return NextResponse.json({ message: "action: approve kerak" }, { status: 400 });
     }
 

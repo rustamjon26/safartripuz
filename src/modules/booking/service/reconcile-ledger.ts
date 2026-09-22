@@ -3,7 +3,7 @@ import { Money } from "@/src/shared/money";
 import { LedgerTxType } from "@/src/modules/ledger";
 import { CAPTURED_PAYMENT_STATUSES } from "@/src/modules/payment";
 
-// TODO(taxi): DriverEarning ↔ ledger needs the same reconcile treatment later.
+// DriverEarning ↔ TAXI ledger is checked when `driverEarnings` is supplied.
 
 /** Legacy rows without a stamped payoutOwnerType (should be rare after migration default). */
 export const LEGACY_UNCLASSIFIED_PAYOUT_NOTE =
@@ -77,9 +77,20 @@ export type ReconcileLedgerEntryRow = {
 export type ReconcileLedgerTxRow = {
   id: string;
   bookingId: string | null;
+  bookingType?: string | null;
+  idempotencyKey?: string | null;
   type: string;
   createdAt: Date;
   entries: ReconcileLedgerEntryRow[];
+};
+
+export type ReconcileDriverEarningRow = {
+  id: string;
+  orderId: string;
+  grossTiyin: bigint;
+  platformFeeTiyin: bigint;
+  netTiyin: bigint;
+  createdAt: Date;
 };
 
 /**
@@ -102,7 +113,9 @@ export type ReconcileInput = {
   ledgerTxs: ReconcileLedgerTxRow[];
   /** Captured payments (SUCCESS + PENDING_REVIEW) with their posted clearing. */
   payments: ReconcilePaymentRow[];
-  /** All known booking ids across hotel/homestay/guide (+ optional legacy). */
+  /** Completed taxi trips. Omitted in older fixtures — those skip the taxi check. */
+  driverEarnings?: ReconcileDriverEarningRow[];
+  /** All known booking ids across hotel/homestay/guide/taxi (+ optional legacy). */
   knownBookingIds: Set<string>;
 };
 
@@ -170,9 +183,92 @@ function somDecimalToTiyin(value: { toString(): string }): bigint {
   return Money.fromSomNumber(value.toString()).toTiyin();
 }
 
+/** Prefer the stored tiyin column; fall back to the som Decimal until every row is backfilled. */
+function preferTiyin(
+  stored: bigint | null,
+  som: { toString(): string },
+): bigint {
+  return stored ?? somDecimalToTiyin(som);
+}
+
+function isTaxiLedgerTx(tx: ReconcileLedgerTxRow): boolean {
+  if (tx.bookingType === "TAXI") return true;
+  return (tx.idempotencyKey ?? "").startsWith("taxi:order:");
+}
+
+function clearingDebitTiyin(tx: ReconcileLedgerTxRow): bigint {
+  return tx.entries
+    .filter(
+      (e) =>
+        e.direction === "DEBIT" &&
+        e.accountType === "ASSET" &&
+        e.ownerType === "PLATFORM",
+    )
+    .reduce((sum, e) => sum + e.amount, 0n);
+}
+
+function reconcileDriverEarnings(
+  earnings: ReconcileDriverEarningRow[],
+  ledgerTxs: ReconcileLedgerTxRow[],
+): ReconcileFinding[] {
+  const findings: ReconcileFinding[] = [];
+  const taxiTxByOrder = new Map<string, ReconcileLedgerTxRow[]>();
+  for (const tx of ledgerTxs) {
+    if (!tx.bookingId || tx.type !== LedgerTxType.BOOKING_PAYMENT) continue;
+    if (!isTaxiLedgerTx(tx)) continue;
+    const list = taxiTxByOrder.get(tx.bookingId) ?? [];
+    list.push(tx);
+    taxiTxByOrder.set(tx.bookingId, list);
+  }
+
+  const earningOrders = new Set(earnings.map((e) => e.orderId));
+
+  for (const earning of earnings) {
+    const txs = taxiTxByOrder.get(earning.orderId) ?? [];
+    if (txs.length === 0) {
+      findings.push({
+        check: "SUM_MISMATCH",
+        bookingId: earning.orderId,
+        bookingType: "TAXI",
+        expected: earning.grossTiyin.toString(),
+        actual: "0",
+        deltaTiyin: earning.grossTiyin.toString(),
+        detail: "DriverEarning has no TAXI ledger BOOKING_PAYMENT",
+      });
+      continue;
+    }
+    const posted = txs.reduce((sum, tx) => sum + clearingDebitTiyin(tx), 0n);
+    if (posted !== earning.grossTiyin) {
+      findings.push({
+        check: "SUM_MISMATCH",
+        bookingId: earning.orderId,
+        bookingType: "TAXI",
+        expected: earning.grossTiyin.toString(),
+        actual: posted.toString(),
+        deltaTiyin: (earning.grossTiyin - posted).toString(),
+        detail: "DriverEarning gross != TAXI ledger clearing DEBIT",
+      });
+    }
+  }
+
+  for (const [orderId, txs] of taxiTxByOrder) {
+    if (earningOrders.has(orderId)) continue;
+    findings.push({
+      check: "SUM_MISMATCH",
+      bookingId: orderId,
+      bookingType: "TAXI",
+      expected: "DriverEarning",
+      actual: txs.map((tx) => tx.id).join(","),
+      detail: "TAXI ledger BOOKING_PAYMENT without DriverEarning",
+    });
+  }
+
+  return findings;
+}
+
 /**
- * Pure reconcile: Ledger ↔ PartnerEarning drift detection.
- * No I/O. Taxi/DriverEarning intentionally excluded.
+ * Pure reconcile: Ledger ↔ PartnerEarning, plus DriverEarning when supplied.
+ * No I/O.
  */
 export function reconcileLedgerPartnerEarnings(
   input: ReconcileInput,
@@ -424,9 +520,13 @@ export function reconcileLedgerPartnerEarnings(
   }
 
   // --- 5. Orphans ---
+  const knownIds = new Set(input.knownBookingIds);
+  for (const earning of input.driverEarnings ?? []) {
+    knownIds.add(earning.orderId);
+  }
   for (const pe of input.partnerEarnings) {
     if (pe.bookingType === "TAXI") continue;
-    if (!input.knownBookingIds.has(pe.bookingId)) {
+    if (!knownIds.has(pe.bookingId)) {
       findings.push({
         check: "ORPHAN_ENTRY",
         bookingId: pe.bookingId,
@@ -439,7 +539,7 @@ export function reconcileLedgerPartnerEarnings(
   }
   for (const tx of input.ledgerTxs) {
     if (!tx.bookingId) continue;
-    if (!input.knownBookingIds.has(tx.bookingId)) {
+    if (!knownIds.has(tx.bookingId)) {
       findings.push({
         check: "ORPHAN_ENTRY",
         bookingId: tx.bookingId,
@@ -452,6 +552,12 @@ export function reconcileLedgerPartnerEarnings(
 
   // --- 6. Captured money vs posted ledger ---
   findings.push(...reconcilePaymentsAgainstLedger(input.payments));
+
+  if (input.driverEarnings) {
+    findings.push(
+      ...reconcileDriverEarnings(input.driverEarnings, input.ledgerTxs),
+    );
+  }
 
   const counts = emptyCounts();
   for (const f of findings) {
@@ -480,6 +586,8 @@ type DbClient = Pick<
   | "partnerEarning"
   | "ledgerTransaction"
   | "payment"
+  | "driverEarning"
+  | "taxiOrder"
 >;
 
 /** Idempotency key written by completeSuccessfulPaymentInTx. */
@@ -502,7 +610,7 @@ export async function loadReconcileInput(
 ): Promise<ReconcileInput> {
   const createdFilter = since ? { gte: since } : undefined;
 
-  const [hotels, homestays, guides, legacy, earnings, ledgerTxs] =
+  const [hotels, homestays, guides, legacy, earnings, ledgerTxs, driverRows, taxiOrders] =
     await Promise.all([
       client.hotelBooking.findMany({
         where: createdFilter ? { createdAt: createdFilter } : undefined,
@@ -510,6 +618,7 @@ export async function loadReconcileInput(
           id: true,
           status: true,
           totalAmount: true,
+          totalAmountTiyin: true,
           createdAt: true,
           payoutOwnerType: true,
         },
@@ -520,6 +629,7 @@ export async function loadReconcileInput(
           id: true,
           status: true,
           totalPrice: true,
+          totalPriceTiyin: true,
           createdAt: true,
           payoutOwnerType: true,
         },
@@ -530,6 +640,7 @@ export async function loadReconcileInput(
           id: true,
           status: true,
           totalPrice: true,
+          totalPriceTiyin: true,
           createdAt: true,
           payoutOwnerType: true,
         },
@@ -559,6 +670,8 @@ export async function loadReconcileInput(
         select: {
           id: true,
           bookingId: true,
+          bookingType: true,
+          idempotencyKey: true,
           type: true,
           createdAt: true,
           entries: {
@@ -572,6 +685,21 @@ export async function loadReconcileInput(
           },
         },
       }),
+      client.driverEarning.findMany({
+        where: createdFilter ? { createdAt: createdFilter } : undefined,
+        select: {
+          id: true,
+          orderId: true,
+          grossAmount: true,
+          grossTiyin: true,
+          platformFee: true,
+          platformFeeTiyin: true,
+          netAmount: true,
+          netTiyin: true,
+          createdAt: true,
+        },
+      }),
+      client.taxiOrder.findMany({ select: { id: true } }),
     ]);
 
   const bookings: ReconcileBookingRow[] = [
@@ -579,7 +707,7 @@ export async function loadReconcileInput(
       id: b.id,
       bookingType: "HOTEL" as const,
       status: b.status,
-      grossTiyin: somDecimalToTiyin(b.totalAmount),
+      grossTiyin: preferTiyin(b.totalAmountTiyin, b.totalAmount),
       createdAt: b.createdAt,
       payoutOwnerType: b.payoutOwnerType,
     })),
@@ -587,7 +715,7 @@ export async function loadReconcileInput(
       id: b.id,
       bookingType: "HOMESTAY" as const,
       status: b.status,
-      grossTiyin: somDecimalToTiyin(b.totalPrice),
+      grossTiyin: preferTiyin(b.totalPriceTiyin, b.totalPrice),
       createdAt: b.createdAt,
       payoutOwnerType: b.payoutOwnerType,
     })),
@@ -595,7 +723,7 @@ export async function loadReconcileInput(
       id: b.id,
       bookingType: "GUIDE" as const,
       status: b.status,
-      grossTiyin: somDecimalToTiyin(b.totalPrice),
+      grossTiyin: preferTiyin(b.totalPriceTiyin, b.totalPrice),
       createdAt: b.createdAt,
       payoutOwnerType: b.payoutOwnerType,
     })),
@@ -604,6 +732,7 @@ export async function loadReconcileInput(
   const knownBookingIds = new Set<string>([
     ...bookings.map((b) => b.id),
     ...legacy.map((b) => b.id),
+    ...taxiOrders.map((o) => o.id),
   ]);
 
   // Captured payments and the clearing DEBIT actually posted for each. Not
@@ -683,6 +812,8 @@ export async function loadReconcileInput(
     ledgerTxs: ledgerTxs.map((tx) => ({
       id: tx.id,
       bookingId: tx.bookingId,
+      bookingType: tx.bookingType,
+      idempotencyKey: tx.idempotencyKey,
       type: tx.type,
       createdAt: tx.createdAt,
       entries: tx.entries.map((e) => ({
@@ -698,6 +829,14 @@ export async function loadReconcileInput(
       amountTiyin: p.amountTiyin,
       postedClearingTiyin: postedByPaymentId.get(p.id) ?? 0n,
       createdAt: p.createdAt,
+    })),
+    driverEarnings: driverRows.map((row) => ({
+      id: row.id,
+      orderId: row.orderId,
+      grossTiyin: preferTiyin(row.grossTiyin, row.grossAmount),
+      platformFeeTiyin: preferTiyin(row.platformFeeTiyin, row.platformFee),
+      netTiyin: preferTiyin(row.netTiyin, row.netAmount),
+      createdAt: row.createdAt,
     })),
     knownBookingIds,
   };

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { handleApiError, hasDriverProfile, hasVehicle, ok, onboardingResponse, requireTaxiDriver } from "../_utils";
 import type { DriverEarningStatus } from "@prisma/client";
+import { Money } from "@/src/shared/money";
 
 function monthRange(month: string) {
   const [yearRaw, monthRaw] = month.split("-");
@@ -67,10 +68,12 @@ export async function GET(req: Request) {
       }),
     ]);
 
+    const som = (value: { toString(): string } | null) =>
+      value == null ? 0 : Money.fromSomNumber(value.toString()).toSomNumber();
     const summary = {
-      totalGross: Number(aggregate._sum.grossAmount ?? 0),
-      totalFee: Number(aggregate._sum.platformFee ?? 0),
-      totalNet: Number(aggregate._sum.netAmount ?? 0),
+      totalGross: som(aggregate._sum.grossAmount),
+      totalFee: som(aggregate._sum.platformFee),
+      totalNet: som(aggregate._sum.netAmount),
     };
 
     return ok({

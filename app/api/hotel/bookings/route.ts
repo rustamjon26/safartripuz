@@ -5,7 +5,14 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import { encrypt, decrypt } from "@/lib/crypto";
-import { bookingService } from "@/src/modules/booking";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  abandonBookingIdempotency,
+  beginBookingIdempotency,
+  bookingService,
+  completeBookingIdempotency,
+  readIdempotencyKey,
+} from "@/src/modules/booking";
 import {
   InsufficientInventoryError,
   InventoryLockError,
@@ -96,8 +103,19 @@ const createReceptionBookingSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  let idemKey: string | null = null;
+  let idemClaimed = false;
+  let actorId: string | null = null;
   try {
     const actor = await requireRole(["hotel_manager", "receptionist"]);
+    actorId = actor.id;
+    if (!(await checkRateLimit(`reception-book:${actor.id}`, 30, 60_000))) {
+      return NextResponse.json(
+        { message: "Juda ko'p so'rov. Birozdan keyin urinib ko'ring." },
+        { status: 429 },
+      );
+    }
+    idemKey = readIdempotencyKey(req.headers.get("idempotency-key"));
     const ctx = await getApprovedHotelContextByUserId(actor.id);
     if (!ctx) return NextResponse.json({ message: "Hotel not found" }, { status: 404 });
 
@@ -190,6 +208,24 @@ export async function POST(req: Request) {
       );
     }
 
+    if (idemKey) {
+      const gate = await beginBookingIdempotency(
+        "hotel-reception-create",
+        actor.id,
+        idemKey,
+      );
+      if (gate.kind === "replay") {
+        return NextResponse.json(gate.body, { status: gate.statusCode });
+      }
+      if (gate.kind === "busy") {
+        return NextResponse.json(
+          { message: "So'rov bajarilmoqda. Biroz kuting." },
+          { status: 409 },
+        );
+      }
+      idemClaimed = true;
+    }
+
     let booking;
     try {
       booking = await bookingService.createConfirmedHotelBooking({
@@ -207,6 +243,10 @@ export async function POST(req: Request) {
         guests: encryptedGuests,
       });
     } catch (err) {
+      if (idemClaimed && idemKey) {
+        await abandonBookingIdempotency("hotel-reception-create", actor.id, idemKey);
+        idemClaimed = false;
+      }
       if (err instanceof InsufficientInventoryError) {
         return NextResponse.json(
           { message: "Tanlangan sanalarda bo'sh xonalar yetarli emas" },
@@ -239,8 +279,21 @@ export async function POST(req: Request) {
       include: { guests: true },
     });
 
-    return NextResponse.json({ booking: withGuests });
+    const payload = { booking: withGuests };
+    if (idemKey) {
+      await completeBookingIdempotency(
+        "hotel-reception-create",
+        actor.id,
+        idemKey,
+        200,
+        payload,
+      );
+    }
+    return NextResponse.json(payload);
   } catch (error) {
+    if (idemClaimed && idemKey && actorId) {
+      await abandonBookingIdempotency("hotel-reception-create", actorId, idemKey);
+    }
     console.error("Bookings POST Error:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }

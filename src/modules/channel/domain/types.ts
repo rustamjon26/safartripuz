@@ -42,6 +42,8 @@ export type ChannelSyncJobView = {
   startedAt: string | null;
   finishedAt: string | null;
   resultJson: unknown;
+  /** Stub adapter finished without calling an OTA. */
+  dryRun: boolean;
 };
 
 export type ChannelReservationView = {

@@ -70,5 +70,11 @@ export {
   computeGuestCancelRefund,
 } from "./domain/guest-cancel";
 export type { BookingActor, TransitionContext } from "./domain/types";
+export {
+  beginBookingIdempotency,
+  completeBookingIdempotency,
+  abandonBookingIdempotency,
+  readIdempotencyKey,
+} from "./service/idempotency.service";
 export { bookingRepository } from "./repository/booking.repository";
 export { bookingEventRepository } from "./repository/booking-event.repository";

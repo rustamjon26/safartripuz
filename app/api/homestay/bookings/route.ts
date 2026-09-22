@@ -7,6 +7,14 @@ import { HOMESTAY_ERRORS } from "@/lib/homestay/errors";
 import { fail, handleApiError, ok } from "../host/_utils";
 import { HOLD_TTL_MS, inventoryService } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
+import { somToTiyin } from "@/src/shared/money";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  abandonBookingIdempotency,
+  beginBookingIdempotency,
+  completeBookingIdempotency,
+  readIdempotencyKey,
+} from "@/src/modules/booking";
 
 const createBookingSchema = z.object({
   listingId: z.string().min(1),
@@ -65,6 +73,10 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`homestay-book:${actor.id}`, 8, 60_000))) {
+      return fail("Juda ko'p so'rov. Birozdan keyin urinib ko'ring.", 429);
+    }
+    const idemKey = readIdempotencyKey(req.headers.get("idempotency-key"));
     const parsed = createBookingSchema.safeParse(await req.json());
     if (!parsed.success) {
       return fail("listingId, checkIn, checkOut, guestCount are required", 400);
@@ -115,7 +127,21 @@ export async function POST(req: Request) {
       ...quote.snapshot,
     };
 
-    const booking = await inventoryService.withSerializableRetry(async (tx) => {
+    let idemClaimed = false;
+    if (idemKey) {
+      const gate = await beginBookingIdempotency("homestay-create", actor.id, idemKey);
+      if (gate.kind === "replay") {
+        return NextResponse.json(gate.body, { status: gate.statusCode });
+      }
+      if (gate.kind === "busy") {
+        return fail("So'rov bajarilmoqda. Biroz kuting.", 409);
+      }
+      idemClaimed = true;
+    }
+
+    let booking;
+    try {
+      booking = await inventoryService.withSerializableRetry(async (tx) => {
       // Lock listing row
       await tx.$queryRawUnsafe(
         `SELECT id FROM HomeStayListing WHERE id = ? FOR UPDATE`,
@@ -168,6 +194,7 @@ export async function POST(req: Request) {
                 pax: body.guestCount as number,
                 status: "PENDING_PAYMENT",
                 totalAmount: totalPrice,
+                totalAmountTiyin: somToTiyin(totalPrice),
                 note: "Auto-created from HomeStay booking",
               },
               select: { id: true },
@@ -185,6 +212,7 @@ export async function POST(req: Request) {
           nights,
           guestCount: body.guestCount as number,
           totalPrice,
+          totalPriceTiyin: somToTiyin(totalPrice),
           priceSnapshot,
           status: "PENDING",
           holdExpiresAt,
@@ -205,7 +233,10 @@ export async function POST(req: Request) {
       if (existingPendingPlan) {
         await tx.travelPlan.update({
           where: { id: travelPlanId },
-          data: { totalAmount: { increment: totalPrice } },
+          data: {
+            totalAmount: { increment: totalPrice },
+            totalAmountTiyin: { increment: somToTiyin(totalPrice) },
+          },
         });
       }
 
@@ -229,8 +260,18 @@ export async function POST(req: Request) {
 
       return created;
     });
+    } catch (error) {
+      if (idemClaimed && idemKey) {
+        await abandonBookingIdempotency("homestay-create", actor.id, idemKey);
+      }
+      throw error;
+    }
 
-    return ok(booking, 201);
+    const payload = { success: true, data: booking };
+    if (idemKey) {
+      await completeBookingIdempotency("homestay-create", actor.id, idemKey, 201, payload);
+    }
+    return NextResponse.json(payload, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "DATES_UNAVAILABLE") {
       return NextResponse.json(

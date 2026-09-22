@@ -1,7 +1,7 @@
 import { integrationService } from "@/src/modules/integration";
+import { inventoryService } from "@/src/modules/inventory";
 import { getChannelAdapter, isOtaProviderKey } from "../domain/adapters/registry";
 import type { AriDelta } from "../domain/adapter";
-import { assertSyncTransition } from "../domain/sync-status";
 import {
   enqueueSyncSchema,
   ingestReservationSchema,
@@ -94,13 +94,14 @@ export class ChannelService {
   ): Promise<ChannelSyncJobView> {
     const job = await channelRepository.getJob(hotelId, jobId);
     if (!job) throw new ChannelNotFoundError("Sync job topilmadi");
-    assertSyncTransition(job.status, "RUNNING");
+    if (job.status !== "QUEUED") return job;
 
-    await channelRepository.updateJob(jobId, {
-      status: "RUNNING",
-      startedAt: new Date(),
-      attempts: job.attempts + 1,
-    });
+    const claimed = await channelRepository.claimQueued(jobId);
+    if (!claimed) {
+      const current = await channelRepository.getJob(hotelId, jobId);
+      if (!current) throw new ChannelNotFoundError("Sync job topilmadi");
+      return current;
+    }
 
     try {
       if (!isOtaProviderKey(job.providerKey)) {
@@ -111,6 +112,25 @@ export class ChannelService {
         job.providerKey,
       );
       const adapter = getChannelAdapter(job.providerKey);
+
+      if (adapter.mode === "dry_run") {
+        const resultJson = {
+          dryRun: true,
+          live: false,
+          kind: job.kind,
+          message:
+            "OpenTravel adapter ulanmagan. Mavjudlik va bronlar tashqi kanalga yuborilmadi.",
+        };
+        await integrationService.markSync(hotelId, job.providerKey, {
+          ok: true,
+        });
+        return channelRepository.updateJob(jobId, {
+          status: "SUCCEEDED",
+          errorMessage: null,
+          resultJson,
+          finishedAt: new Date(),
+        });
+      }
 
       let resultJson: Record<string, unknown> = {};
 
@@ -154,14 +174,22 @@ export class ChannelService {
         const dateTo = new Date(today.getTime() + 30 * 86400000)
           .toISOString()
           .slice(0, 10);
-        const deltas: AriDelta[] = active.map((m) => ({
-          roomTypeId: m.roomTypeId,
-          externalRoomCode: m.externalRoomCode,
-          externalRateCode: m.externalRateCode,
-          dateFrom,
-          dateTo,
-          allotment: 0, // real allotment comes from inventory module later
-        }));
+        const deltas: AriDelta[] = [];
+        for (const m of active) {
+          const available = await inventoryService.minAvailableRooms(
+            m.roomTypeId,
+            new Date(`${dateFrom}T00:00:00.000Z`),
+            new Date(`${dateTo}T00:00:00.000Z`),
+          );
+          deltas.push({
+            roomTypeId: m.roomTypeId,
+            externalRoomCode: m.externalRoomCode,
+            externalRateCode: m.externalRateCode,
+            dateFrom,
+            dateTo,
+            allotment: available ?? 0,
+          });
+        }
 
         if (job.kind === "FULL_REFRESH") {
           const ping = await adapter.ping({
@@ -211,6 +239,24 @@ export class ChannelService {
         finishedAt: new Date(),
       });
     }
+  }
+
+  /** Claim and finish due QUEUED jobs. Used by the PM2 cron. */
+  async drainDue(limit = 20): Promise<{ due: number; ok: number; failed: number }> {
+    const due = await channelRepository.listDueQueued(limit);
+    let ok = 0;
+    let failed = 0;
+    for (const job of due) {
+      try {
+        const processed = await this.processJob(job.hotelId, job.id);
+        if (processed.status === "FAILED") failed += 1;
+        else ok += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`[channel-sync] job ${job.id} failed`, err);
+      }
+    }
+    return { due: due.length, ok, failed };
   }
 
   /** Enqueue + immediately process (useful for UI "Sinxronlash" button). */

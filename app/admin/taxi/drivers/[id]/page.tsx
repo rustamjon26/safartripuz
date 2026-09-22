@@ -10,6 +10,16 @@ import { ConfirmModal } from "@/components/admin/ConfirmModal";
 import { AdminKpiGridSkeleton } from "@/components/admin/AdminKpiGridSkeleton";
 import { TableSkeleton } from "@/components/admin/TableSkeleton";
 import { formatDate, formatDateTime } from "@/lib/formatDate";
+import { Money } from "@/src/shared/money";
+
+function sumSom(values: Array<number | string | null | undefined>): number {
+  const total = values.reduce((acc, value) => {
+    if (value == null || value === "") return acc;
+    const raw = typeof value === "number" ? value.toFixed(2) : value;
+    return acc + Money.fromSomNumber(raw).toTiyin();
+  }, 0n);
+  return Money.fromTiyin(total).toSomNumber();
+}
 
 type DriverPayload = {
   driver: {
@@ -93,9 +103,9 @@ export default function AdminTaxiDriverDetailPage() {
       const monthRes = await fetch(`/api/admin/taxi/drivers/${params.id}/earnings?month=${month}&limit=500`);
       const monthJson = await monthRes.json();
       const monthItems = (monthJson?.data || []) as Earning[];
-      setMonthGross(monthItems.reduce((sum, it) => sum + Number(it.grossAmount ?? 0), 0));
-      setMonthFee(monthItems.reduce((sum, it) => sum + Number(it.platformFee ?? 0), 0));
-      setMonthNet(monthItems.reduce((sum, it) => sum + Number(it.netAmount ?? 0), 0));
+      setMonthGross(sumSom(monthItems.map((it) => it.grossAmount)));
+      setMonthFee(sumSom(monthItems.map((it) => it.platformFee)));
+      setMonthNet(sumSom(monthItems.map((it) => it.netAmount)));
     } finally {
       setLoading(false);
     }

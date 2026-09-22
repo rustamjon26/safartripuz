@@ -19,7 +19,7 @@ set -euo pipefail
 cd /var/www/safar
 
 APP_USER="${DEPLOY_AS_USER:-safartrip}"
-PM2_APPS=(safartrip safartrip-outbox safartrip-expire-holds)
+PM2_APPS=(safartrip safartrip-outbox safartrip-expire-holds safartrip-channel-sync)
 
 # Root + safartrip each get their own PM2 daemon (~/.pm2). Deploying as root
 # then checking status as safartrip is how we got EADDRINUSE + two stacks on

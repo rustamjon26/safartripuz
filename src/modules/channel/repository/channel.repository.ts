@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/src/shared/db/prisma";
+import { isDryRunResult } from "../domain/dry-run";
 import type {
   ChannelReservationInboxStatus,
   ChannelReservationView,
@@ -54,6 +55,7 @@ function mapJob(r: {
     startedAt: r.startedAt?.toISOString() ?? null,
     finishedAt: r.finishedAt?.toISOString() ?? null,
     resultJson: r.resultJson,
+    dryRun: isDryRunResult(r.resultJson),
   };
 }
 
@@ -172,6 +174,33 @@ export const channelRepository = {
       take: limit,
     });
     return rows.map(mapJob);
+  },
+
+  async listDueQueued(
+    limit: number,
+  ): Promise<Array<{ id: string; hotelId: string }>> {
+    return prisma.channelSyncJob.findMany({
+      where: { status: "QUEUED", scheduledAt: { lte: new Date() } },
+      orderBy: { scheduledAt: "asc" },
+      take: limit,
+      select: { id: true, hotelId: true },
+    });
+  },
+
+  /**
+   * QUEUED → RUNNING, once. A second worker sees zero rows and leaves the job
+   * to whoever won the update.
+   */
+  async claimQueued(id: string): Promise<boolean> {
+    const updated = await prisma.channelSyncJob.updateMany({
+      where: { id, status: "QUEUED" },
+      data: {
+        status: "RUNNING",
+        startedAt: new Date(),
+        attempts: { increment: 1 },
+      },
+    });
+    return updated.count === 1;
   },
 
   async getJob(
