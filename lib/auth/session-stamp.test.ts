@@ -40,7 +40,7 @@ describe("password session reset", () => {
     const updateMany = vi.fn(async () => ({ count: 2 }));
     await revokeRefreshTokens({ refreshToken: { updateMany } }, "user-1");
     expect(updateMany).toHaveBeenCalledOnce();
-    expect(updateMany.mock.calls[0]?.[0]).toMatchObject({
+    expect(updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
