@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { authCookieOptions } from "@/lib/auth";
+import { revokeRefreshTokens, tokenVersionBump } from "@/lib/auth/session-stamp";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -71,12 +73,15 @@ export async function PATCH(req: Request) {
     // else: Google/OAuth account with empty password — allow first-time set.
 
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
-    await prisma.user.update({
-      where: { id: actor.id },
-      data: { password: passwordHash },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: actor.id },
+        data: { password: passwordHash, ...tokenVersionBump() },
+      });
+      await revokeRefreshTokens(tx, actor.id);
     });
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         message: hasExisting
           ? "Parol yangilandi"
@@ -85,6 +90,9 @@ export async function PATCH(req: Request) {
       },
       { status: 200 },
     );
+    res.cookies.set("access_token", "", { ...authCookieOptions, maxAge: 0 });
+    res.cookies.set("refresh_token", "", { ...authCookieOptions, maxAge: 0 });
+    return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {

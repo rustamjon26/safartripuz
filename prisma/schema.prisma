@@ -327,6 +327,8 @@ model User {
   password   String
   role       Role     @default(user)
   isBlocked  Boolean  @default(false)
+  /// Bumped on block, role, or password change so an already-issued access token stops opening pages.
+  tokenVersion Int    @default(0)
   /// Set when an identity provider proved ownership of `email`. A password-only
   /// signup never proves it, so those credentials lose to a verified Google login.
   emailVerifiedAt DateTime?

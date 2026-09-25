@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { authCookieOptions } from "@/lib/auth";
+import { revokeRefreshTokens, tokenVersionBump } from "@/lib/auth/session-stamp";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import bcrypt from "bcryptjs";
@@ -42,12 +44,18 @@ export async function PATCH(req: Request) {
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { password: passwordHash }
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { password: passwordHash, ...tokenVersionBump() },
+      });
+      await revokeRefreshTokens(tx, userId);
     });
 
-    return NextResponse.json({ message: "Parol muvaffaqiyatli o'zgartirildi" });
+    const res = NextResponse.json({ message: "Parol muvaffaqiyatli o'zgartirildi" });
+    res.cookies.set("access_token", "", { ...authCookieOptions, maxAge: 0 });
+    res.cookies.set("refresh_token", "", { ...authCookieOptions, maxAge: 0 });
+    return res;
   } catch (e) {
     return NextResponse.json({ message: "Server xatosi" }, { status: 500 });
   }
