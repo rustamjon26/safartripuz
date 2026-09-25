@@ -37,6 +37,20 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss",
     },
     {
+      name: "safartrip-channel-sync",
+      cwd: "/var/www/safar",
+      script: "npx",
+      args: "tsx scripts/channel-sync-drain.ts",
+      cron_restart: "*/1 * * * *",
+      autorestart: false,
+      env: {
+        NODE_ENV: "production",
+      },
+      error_file: "/var/www/safar/logs/safartrip-channel-sync-error.log",
+      out_file: "/var/www/safar/logs/safartrip-channel-sync-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+    },
+    {
       name: "safartrip-outbox",
       cwd: "/var/www/safar",
       script: "npx",

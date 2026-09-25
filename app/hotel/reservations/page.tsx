@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { hotelFetch } from "@/app/hotel/_lib/hotelFetch";
 
@@ -173,13 +173,22 @@ export default function HotelReservationsPage() {
     };
   }, [checkInDate, checkOutDate, roomTypeId]);
 
+  const bookingKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `reception-${Date.now()}`,
+  );
+
   async function createBooking(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
       const res = await hotelFetch("/api/hotel/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": bookingKey.current,
+        },
         body: JSON.stringify({
           guestName,
           guestPhone,

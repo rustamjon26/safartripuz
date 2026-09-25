@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -143,6 +143,12 @@ export default function HomeStayDetailPage() {
     void checkAvailability();
   }, [listing, checkIn, checkOut, guestCount]);
 
+  const bookingKey = useRef(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `homestay-${Date.now()}`,
+  );
+
   async function bookNow() {
     if (!listing) return;
     if (!checkIn || !checkOut) {
@@ -157,7 +163,10 @@ export default function HomeStayDetailPage() {
     try {
       const res = await fetch("/api/homestay/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": bookingKey.current,
+        },
         body: JSON.stringify({ listingId: listing.id, checkIn, checkOut, guestCount }),
       });
       const json = await res.json();

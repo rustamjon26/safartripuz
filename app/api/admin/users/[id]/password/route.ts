@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revokeRefreshTokens, tokenVersionBump } from "@/lib/auth/session-stamp";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import bcrypt from "bcryptjs";
@@ -21,15 +22,12 @@ export async function POST(
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    await prisma.user.update({
-      where: { id },
-      data: { password: passwordHash },
-    });
-
-    // Also revoke all refresh tokens on password change
-    await prisma.refreshToken.updateMany({
-      where: { userId: id, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { password: passwordHash, ...tokenVersionBump() },
+      });
+      await revokeRefreshTokens(tx, id);
     });
 
     return NextResponse.json({ ok: true });

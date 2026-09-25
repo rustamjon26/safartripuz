@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { revokeRefreshTokens, tokenVersionBump } from "@/lib/auth/session-stamp";
 import { requireRole } from "@/lib/authz";
 import { getApprovedHotelContextByUserId } from "@/lib/hotel";
 import {
@@ -138,12 +139,14 @@ export async function POST(req: Request): Promise<NextResponse> {
           where: { id: user.id },
           data: {
             role: jobRoleToPlatformRole(role),
+            ...tokenVersionBump(),
             password: passwordHash,
             first_name: firstName,
             last_name: lastName || user.last_name,
             phone: phone || user.phone,
           },
         });
+        await revokeRefreshTokens(tx, user.id);
       }
 
       const staff = await tx.hotelStaff.create({
@@ -242,15 +245,20 @@ export async function PATCH(req: Request): Promise<NextResponse> {
           select: { role: true },
         });
         if (linked && !isProtectedPlatformRole(linked.role)) {
+          const endsSession = Boolean(passwordHash) || data.role !== undefined;
           await tx.user.update({
             where: { id: existing.userId },
             data: {
               ...(data.role !== undefined
                 ? { role: jobRoleToPlatformRole(String(data.role)) }
                 : {}),
+              ...(endsSession ? tokenVersionBump() : {}),
               ...(passwordHash ? { password: passwordHash } : {}),
             },
           });
+          if (passwordHash) {
+            await revokeRefreshTokens(tx, existing.userId);
+          }
         } else if (passwordHash) {
           throw new Error("PROTECTED_PASSWORD");
         }
@@ -321,7 +329,7 @@ export async function DELETE(req: Request): Promise<NextResponse> {
         if (linked && !isProtectedPlatformRole(linked.role)) {
           await tx.user.update({
             where: { id: staff.userId },
-            data: { role: "user", isBlocked: true },
+            data: { role: "user", isBlocked: true, tokenVersion: { increment: 1 } },
           });
         }
       }

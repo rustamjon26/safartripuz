@@ -16,6 +16,7 @@ describe.skipIf(!hasDb)("health check", () => {
   const heartbeatKeys = [
     heartbeatKey(WORKERS.outboxRelay),
     heartbeatKey(WORKERS.expiryCron),
+    heartbeatKey(WORKERS.channelSync),
   ];
 
   async function beatAt(worker: string, at: Date) {
@@ -28,10 +29,11 @@ describe.skipIf(!hasDb)("health check", () => {
     );
   }
 
-  /** Both workers healthy, so a test can isolate the component it cares about. */
+  /** Workers healthy, so a test can isolate the component it cares about. */
   async function beatAllFresh() {
     await beatAt(WORKERS.outboxRelay, new Date());
     await beatAt(WORKERS.expiryCron, new Date());
+    await beatAt(WORKERS.channelSync, new Date());
   }
 
   function component(report: Awaited<ReturnType<typeof healthService.check>>, name: string) {
@@ -62,7 +64,7 @@ describe.skipIf(!hasDb)("health check", () => {
     await prisma.$disconnect();
   });
 
-  it("reports ok when both workers have beaten recently and the outbox is clear", async () => {
+  it("reports ok when workers have beaten recently and the outbox is clear", async () => {
     if (!ready) return;
     await beatAllFresh();
 
@@ -71,6 +73,7 @@ describe.skipIf(!hasDb)("health check", () => {
     expect(component(report, "outbox").status).toBe("ok");
     expect(component(report, "outbox-relay").status).toBe("ok");
     expect(component(report, "expiry-cron").status).toBe("ok");
+    expect(component(report, "channel-sync").status).toBe("ok");
   });
 
   it("reports unhealthy when an old unprocessed outbox row is sitting there", async () => {

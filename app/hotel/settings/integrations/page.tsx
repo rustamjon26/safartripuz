@@ -39,7 +39,14 @@ type SyncJob = {
   status: string;
   errorMessage: string | null;
   finishedAt: string | null;
+  dryRun?: boolean;
 };
+
+function jobLabel(job: SyncJob): string {
+  if (job.status === "SUCCEEDED" && job.dryRun) return "SINOV";
+  if (job.status === "QUEUED") return "NAVBAT";
+  return job.status;
+}
 
 function statusBadge(status: IntegrationStatus): { cls: string; label: string } {
   switch (status) {
@@ -129,7 +136,9 @@ export default function HotelIntegrationsPage() {
       if (!res.ok) throw new Error(data.message || "Ulanmadi");
       toast.success(
         data.syncJob
-          ? `${item.name} ulandi · sync ${data.syncJob.status}`
+          ? data.syncJob.dryRun
+            ? `${item.name} ulandi · sinov (kanalga yuborilmadi)`
+            : `${item.name} ulandi · sync ${data.syncJob.status}`
           : `${item.name} ulandi`,
       );
       await load();
@@ -179,7 +188,11 @@ export default function HotelIntegrationsPage() {
         message?: string;
       };
       if (!res.ok) throw new Error(data.message || "Sync xato");
-      toast.success(`Sync: ${data.job?.status ?? "ok"}`);
+      toast.success(
+        data.job?.dryRun
+          ? "Sinov: mavjudlik kanalga yuborilmadi"
+          : `Sync: ${data.job?.status ?? "ok"}`,
+      );
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xatolik");
@@ -331,8 +344,9 @@ export default function HotelIntegrationsPage() {
         </h2>
         {jobs.length === 0 ? (
           <p className="text-[13px] font-semibold text-[#64748B]">
-            Hali sync ishga tushmagan. OTA ulangandan keyin FULL_REFRESH
-            avtomatik navbatga tushadi.
+            Hali sync ishga tushmagan. Navbat har daqiqa yig‘iladi. Hozirgi
+            Booking.com, Expedia va Airbnb adapterlari sinov rejimida — tashqi
+            kanalga mavjudlik yuborilmaydi.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -344,7 +358,7 @@ export default function HotelIntegrationsPage() {
                 <span className="font-bold text-[#0d2137]">
                   {j.providerKey} · {j.kind}
                 </span>
-                <span className="text-[#006781]">{j.status}</span>
+                <span className="text-[#006781]">{jobLabel(j)}</span>
                 {j.errorMessage ? (
                   <span className="basis-full text-rose-600">{j.errorMessage}</span>
                 ) : null}

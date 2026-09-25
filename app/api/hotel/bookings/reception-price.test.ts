@@ -43,6 +43,11 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/src/modules/booking", () => ({
   bookingService: { createConfirmedHotelBooking: created },
+  // The route reads the header before pricing. These tests send no key.
+  readIdempotencyKey: () => null,
+  beginBookingIdempotency: async () => ({ kind: "proceed" as const }),
+  completeBookingIdempotency: async () => {},
+  abandonBookingIdempotency: async () => {},
 }));
 
 vi.mock("@/src/modules/inventory", () => ({

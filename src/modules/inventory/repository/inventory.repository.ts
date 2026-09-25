@@ -35,6 +35,29 @@ type LockedRow = {
 };
 
 export class InventoryRepository {
+  /**
+   * Smallest `availableRooms` in [from, to). Null when no inventory rows exist,
+   * so a caller can tell "not provisioned" from "sold out".
+   */
+  async minAvailableRooms(
+    roomTypeId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number | null> {
+    const rows = await prisma.inventory.findMany({
+      where: {
+        roomTypeId,
+        date: { gte: utcDateOnly(from), lt: utcDateOnly(to) },
+      },
+      select: { availableRooms: true },
+    });
+    if (rows.length === 0) return null;
+    return rows.reduce(
+      (min, row) => Math.min(min, row.availableRooms),
+      rows[0]?.availableRooms ?? 0,
+    );
+  }
+
   async countActivePhysicalRooms(
     roomTypeId: string,
     client: Tx | typeof prisma = prisma,

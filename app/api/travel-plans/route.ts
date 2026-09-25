@@ -15,6 +15,7 @@ import {
   InventoryLockError,
 } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
+import { somToTiyin } from "@/src/shared/money";
 
 const schema = z.object({
   destination: z.string().trim().min(2),
@@ -362,6 +363,7 @@ export async function POST(req: Request) {
             pax: input.pax,
             status: "PENDING_PAYMENT",
             totalAmount: total,
+            totalAmountTiyin: somToTiyin(total),
             note: input.note ?? null,
           },
         });
@@ -426,6 +428,7 @@ export async function POST(req: Request) {
               nights: days,
               guestCount: input.pax,
               totalPrice: verifiedHomestayTotal,
+              totalPriceTiyin: somToTiyin(verifiedHomestayTotal),
               priceSnapshot,
               status: "PENDING",
               holdExpiresAt,

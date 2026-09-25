@@ -23,13 +23,7 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const runNow =
-      typeof body === "object" &&
-      body &&
-      "runNow" in body &&
-      Boolean((body as { runNow?: boolean }).runNow);
-
-    const job = runNow
+    const job = parsed.data.runNow
       ? await channelService.syncNow(hotelId, parsed.data)
       : await channelService.enqueueSync(hotelId, parsed.data);
 

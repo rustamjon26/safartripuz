@@ -14,6 +14,7 @@ import { opsRepository } from "../repository/ops.repository";
 export const WORKERS = {
   outboxRelay: "outbox-relay",
   expiryCron: "expire-booking-holds",
+  channelSync: "channel-sync-drain",
 } as const;
 
 async function checkDatabase(): Promise<ComponentHealth> {
@@ -125,6 +126,7 @@ export class HealthService {
         await checkOutbox(now),
         await checkWorkerHeartbeat("outbox-relay", WORKERS.outboxRelay, now),
         await checkWorkerHeartbeat("expiry-cron", WORKERS.expiryCron, now),
+        await checkWorkerHeartbeat("channel-sync", WORKERS.channelSync, now),
       );
     }
 

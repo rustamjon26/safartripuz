@@ -28,6 +28,7 @@ export async function POST(req: Request) {
     }
     // Decimal via string — no float math on money.
     const amount = new Prisma.Decimal(String(parsed.data.amount));
+    const amountTiyin = Money.fromSomNumber(amount.toString()).toTiyin();
     if (amount.lte(0)) {
       return NextResponse.json({ message: "Summa noto'g'ri" }, { status: 400 });
     }
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
           hotelId: ctx.hotel.id,
           bookingId: booking.id,
           amount,
-          amountTiyin: Money.fromSomNumber(amount.toString()).toTiyin(),
+          amountTiyin,
           method: parsed.data.method,
         },
       });
@@ -53,7 +54,10 @@ export async function POST(req: Request) {
       // Atomic increment — safe under concurrent POSTs, no read-modify-write.
       await tx.hotelBooking.update({
         where: { id: booking.id },
-        data: { paidAmount: { increment: amount } },
+        data: {
+          paidAmount: { increment: amount },
+          paidAmountTiyin: { increment: amountTiyin },
+        },
       });
 
       return pay;

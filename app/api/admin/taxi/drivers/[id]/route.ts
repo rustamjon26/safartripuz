@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Money } from "@/src/shared/money";
 import { requireTaxiAdmin, unauthorizedResponse } from "../../_utils";
 
 type PatchInput = {
@@ -43,14 +44,17 @@ export async function GET(
 
     if (!driver) return NextResponse.json({ message: "Driver not found" }, { status: 404 });
 
+    const som = (value: { toString(): string } | null) =>
+      value == null ? 0 : Money.fromSomNumber(value.toString()).toSomNumber();
+
     return NextResponse.json(
       {
         driver,
         recentOrders,
         earningsSummary: {
-          totalGross: Number(earningStats._sum.grossAmount ?? 0),
-          totalFee: Number(earningStats._sum.platformFee ?? 0),
-          totalNet: Number(earningStats._sum.netAmount ?? 0),
+          totalGross: som(earningStats._sum.grossAmount),
+          totalFee: som(earningStats._sum.platformFee),
+          totalNet: som(earningStats._sum.netAmount),
         },
       },
       { status: 200 },

@@ -13,6 +13,7 @@ import type { OtaProviderKey } from "../types";
 export function createStubAdapter(providerKey: OtaProviderKey): ChannelAdapter {
   return {
     providerKey,
+    mode: "dry_run",
     async ping(ctx): Promise<AdapterResult> {
       if (!ctx.externalHotelId) {
         return {

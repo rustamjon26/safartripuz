@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { Money } from "@/src/shared/money";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const schema = z.object({
   travelPlanId: z.string(),
@@ -13,6 +14,12 @@ const schema = z.object({
 export async function POST(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`pay-intent:${actor.id}`, 10, 60_000))) {
+      return NextResponse.json(
+        { message: "Juda ko'p so'rov. Birozdan keyin urinib ko'ring." },
+        { status: 429 },
+      );
+    }
     const json = await req.json();
     const parsed = schema.safeParse(json);
     if (!parsed.success) {

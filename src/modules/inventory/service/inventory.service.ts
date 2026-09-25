@@ -78,6 +78,15 @@ export class InventoryService {
     );
   }
 
+  /** Lowest nightly availability in [from, to). Null if the range has no rows. */
+  async minAvailableRooms(
+    roomTypeId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number | null> {
+    return inventoryRepository.minAvailableRooms(roomTypeId, from, to);
+  }
+
   /** Full reserve in its own Serializable transaction with deadlock retry. */
   async reserveWithRetry(input: ReserveInput): Promise<void> {
     let lastError: unknown;

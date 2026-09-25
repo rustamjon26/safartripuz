@@ -7,8 +7,7 @@
  *
  * Exit 0 if clean (no drift), 1 if any drift finding.
  * NEVER writes to the DB — detection only (no --fix).
- *
- * TODO(taxi): DriverEarning ↔ ledger needs the same treatment later.
+ * DriverEarning is compared to TAXI ledger BOOKING_PAYMENT rows.
  */
 import { prisma } from "../lib/prisma";
 import {

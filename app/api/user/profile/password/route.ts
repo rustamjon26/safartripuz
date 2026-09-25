@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { authCookieOptions } from "@/lib/auth";
+import { revokeRefreshTokens, tokenVersionBump } from "@/lib/auth/session-stamp";
 import { requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const bodySchema = z.object({
   /** Required when the account already has a password. */
@@ -20,6 +23,12 @@ function hasPasswordHash(password: string | null | undefined): boolean {
 export async function PATCH(req: Request) {
   try {
     const actor = await requireUser();
+    if (!(await checkRateLimit(`password:${actor.id}`, 5, 10 * 60_000))) {
+      return NextResponse.json(
+        { message: "Juda ko'p urinish. 10 daqiqadan so'ng qayta urining." },
+        { status: 429 },
+      );
+    }
     const parsed = bodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(
@@ -64,12 +73,15 @@ export async function PATCH(req: Request) {
     // else: Google/OAuth account with empty password — allow first-time set.
 
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
-    await prisma.user.update({
-      where: { id: actor.id },
-      data: { password: passwordHash },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: actor.id },
+        data: { password: passwordHash, ...tokenVersionBump() },
+      });
+      await revokeRefreshTokens(tx, actor.id);
     });
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         message: hasExisting
           ? "Parol yangilandi"
@@ -78,6 +90,9 @@ export async function PATCH(req: Request) {
       },
       { status: 200 },
     );
+    res.cookies.set("access_token", "", { ...authCookieOptions, maxAge: 0 });
+    res.cookies.set("refresh_token", "", { ...authCookieOptions, maxAge: 0 });
+    return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Server xatosi";
     if (msg === "UNAUTHORIZED") {

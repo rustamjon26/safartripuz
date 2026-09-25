@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
+import { Money, somToTiyin } from "@/src/shared/money";
 
 const schema = z.object({
   startDate: z.string().datetime(),
@@ -33,7 +34,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const end = new Date(start);
     end.setDate(end.getDate() + tour.days);
     
-    const totalAmount = Number(tour.price) * pax;
+    const totalAmountTiyin = somToTiyin(tour.price.toString()) * BigInt(pax);
+    const totalAmount = Money.fromTiyin(totalAmountTiyin).toSomNumber();
     
     const plan = await prisma.travelPlan.create({
       data: {
@@ -45,6 +47,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         pax,
         status: "PENDING_PAYMENT",
         totalAmount,
+        totalAmountTiyin,
         note: `Tayyor paket: ${tour.title}`
       }
     });

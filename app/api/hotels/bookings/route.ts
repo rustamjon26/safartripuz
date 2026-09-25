@@ -1,15 +1,23 @@
 import type { Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUserWithProfile } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { fail, handleApiError, ok } from "../_utils";
-import { bookingService } from "@/src/modules/booking";
+import { fail, handleApiError } from "../_utils";
+import { checkRateLimit } from "@/lib/rateLimit";
+import {
+  abandonBookingIdempotency,
+  beginBookingIdempotency,
+  bookingService,
+  completeBookingIdempotency,
+  readIdempotencyKey,
+} from "@/src/modules/booking";
 import {
   InsufficientInventoryError,
   InventoryLockError,
 } from "@/src/modules/inventory";
 import { ratesService } from "@/src/modules/rates";
-import { Money } from "@/src/shared/money";
+import { Money, somToTiyin } from "@/src/shared/money";
 
 const createBookingSchema = z.object({
   hotelId: z.string().min(1),
@@ -32,6 +40,10 @@ function calcNights(start: Date, end: Date) {
 export async function POST(req: Request) {
   try {
     const actor = await requireUserWithProfile();
+    if (!(await checkRateLimit(`hotel-book:${actor.id}`, 8, 60_000))) {
+      return fail("Juda ko'p so'rov. Birozdan keyin urinib ko'ring.", 429);
+    }
+    const idemKey = readIdempotencyKey(req.headers.get("idempotency-key"));
     const parsed = createBookingSchema.safeParse(await req.json());
     if (!parsed.success) {
       return fail("hotelId, roomTypeId, checkIn, checkOut majburiy", 400);
@@ -99,6 +111,17 @@ export async function POST(req: Request) {
 
     // Critical section: inventory lock + HELD booking (no payment network calls).
     // Payme auto-cancels unconfirmed txs after 12h; our hold is 15 minutes.
+    let idemClaimed = false;
+    if (idemKey) {
+      const gate = await beginBookingIdempotency("hotel-guest-create", actor.id, idemKey);
+      if (gate.kind === "replay") {
+        return NextResponse.json(gate.body, { status: gate.statusCode });
+      }
+      if (gate.kind === "busy") {
+        return fail("So'rov bajarilmoqda. Biroz kuting.", 409);
+      }
+      idemClaimed = true;
+    }
     let booking;
     try {
       booking = await bookingService.createHeldHotelBooking({
@@ -126,6 +149,9 @@ export async function POST(req: Request) {
       );
       setMoneyPathContext({ bookingId: booking.id });
     } catch (err) {
+      if (idemClaimed && idemKey) {
+        await abandonBookingIdempotency("hotel-guest-create", actor.id, idemKey);
+      }
       if (err instanceof InsufficientInventoryError) {
         return fail("Tanlangan sanalarda bo'sh xonalar yetarli emas", 409);
       }
@@ -146,6 +172,7 @@ export async function POST(req: Request) {
           pax: guestCount,
           status: "PENDING_PAYMENT",
           totalAmount,
+          totalAmountTiyin: somToTiyin(totalAmount),
           note: body.note?.trim() || null,
         },
       });
@@ -201,8 +228,9 @@ export async function POST(req: Request) {
             ? `/payments/manual/${payment.id}`
             : `/payments/checkout/${plan.id}`;
 
-      return ok(
-        {
+      const payload = {
+        success: true,
+        data: {
           bookingId: booking.id,
           planId: plan.id,
           paymentId: payment.id,
@@ -210,9 +238,21 @@ export async function POST(req: Request) {
           paymentUrl,
           status: "PENDING_PAYMENT",
         },
-        201,
-      );
+      };
+      if (idemKey) {
+        await completeBookingIdempotency(
+          "hotel-guest-create",
+          actor.id,
+          idemKey,
+          201,
+          payload,
+        );
+      }
+      return NextResponse.json(payload, { status: 201 });
     } catch (err) {
+      if (idemClaimed && idemKey) {
+        await abandonBookingIdempotency("hotel-guest-create", actor.id, idemKey);
+      }
       try {
         await bookingService.cancelAndRelease(booking.id, {
           actor: "SYSTEM",
